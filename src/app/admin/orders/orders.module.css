@@ -1,0 +1,54 @@
+/* 受注管理ページ専用スタイル */
+
+.statusCell {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.statusLine {
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.statusLine:not(:last-child) {
+  margin-bottom: 4px;
+}
+
+.pendingShipping {
+  background-color: #8b3a47;
+}
+
+.pendingShipping:hover {
+  background-color: #6f2f39;
+}
+
+.stats {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  gap: 30px;
+}
+
+.stats p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.stats strong {
+  font-size: 18px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

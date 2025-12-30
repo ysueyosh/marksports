@@ -1,0 +1,182 @@
+.header {
+  background-color: #1f2937;
+  border-bottom: 1px solid #111827;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: var(--z-header);
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 80px;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-align-items: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.logoSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menuButton {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.menuButton:hover {
+  background-color: #374151;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.siteLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #374151;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.siteLink:hover {
+  background-color: #4b5563;
+}
+
+.externalIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.logoutButton {
+  padding: 8px 16px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.logoutButton:hover {
+  background-color: #dc2626;
+}
+
+.logoutText {
+  display: inline;
+}
+
+.logoutIcon {
+  display: none;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .menuButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .container {
+    height: 60px;
+    gap: 12px;
+    padding: 0 12px;
+  }
+
+  .logo {
+    font-size: 18px;
+  }
+
+  .headerActions {
+    gap: 8px;
+  }
+
+  .siteLink {
+    padding: 6px 12px;
+  }
+
+  .logoutButton {
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    height: 50px;
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 14px;
+  }
+
+  .headerActions {
+    gap: 4px;
+  }
+
+  .siteLink {
+    padding: 8px;
+    font-size: 0;
+  }
+
+  .siteLink svg {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+  }
+
+  .logoutButton {
+    padding: 8px;
+    gap: 0;
+  }
+
+  .logoutText {
+    display: none !important;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  .logoutIcon {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+}

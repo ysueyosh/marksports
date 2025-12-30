@@ -1,0 +1,120 @@
+.footer {
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  margin-top: 80px;
+  padding: 40px 20px 20px 20px;
+  margin-left: 280px; /* サイドバーの幅分 */
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 40px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+}
+
+.column h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+}
+
+.column ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.column li {
+  margin-bottom: 12px;
+}
+
+.column li:last-child {
+  margin-bottom: 0;
+}
+
+.column a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+.column a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.column p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+  line-height: 1.8;
+}
+
+.column p:last-child {
+  margin-bottom: 0;
+}
+
+.adminLink {
+  display: inline-block;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.3s;
+}
+
+.adminLink:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.divider {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 1024px) {
+  .container {
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer {
+    margin-top: 60px;
+    padding: 30px 15px 15px 15px;
+    margin-left: 0; /* モバイルではサイドバーがオーバーレイなので余白不要 */
+  }
+
+  .container {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .column h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .column {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+  }
+
+  .column:last-child {
+    border-bottom: none;
+  }
+}

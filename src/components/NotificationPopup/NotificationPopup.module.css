@@ -1,0 +1,134 @@
+.popup {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: var(--z-modal);
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.closeButton:hover {
+  color: #1f2937;
+}
+
+.notificationList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+  margin: 0;
+}
+
+.notificationItem {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.notificationItem:hover {
+  background-color: #f9fafb;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.itemHeader h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+  word-break: break-word;
+}
+
+.content {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.date {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.footer {
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.viewAllLink {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.viewAllLink:hover {
+  color: #1d4ed8;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .popup {
+    top: 50px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}

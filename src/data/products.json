@@ -1,0 +1,94 @@
+[
+  {
+    "id": "1",
+    "name": "バレーボール 練習用",
+    "price": 3980,
+    "originalPrice": 5000,
+    "discount": "20%OFF",
+    "brand": "スポーツブランドA",
+    "color": "白×青",
+    "material": "合成皮革",
+    "level": "初心者から中級者向け",
+    "category": "volley"
+  },
+  {
+    "id": "2",
+    "name": "バレーシューズ",
+    "price": 7980,
+    "originalPrice": 9800,
+    "discount": "18%OFF",
+    "brand": "スポーツブランドB",
+    "color": "黒×白",
+    "material": "メッシュ＋合成皮革",
+    "level": "中級者向け",
+    "category": "volley"
+  },
+  {
+    "id": "3",
+    "name": "バスケットボール 公式サイズ",
+    "price": 6480,
+    "originalPrice": 8000,
+    "discount": "19%OFF",
+    "brand": "スポーツブランドC",
+    "color": "オレンジ",
+    "material": "ラバー",
+    "level": "初心者から上級者向け",
+    "category": "basketball"
+  },
+  {
+    "id": "4",
+    "name": "バスケットシューズ ハイカット",
+    "price": 9800,
+    "originalPrice": 12000,
+    "discount": "18%OFF",
+    "brand": "スポーツブランドD",
+    "color": "赤×黒",
+    "material": "合成皮革",
+    "level": "中級者から上級者向け",
+    "category": "basketball"
+  },
+  {
+    "id": "5",
+    "name": "卓球ラケット 初心者向け",
+    "price": 2980,
+    "originalPrice": 4000,
+    "discount": "25%OFF",
+    "brand": "スポーツブランドE",
+    "color": "黒",
+    "material": "木材＋ラバー",
+    "level": "初心者向け",
+    "category": "ping-pong"
+  },
+  {
+    "id": "6",
+    "name": "卓球ボール 40mm 6個入",
+    "price": 1480,
+    "originalPrice": 1800,
+    "discount": "17%OFF",
+    "brand": "スポーツブランドF",
+    "color": "白",
+    "material": "プラスチック",
+    "level": "初心者から上級者向け",
+    "category": "ping-pong"
+  },
+  {
+    "id": "7",
+    "name": "スポーツタオル",
+    "price": 1500,
+    "brand": "スポーツブランドA",
+    "color": "white",
+    "material": "綿 100%",
+    "level": "全ての水準対応",
+    "category": "volley"
+  },
+  {
+    "id": "8",
+    "name": "スポーツバッグ",
+    "price": 3500,
+    "brand": "スポーツブランドB",
+    "color": "black",
+    "material": "ポリエステル",
+    "level": "全水準対応",
+    "category": "basketball"
+  }
+]

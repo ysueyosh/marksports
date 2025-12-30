@@ -1,0 +1,101 @@
+.snackbar {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  max-width: 400px;
+  padding: 16px 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease, slideDown 0.3s ease 2.7s forwards;
+  z-index: 9998;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+}
+
+.message {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.closeButton:hover {
+  opacity: 1;
+}
+
+/* Success */
+.success {
+  background-color: #4caf50;
+  color: white;
+}
+
+/* Error */
+.error {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Info */
+.info {
+  background-color: #2196f3;
+  color: white;
+}
+
+/* Warning */
+.warning {
+  background-color: #ff9800;
+  color: white;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .snackbar {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .snackbar {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+}

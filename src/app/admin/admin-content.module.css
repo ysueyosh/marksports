@@ -1,0 +1,735 @@
+.container {
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 30px 0;
+}
+
+.headerButtons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.searchBox {
+  margin-bottom: 20px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1f2937;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filterBox {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.searchControls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filterSelect {
+  min-width: 150px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1f2937;
+  background-color: white;
+  cursor: pointer;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.primaryButton {
+  padding: 10px 20px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.primaryButton:hover {
+  background-color: #2563eb;
+}
+
+.secondaryButton {
+  padding: 10px 20px;
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-right: 8px;
+}
+
+.secondaryButton:hover {
+  background-color: #e5e7eb;
+}
+
+.secondaryButton.danger {
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.secondaryButton.danger:hover {
+  background-color: #fee2e2;
+}
+
+.formBox {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 30px;
+}
+
+.formBox h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 20px 0;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.formGroup label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+.formGroup input,
+.formGroup textarea,
+.formGroup select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1f2937;
+  background-color: white;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.formGroup input:focus,
+.formGroup textarea:focus,
+.formGroup select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.fileInput {
+  padding: 8px !important;
+  cursor: pointer;
+}
+
+.imagePreview {
+  margin-top: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+.imagePreview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid #e5e7eb;
+}
+
+.subImagesContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.subImageWrapper {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.subImageWrapper img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+}
+
+.removeButton {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.removeButton:hover {
+  background-color: #dc2626;
+}
+
+.formActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.tableContainer {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  background-color: #f9fafb;
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #4b5563;
+}
+
+/* 商品行のボーダー削除（カテゴリ行の直前）- 商品管理テーブルのみ */
+.table tbody tr.productRow td {
+  border-bottom: none;
+}
+
+/* 商品行のアクション列はボーダーを表示 */
+.table tbody tr.productRow td:last-child {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.categoryRow {
+  background-color: white;
+}
+
+.categoryRow td {
+  padding: 4px 16px 12px 16px;
+  border-top: none;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.categoryCell {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.descriptionCell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ホバー時に商品行とカテゴリ行の両方に反応 */
+.table tbody tr:not(.categoryRow):hover,
+.table tbody tr:not(.categoryRow):hover + .categoryRow {
+  background-color: #f9fafb;
+}
+
+.table tbody tr.categoryRow:hover {
+  background-color: #f9fafb;
+}
+
+.table tbody tr.hovered {
+  background-color: #f9fafb;
+}
+
+.table tbody tr.pendingShipping {
+  background-color: #fee2e2;
+}
+
+.table tbody tr.pendingShipping:hover {
+  background-color: #fecaca;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.statusCell {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.statusLine {
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.statusLine:not(:last-child) {
+  margin-bottom: 4px;
+}
+
+.statusSelect {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1f2937;
+  background-color: white;
+  cursor: pointer;
+}
+
+.statusSelect:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge.suspended {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 30px 0;
+}
+
+.paginationButton {
+  padding: 10px 16px;
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageNumbers {
+  display: flex;
+  gap: 4px;
+}
+
+.pageNumber {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.pageNumber:hover {
+  background-color: #e5e7eb;
+}
+
+.pageNumber.active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+  font-weight: 600;
+}
+
+.stats {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  gap: 30px;
+}
+
+.stats p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.stats strong {
+  font-size: 18px;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.statCard {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+}
+
+.statCard h3 {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+  font-weight: 500;
+}
+
+.statNumber {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.statSubtext {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.rangeSelect {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1f2937;
+  background-color: white;
+  cursor: pointer;
+}
+
+.chartContainer {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 30px;
+}
+
+.chartTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 20px 0;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 250px;
+  gap: 12px;
+}
+
+.chartBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+}
+
+.bar {
+  width: 100%;
+  max-width: 40px;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 4px 4px 0 0;
+  transition: background 0.2s;
+  cursor: pointer;
+  min-height: 20px;
+}
+
+.bar:hover {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.chartBar label {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+  padding: 16px;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.paginationButton {
+  padding: 8px 16px;
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 500;
+  min-width: 200px;
+  text-align: center;
+}
+
+.notificationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.notificationCard {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.notificationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.notificationHeader h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+}
+
+.notificationDate {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.notificationContent {
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0 0 16px 0;
+}
+
+.notificationActions {
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  /* タブレット：商品管理テーブル専用 - 説明列非表示 */
+  .table tbody tr.productRow td:nth-child(4),
+  .table thead tr th:nth-child(4) {
+    display: none;
+  }
+
+  /* タブレット：受注管理テーブル - 金額列表示 */
+  .table tbody tr:not(.categoryRow) td:nth-child(3),
+  .table thead th:nth-child(3) {
+    display: table-cell;
+  }
+
+  /* タブレット：ボタンサイズ小さく */
+  .secondaryButton {
+    padding: 8px 16px;
+    font-size: 13px;
+    margin-right: 6px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* スマホ：商品管理テーブル専用 - 説明列と在庫列非表示 */
+  .table tbody tr.productRow td:nth-child(4),
+  .table tbody tr.productRow td:nth-child(5) {
+    display: none;
+  }
+
+  .table thead th:nth-child(4),
+  .table thead th:nth-child(5) {
+    display: none;
+  }
+
+  /* スマホ：受注管理テーブル - 金額列非表示 */
+  .table tbody tr:not(.categoryRow) td:nth-child(3) {
+    display: none;
+  }
+
+  .table thead th:nth-child(3) {
+    display: none;
+  }
+
+  /* スマホ：ボタンサイズさらに小さく */
+  .secondaryButton {
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-right: 4px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .table {
+    font-size: 12px;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px 12px;
+  }
+
+  .table tbody tr:has(+ .categoryRow) td {
+    border-bottom: none;
+  }
+
+  .categoryRow td {
+    padding: 4px 12px 12px 12px;
+  }
+
+  .stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .chart {
+    height: 200px;
+  }
+}

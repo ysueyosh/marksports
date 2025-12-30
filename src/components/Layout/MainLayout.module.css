@@ -1,0 +1,56 @@
+.layoutWithSidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.content {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex: 1;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  padding: 40px 20px;
+  padding-top: 100px; /* ヘッダー高さ分(80px)＋余白 */
+  background-color: var(--bg-primary);
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-left: 0;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+.main.sidebarClosed {
+  margin-left: 0;
+}
+
+.bannerContainer {
+  padding: 0 20px;
+  margin: 0 -20px 12px -20px;
+}
+
+/* PC画面ではサイドバーは常に開いている */
+@media (min-width: 769px) {
+  .main {
+    margin-left: 280px; /* サイドバーの幅分 */
+  }
+
+  .main.sidebarClosed {
+    margin-left: 280px; /* 常に280pxを保つ */
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 20px 12px;
+    padding-top: 100px;
+    margin-left: 0; /* モバイルではマージンなし */
+  }
+
+  .main.sidebarClosed {
+    margin-left: 0; /* サイドバー閉じた時も常に0 */
+  }
+}

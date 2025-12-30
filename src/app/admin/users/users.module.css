@@ -1,0 +1,47 @@
+/* ユーザー管理ページ専用スタイル */
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.active {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge.suspended {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.stats {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  gap: 30px;
+}
+
+.stats p {
+  margin: 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.stats strong {
+  font-size: 18px;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

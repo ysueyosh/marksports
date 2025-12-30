@@ -1,0 +1,49 @@
+.popperContainer {
+  display: inline-block;
+  position: relative;
+  margin-left: 4px;
+}
+
+.iconButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  color: #93c5fd;
+  transition: color 0.2s;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.iconButton:hover {
+  color: #3b82f6;
+}
+
+.popover {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1f2937;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  width: 200px;
+  z-index: 10;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.popover::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #1f2937;
+}

@@ -1,0 +1,316 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.breadcrumb a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb span {
+  color: var(--text-secondary);
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 32px;
+}
+
+.notLoggedIn {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.notLoggedIn h1 {
+  margin-bottom: 16px;
+}
+
+.notLoggedIn p {
+  margin-bottom: 32px;
+  color: var(--text-secondary);
+}
+
+.backButton {
+  display: inline-block;
+  padding: 10px 16px;
+  background: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+.backButton:hover {
+  background: var(--primary-dark);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.emptyState p {
+  margin-bottom: 24px;
+  color: var(--text-secondary);
+  font-size: 18px;
+}
+
+.browseButton {
+  display: inline-block;
+  padding: 12px 24px;
+  background: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+.browseButton:hover {
+  background: var(--primary-dark);
+}
+
+.ordersContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.orderCard {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  overflow: hidden;
+}
+
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.orderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orderId {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.orderDate {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.status {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.statusCompleted {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.statusPending {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.statusCancelled {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.orderItems {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.itemsHeader {
+  display: grid;
+  grid-template-columns: 1fr 100px 150px;
+  gap: 16px;
+  padding: 12px 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.itemRow {
+  display: grid;
+  grid-template-columns: 1fr 100px 150px;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+}
+
+.itemRow:last-child {
+  border-bottom: none;
+}
+
+.itemName {
+  color: var(--text-primary);
+}
+
+.productLink {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.productLink:hover {
+  text-decoration: underline;
+}
+
+.itemQuantity {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.itemPrice {
+  text-align: right;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.orderFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+}
+
+.totalAmount {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.totalPrice {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.detailButton {
+  padding: 8px 16px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.detailButton:hover {
+  background: var(--primary-dark);
+}
+
+.receiptButton {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.receiptButton:hover {
+  background: var(--primary-dark);
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.pageButton {
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.pageButton:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+}
+
+.pageButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageNumbers {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pageNumber {
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.pageNumber:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.pageNumber.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}

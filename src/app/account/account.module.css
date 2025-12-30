@@ -1,0 +1,203 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.breadcrumb {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.breadcrumb a {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.notLoggedIn {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.notLoggedIn h1 {
+  margin-bottom: 16px;
+}
+
+.notLoggedIn p {
+  margin-bottom: 32px;
+  color: var(--text-secondary);
+}
+
+.profileSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.profileCard {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.profileHeader {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.profileHeader h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.profileCard h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.profileInfo {
+  margin-bottom: 0px;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.value {
+  color: var(--text-secondary);
+}
+
+.editButton {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.editButton:hover {
+  background: var(--accent-hover);
+}
+
+.menuCard {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menuCard h2 {
+  font-size: 18px;
+  margin: 0 0 16px 0;
+  color: var(--text-primary);
+}
+
+.menuList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menuList li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.menuList li:last-child {
+  border-bottom: none;
+}
+
+.menuList a {
+  color: var(--primary-color);
+  text-decoration: none;
+  display: block;
+  transition: color 0.3s ease;
+}
+
+.menuList a:hover {
+  text-decoration: underline;
+}
+
+.logoutButton {
+  padding: 12px 24px;
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.logoutButton:hover {
+  background-color: #cc0000;
+}
+
+.backButton {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 10px 16px;
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.backButton:hover {
+  background-color: var(--primary-dark);
+}
+
+@media (max-width: 768px) {
+  .profileSection {
+    grid-template-columns: 1fr;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .container {
+    padding: 16px;
+  }
+}

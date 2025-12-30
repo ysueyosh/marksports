@@ -1,0 +1,242 @@
+/* 商品管理ページ専用スタイル */
+
+.imagePreview {
+  margin-top: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+.imagePreview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid #e5e7eb;
+}
+
+.subImagesContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.subImageWrapper {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.subImageWrapper img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+}
+
+.removeButton {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.removeButton:hover {
+  background-color: #dc2626;
+}
+
+.tableContainer {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table thead {
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+/* 商品行のボーダー削除（カテゴリ行の直前）- 商品管理テーブルのみ */
+.table tbody tr.productRow td {
+  border-bottom: none;
+}
+
+/* 商品行のアクション列はボーダーを表示 */
+.table tbody tr.productRow td:last-child {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.categoryRow {
+  background-color: var(--bg-secondary);
+}
+
+.categoryRow td {
+  padding: 4px 16px 12px 16px;
+  border-top: none;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.categoryCell {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.descriptionCell {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ホバー時に商品行とカテゴリ行の両方に反応 */
+.table tbody tr:not(.categoryRow):hover,
+.table tbody tr:not(.categoryRow):hover + .categoryRow {
+  background-color: var(--bg-primary);
+}
+
+.table tbody tr.categoryRow:hover {
+  background-color: var(--bg-primary);
+}
+
+.table tbody tr.hovered {
+  background-color: var(--bg-primary);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.chartContainer {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 30px;
+}
+
+.chartTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 20px 0;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 250px;
+  gap: 12px;
+}
+
+.chartBar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+}
+
+.bar {
+  width: 100%;
+  max-width: 40px;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 4px 4px 0 0;
+  transition: background 0.2s;
+  cursor: pointer;
+  min-height: 20px;
+}
+
+.bar:hover {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.chartBar label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.rangeSelect {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  /* タブレット：商品管理テーブル専用 - 説明列非表示 */
+  .table tbody tr.productRow td:nth-child(4),
+  .table thead tr th:nth-child(4) {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  /* スマホ：商品管理テーブル専用 - 説明列と在庫列非表示 */
+  .table tbody tr.productRow td:nth-child(4),
+  .table tbody tr.productRow td:nth-child(5) {
+    display: none;
+  }
+
+  .table thead th:nth-child(4),
+  .table thead th:nth-child(5) {
+    display: none;
+  }
+
+  .table {
+    font-size: 12px;
+  }
+
+  .table th,
+  .table td {
+    padding: 8px 12px;
+  }
+
+  .table tbody tr:has(+ .categoryRow) td {
+    border-bottom: none;
+  }
+
+  .categoryRow td {
+    padding: 4px 12px 12px 12px;
+  }
+}
