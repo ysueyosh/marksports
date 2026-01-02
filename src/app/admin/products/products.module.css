@@ -102,7 +102,26 @@
 }
 
 .categoryRow {
+  /* 背景色は oddProduct/evenProduct クラスに委譲 */
+}
+
+/* 奇数行をやや明るくする */
+.table tbody tr.oddProduct {
   background-color: var(--bg-secondary);
+}
+
+/* 偶数行をデフォルト色 */
+.table tbody tr.evenProduct {
+  background-color: #353535;
+}
+
+/* カテゴリ行の奇数/偶数色分け */
+.table tbody tr.categoryRow.oddProduct {
+  background-color: var(--bg-secondary);
+}
+
+.table tbody tr.categoryRow.evenProduct {
+  background-color: #353535;
 }
 
 .categoryRow td {
@@ -125,17 +144,14 @@
 }
 
 /* ホバー時に商品行とカテゴリ行の両方に反応 */
-.table tbody tr:not(.categoryRow):hover,
-.table tbody tr:not(.categoryRow):hover + .categoryRow {
-  background-color: var(--bg-primary);
-}
-
+.table tbody tr.productRow:hover,
+.table tbody tr.productRow:hover + .categoryRow,
 .table tbody tr.categoryRow:hover {
-  background-color: var(--bg-primary);
+  background-color: var(--bg-primary) !important;
 }
 
 .table tbody tr.hovered {
-  background-color: var(--bg-primary);
+  background-color: var(--bg-primary) !important;
 }
 
 .table tbody tr:last-child td {
@@ -201,6 +217,52 @@
   color: var(--text-primary);
   background-color: var(--bg-secondary);
   cursor: pointer;
+}
+
+/* ライトモード時の色付け */
+@media (prefers-color-scheme: light) {
+  .table thead {
+    background-color: #f0f2f5;
+  }
+
+  .table th {
+    background-color: #f0f2f5;
+  }
+
+  .table tbody tr.productRow {
+    background-color: #f9fafb;
+  }
+
+  .table tbody tr.categoryRow {
+    /* 背景色は oddProduct/evenProduct に委譲 */
+  }
+
+  .table tbody tr.oddProduct {
+    background-color: #f5f6f7;
+  }
+
+  .table tbody tr.evenProduct {
+    background-color: #f9fafb;
+  }
+
+  /* カテゴリ行の奇数/偶数色分け */
+  .table tbody tr.categoryRow.oddProduct {
+    background-color: #f5f6f7;
+  }
+
+  .table tbody tr.categoryRow.evenProduct {
+    background-color: #f9fafb;
+  }
+
+  .table tbody tr.productRow:hover,
+  .table tbody tr.productRow:hover + .categoryRow,
+  .table tbody tr.categoryRow:hover {
+    background-color: #f3f4f6 !important;
+  }
+
+  .table tbody tr.hovered {
+    background-color: #f3f4f6 !important;
+  }
 }
 
 @media (max-width: 1024px) and (min-width: 769px) {

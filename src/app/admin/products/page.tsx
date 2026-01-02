@@ -1015,11 +1015,13 @@ export default function AdminProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedProducts.map((product) => (
+              {paginatedProducts.map((product, index) => (
                 <React.Fragment key={product.id}>
                   <tr
                     data-product-id={product.id}
-                    className={styles.productRow}
+                    className={`${styles.productRow} ${
+                      index % 2 === 0 ? styles.oddProduct : styles.evenProduct
+                    }`}
                     onMouseEnter={(e) => {
                       const productId =
                         e.currentTarget.getAttribute('data-product-id');
@@ -1086,7 +1088,9 @@ export default function AdminProductsPage() {
                   </tr>
                   <tr
                     data-product-id={product.id}
-                    className={styles.categoryRow}
+                    className={`${styles.categoryRow} ${
+                      index % 2 === 0 ? styles.oddProduct : styles.evenProduct
+                    }`}
                     onMouseEnter={(e) => {
                       const productId =
                         e.currentTarget.getAttribute('data-product-id');

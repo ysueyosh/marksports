@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/Admin/LoadingSpinner';
+import AdminTable, { TableColumn } from '@/components/Admin/AdminTable';
 import styles from './admin-home.module.css';
 import sharedStyles from '../admin-shared.module.css';
 
@@ -161,47 +162,40 @@ export default function AdminHomePage() {
         {/* 未配送の注文 */}
         <div className={styles.unshippedOrdersSection}>
           <h2 className={styles.sectionTitle}>未配送の注文（上位5件）</h2>
-          {unshippedOrders.length === 0 ? (
-            <p className={styles.emptyMessage}>未配送の注文はありません</p>
-          ) : (
-            <table className={styles.ordersTable}>
-              <thead>
-                <tr>
-                  <th>注文ID</th>
-                  <th>顧客名</th>
-                  <th>注文日</th>
-                  <th>金額</th>
-                  <th>決済状況</th>
-                </tr>
-              </thead>
-              <tbody>
-                {unshippedOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => router.push(`/admin/orders/${order.id}`)}
+          <AdminTable
+            columns={[
+              { key: 'id', label: '注文ID', width: '100px' },
+              { key: 'customerName', label: '顧客名', width: '150px' },
+              { key: 'orderDate', label: '注文日', width: '120px' },
+              { key: 'amount', label: '金額', width: '120px' },
+              {
+                key: 'paymentStatus',
+                label: '決済状況',
+                render: (value: string) => (
+                  <span
+                    className={`${styles.paymentStatus} ${
+                      value === 'completed' ? styles.completed : styles.pending
+                    }`}
                   >
-                    <td>#{order.id}</td>
-                    <td>{order.customerName}</td>
-                    <td>{order.orderDate}</td>
-                    <td>¥{order.amount.toLocaleString()}</td>
-                    <td>
-                      <span
-                        className={`${styles.paymentStatus} ${
-                          order.paymentStatus === 'completed'
-                            ? styles.completed
-                            : styles.pending
-                        }`}
-                      >
-                        {order.paymentStatus === 'completed'
-                          ? '決済済'
-                          : '決済待ち'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                    {value === 'completed' ? '決済済' : '決済待ち'}
+                  </span>
+                ),
+              },
+            ]}
+            data={unshippedOrders.map((order) => ({
+              id: `#${order.id}`,
+              customerName: order.customerName,
+              orderDate: order.orderDate,
+              amount: `¥${order.amount.toLocaleString()}`,
+              paymentStatus: order.paymentStatus,
+            }))}
+            rowKey="id"
+            onRowClick={(row) => {
+              const orderId = row.id.replace('#', '');
+              router.push(`/admin/orders/${orderId}`);
+            }}
+            emptyMessage="未配送の注文はありません"
+          />
           <Link href="/admin/orders" className={styles.viewAllLink}>
             すべての注文を見る →
           </Link>

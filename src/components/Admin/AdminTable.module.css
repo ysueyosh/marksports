@@ -37,8 +37,36 @@
   background-color: var(--bg-secondary);
 }
 
+/* 偶数行をやや明るくする */
+.table tbody tr:nth-child(even) {
+  background-color: #353535;
+}
+
 .table tbody tr:hover {
   background-color: var(--bg-primary);
+}
+
+/* ライトモード時の色付け */
+@media (prefers-color-scheme: light) {
+  .table thead {
+    background-color: #f0f2f5;
+  }
+
+  .table th {
+    background-color: #f0f2f5;
+  }
+
+  .table tbody tr {
+    background-color: #f5f6f7;
+  }
+
+  .table tbody tr:nth-child(even) {
+    background-color: #f9fafb;
+  }
+
+  .table tbody tr:hover {
+    background-color: #f3f4f6;
+  }
 }
 
 .table tbody tr:last-child td {
