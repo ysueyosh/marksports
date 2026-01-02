@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import MainLayout from '@/components/Layout/MainLayout';
-import Link from 'next/link';
-import { useCart, CartItem } from '@/context/CartContext';
-import styles from './cart.module.css';
+import { useRouter } from "next/navigation";
+import MainLayout from "@/components/Layout/MainLayout";
+import Link from "next/link";
+import { useCart, CartItem } from "@/context/CartContext";
+import { formatPriceIncludedTax, getPriceWithTax } from "@/utils/price";
+import styles from "./cart.module.css";
 
 export default function CartPage() {
   const router = useRouter();
@@ -23,11 +24,13 @@ export default function CartPage() {
     updateQuantity(id, next);
   };
 
+  // 税抜き小計から税込み合計を計算
   const subtotal = cartItems.reduce<number>(
     (sum, item: CartItem) => sum + item.price * item.quantity,
     0
   );
   const shipping = cartItems.length > 0 ? 500 : 0;
+  // 消費税は商品代金にのみかかる（送料は非課税）
   const tax = cartItems.length > 0 ? Math.floor(subtotal * 0.1) : 0;
   const total = cartItems.length > 0 ? subtotal + shipping + tax : 0;
 
@@ -63,7 +66,7 @@ export default function CartPage() {
                       </div>
                     </div>
                     <div className={styles.itemPrice}>
-                      ¥{item.price.toLocaleString('ja-JP')}
+                      {formatPriceIncludedTax(item.price)}
                     </div>
                     <div className={styles.itemQuantity}>
                       <button
@@ -86,7 +89,10 @@ export default function CartPage() {
                       </button>
                     </div>
                     <div className={styles.itemSubtotal}>
-                      ¥{(item.price * item.quantity).toLocaleString('ja-JP')}
+                      ¥
+                      {(
+                        getPriceWithTax(item.price) * item.quantity
+                      ).toLocaleString("ja-JP")}
                     </div>
                     <button
                       className={styles.removeButton}
@@ -106,26 +112,32 @@ export default function CartPage() {
 
             <div className={styles.summaryRow}>
               <span>小計</span>
-              <span>¥{subtotal.toLocaleString('ja-JP')}</span>
+              <span>¥{(subtotal + tax).toLocaleString("ja-JP")}</span>
+            </div>
+
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#9ca3af",
+                marginBottom: "8px",
+                textAlign: "right",
+              }}
+            >
+              （内消費税 ¥{tax.toLocaleString("ja-JP")}）
             </div>
 
             {cartItems.length > 0 && (
               <div className={styles.summaryRow}>
                 <span>送料</span>
-                <span>¥{shipping.toLocaleString('ja-JP')}</span>
+                <span>¥{shipping.toLocaleString("ja-JP")}</span>
               </div>
             )}
-
-            <div className={styles.summaryRow}>
-              <span>消費税</span>
-              <span>¥{tax.toLocaleString('ja-JP')}</span>
-            </div>
 
             <div className={styles.summaryDivider}></div>
 
             <div className={styles.summaryTotal}>
               <span>合計</span>
-              <span>¥{total.toLocaleString('ja-JP')}</span>
+              <span>¥{total.toLocaleString("ja-JP")}</span>
             </div>
 
             <div className={styles.couponSection}>
@@ -139,7 +151,7 @@ export default function CartPage() {
 
             <button
               className={styles.checkoutButton}
-              onClick={() => router.push('/checkout')}
+              onClick={() => router.push("/checkout")}
               disabled={cartItems.length === 0}
             >
               レジに進む

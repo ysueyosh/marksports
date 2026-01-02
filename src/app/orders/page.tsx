@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import MainLayout from '@/components/Layout/MainLayout';
-import LoadingSpinner from '@/components/Admin/LoadingSpinner';
-import Pagination from '@/components/Pagination/Pagination';
-import Link from 'next/link';
-import { useMemo } from 'react';
-import styles from './orders.module.css';
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import MainLayout from "@/components/Layout/MainLayout";
+import LoadingSpinner from "@/components/Admin/LoadingSpinner";
+import Pagination from "@/components/Pagination/Pagination";
+import Link from "next/link";
+import { useMemo } from "react";
+import styles from "./orders.module.css";
 
 interface Order {
   id: string;
   date: string;
   total: number;
-  status: 'completed' | 'pending' | 'cancelled';
+  status: "completed" | "pending" | "cancelled";
   items: {
     id: string;
     name: string;
@@ -25,125 +25,125 @@ interface Order {
 
 const DUMMY_ORDERS: Order[] = [
   {
-    id: 'ORD-001',
-    date: '2025年12月20日',
-    total: 15800,
-    status: 'completed',
+    id: "ORD-001",
+    date: "2025年12月20日",
+    total: 17380,
+    status: "completed",
     items: [
-      { id: '1', name: 'ランニングシューズ', quantity: 1, price: 8800 },
-      { id: '2', name: 'スポーツウェア', quantity: 2, price: 3500 },
+      { id: "1", name: "ランニングシューズ", quantity: 1, price: 8800 },
+      { id: "2", name: "スポーツウェア", quantity: 2, price: 3500 },
     ],
   },
   {
-    id: 'ORD-002',
-    date: '2025年12月15日',
-    total: 5500,
-    status: 'completed',
-    items: [{ id: '3', name: 'ヨガマット', quantity: 1, price: 5500 }],
+    id: "ORD-002",
+    date: "2025年12月15日",
+    total: 6050,
+    status: "completed",
+    items: [{ id: "3", name: "ヨガマット", quantity: 1, price: 5500 }],
   },
   {
-    id: 'ORD-003',
-    date: '2025年12月10日',
-    total: 12000,
-    status: 'completed',
-    items: [{ id: '4', name: 'ダンベルセット', quantity: 1, price: 12000 }],
-  },
-  {
-    id: 'ORD-004',
-    date: '2025年12月05日',
-    total: 8900,
-    status: 'completed',
-    items: [{ id: '5', name: 'テニスラケット', quantity: 1, price: 8900 }],
-  },
-  {
-    id: 'ORD-005',
-    date: '2025年11月28日',
-    total: 22000,
-    status: 'completed',
-    items: [{ id: '6', name: 'ロードバイク', quantity: 1, price: 22000 }],
-  },
-  {
-    id: 'ORD-006',
-    date: '2025年11月20日',
-    total: 6500,
-    status: 'completed',
-    items: [{ id: '7', name: 'サッカーボール', quantity: 2, price: 3250 }],
-  },
-  {
-    id: 'ORD-007',
-    date: '2025年11月15日',
-    total: 4800,
-    status: 'completed',
-    items: [{ id: '8', name: 'スポーツソックス', quantity: 3, price: 1600 }],
-  },
-  {
-    id: 'ORD-008',
-    date: '2025年11月10日',
-    total: 18000,
-    status: 'pending',
-    items: [{ id: '9', name: 'スイムスーツセット', quantity: 1, price: 18000 }],
-  },
-  {
-    id: 'ORD-009',
-    date: '2025年11月05日',
-    total: 9200,
-    status: 'completed',
-    items: [{ id: '10', name: 'ランニングウォッチ', quantity: 1, price: 9200 }],
-  },
-  {
-    id: 'ORD-010',
-    date: '2025年10月30日',
-    total: 7600,
-    status: 'completed',
-    items: [{ id: '11', name: 'スポーツバッグ', quantity: 1, price: 7600 }],
-  },
-  {
-    id: 'ORD-011',
-    date: '2025年10月25日',
-    total: 11500,
-    status: 'completed',
-    items: [{ id: '12', name: 'ヨガブロック', quantity: 2, price: 5750 }],
-  },
-  {
-    id: 'ORD-012',
-    date: '2025年10月20日',
-    total: 5400,
-    status: 'completed',
-    items: [{ id: '13', name: '水筒', quantity: 1, price: 5400 }],
-  },
-  {
-    id: 'ORD-013',
-    date: '2025年10月15日',
+    id: "ORD-003",
+    date: "2025年12月10日",
     total: 13200,
-    status: 'completed',
-    items: [{ id: '14', name: 'キャプテンバンド', quantity: 2, price: 6600 }],
+    status: "completed",
+    items: [{ id: "4", name: "ダンベルセット", quantity: 1, price: 12000 }],
   },
   {
-    id: 'ORD-014',
-    date: '2025年10月10日',
+    id: "ORD-004",
+    date: "2025年12月05日",
+    total: 9790,
+    status: "completed",
+    items: [{ id: "5", name: "テニスラケット", quantity: 1, price: 8900 }],
+  },
+  {
+    id: "ORD-005",
+    date: "2025年11月28日",
+    total: 24200,
+    status: "completed",
+    items: [{ id: "6", name: "ロードバイク", quantity: 1, price: 22000 }],
+  },
+  {
+    id: "ORD-006",
+    date: "2025年11月20日",
+    total: 7150,
+    status: "completed",
+    items: [{ id: "7", name: "サッカーボール", quantity: 2, price: 3250 }],
+  },
+  {
+    id: "ORD-007",
+    date: "2025年11月15日",
+    total: 5280,
+    status: "completed",
+    items: [{ id: "8", name: "スポーツソックス", quantity: 3, price: 1600 }],
+  },
+  {
+    id: "ORD-008",
+    date: "2025年11月10日",
+    total: 19800,
+    status: "pending",
+    items: [{ id: "9", name: "スイムスーツセット", quantity: 1, price: 18000 }],
+  },
+  {
+    id: "ORD-009",
+    date: "2025年11月05日",
+    total: 10120,
+    status: "completed",
+    items: [{ id: "10", name: "ランニングウォッチ", quantity: 1, price: 9200 }],
+  },
+  {
+    id: "ORD-010",
+    date: "2025年10月30日",
+    total: 8360,
+    status: "completed",
+    items: [{ id: "11", name: "スポーツバッグ", quantity: 1, price: 7600 }],
+  },
+  {
+    id: "ORD-011",
+    date: "2025年10月25日",
+    total: 12650,
+    status: "completed",
+    items: [{ id: "12", name: "ヨガブロック", quantity: 2, price: 5750 }],
+  },
+  {
+    id: "ORD-012",
+    date: "2025年10月20日",
+    total: 5940,
+    status: "completed",
+    items: [{ id: "13", name: "水筒", quantity: 1, price: 5400 }],
+  },
+  {
+    id: "ORD-013",
+    date: "2025年10月15日",
+    total: 13200,
+    status: "completed",
+    items: [{ id: "14", name: "キャプテンバンド", quantity: 2, price: 6600 }],
+  },
+  {
+    id: "ORD-014",
+    date: "2025年10月10日",
     total: 9800,
-    status: 'completed',
-    items: [{ id: '15', name: 'トレーニングマット', quantity: 1, price: 9800 }],
+    status: "completed",
+    items: [{ id: "15", name: "トレーニングマット", quantity: 1, price: 9800 }],
   },
   {
-    id: 'ORD-015',
-    date: '2025年10月05日',
+    id: "ORD-015",
+    date: "2025年10月05日",
     total: 6200,
-    status: 'cancelled',
-    items: [{ id: '16', name: 'シューズクリーナー', quantity: 1, price: 6200 }],
+    status: "cancelled",
+    items: [{ id: "16", name: "シューズクリーナー", quantity: 1, price: 6200 }],
   },
 ];
 
-const getStatusLabel = (status: Order['status']): string => {
+const getStatusLabel = (status: Order["status"]): string => {
   const statusMap = {
-    completed: '配送完了',
-    pending: '準備中',
-    cancelled: 'キャンセル',
+    completed: "配送完了",
+    pending: "準備中",
+    cancelled: "キャンセル",
   };
   return statusMap[status];
 };
 
-const getStatusClass = (status: Order['status']): string => {
+const getStatusClass = (status: Order["status"]): string => {
   const statusMap = {
     completed: styles.statusCompleted,
     pending: styles.statusPending,
@@ -261,7 +261,10 @@ export default function OrdersPage() {
                           {item.quantity}
                         </div>
                         <div className={styles.itemPrice}>
-                          ¥{item.price.toLocaleString()}
+                          ¥
+                          {(
+                            item.price + Math.floor(item.price * 0.1)
+                          ).toLocaleString()}
                         </div>
                       </div>
                     ))}
@@ -269,16 +272,16 @@ export default function OrdersPage() {
 
                   <div className={styles.orderFooter}>
                     <div className={styles.totalAmount}>
-                      合計金額:{' '}
+                      合計金額:{" "}
                       <span className={styles.totalPrice}>
                         ¥{order.total.toLocaleString()}
                       </span>
                     </div>
                     <Link
-                      href={`/receipt/${order.id}`}
-                      className={styles.receiptButton}
+                      href={`/orders/${order.id}`}
+                      className={styles.detailButton}
                     >
-                      領収証を表示
+                      詳細
                     </Link>
                   </div>
                 </div>

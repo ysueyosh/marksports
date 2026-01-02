@@ -1,7 +1,8 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import styles from './ProductCard.module.css';
+import Link from "next/link";
+import styles from "./ProductCard.module.css";
+import { formatPriceIncludedTax } from "@/utils/price";
 
 interface ProductCardProps {
   id: number | string;
@@ -28,7 +29,7 @@ export default function ProductCard({
     <div
       className={styles.productCard}
       onClick={handleClick}
-      style={onClick ? { cursor: 'pointer' } : {}}
+      style={onClick ? { cursor: "pointer" } : {}}
     >
       <div className={styles.productImage}>
         <div className={styles.placeholder}>画像</div>
@@ -38,7 +39,7 @@ export default function ProductCard({
           {name && <h3 className={styles.productName}>{name}</h3>}
           {price != null && (
             <p className={styles.productPrice}>
-              ¥{price.toLocaleString('ja-JP')}
+              {formatPriceIncludedTax(price)}
             </p>
           )}
         </>

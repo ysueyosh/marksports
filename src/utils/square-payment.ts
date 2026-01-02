@@ -20,7 +20,7 @@ export interface PaymentRequest {
     address: string;
     building?: string;
   };
-  shippingMethod: string;
+  shippingMethod?: string;
   orderItems: {
     id: number;
     name: string;
@@ -74,8 +74,8 @@ export async function processPayment(
         } else {
           resolve({
             success: false,
-            error: 'カード処理エラーが発生しました',
-            errorCode: 'CARD_ERROR',
+            error: "カード処理エラーが発生しました",
+            errorCode: "CARD_ERROR",
           });
         }
       }, 1000);
@@ -83,8 +83,8 @@ export async function processPayment(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-      errorCode: 'SYSTEM_ERROR',
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+      errorCode: "SYSTEM_ERROR",
     };
   }
 }
@@ -108,8 +108,8 @@ export async function cancelPayment(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-      errorCode: 'CANCEL_ERROR',
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+      errorCode: "CANCEL_ERROR",
     };
   }
 }
@@ -133,8 +133,8 @@ export async function getTransactionDetails(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-      errorCode: 'FETCH_ERROR',
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+      errorCode: "FETCH_ERROR",
     };
   }
 }
@@ -149,7 +149,7 @@ export async function getSquareClientInfo(): Promise<{
 }> {
   // モック実装
   return {
-    applicationId: 'YOUR_SQUARE_APPLICATION_ID',
-    locationId: 'YOUR_SQUARE_LOCATION_ID',
+    applicationId: "YOUR_SQUARE_APPLICATION_ID",
+    locationId: "YOUR_SQUARE_LOCATION_ID",
   };
 }

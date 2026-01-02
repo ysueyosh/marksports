@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useAuth } from '@/context/AuthContext';
-import MainLayout from '@/components/Layout/MainLayout';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useRef } from 'react';
-import styles from './receipt.module.css';
+import { useAuth } from "@/context/AuthContext";
+import MainLayout from "@/components/Layout/MainLayout";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useRef } from "react";
+import styles from "./receipt.module.css";
 
 interface Order {
   id: string;
   date: string;
   total: number;
-  status: 'completed' | 'pending' | 'cancelled';
+  status: "completed" | "pending" | "cancelled";
   items: {
     id: string;
     name: string;
@@ -22,28 +22,28 @@ interface Order {
 
 const DUMMY_ORDERS: Order[] = [
   {
-    id: 'ORD-001',
-    date: '2025年12月20日',
+    id: "ORD-001",
+    date: "2025年12月20日",
     total: 15800,
-    status: 'completed',
+    status: "completed",
     items: [
-      { id: '1', name: 'ランニングシューズ', quantity: 1, price: 8800 },
-      { id: '2', name: 'スポーツウェア', quantity: 2, price: 3500 },
+      { id: "1", name: "ランニングシューズ", quantity: 1, price: 8800 },
+      { id: "2", name: "スポーツウェア", quantity: 2, price: 3500 },
     ],
   },
   {
-    id: 'ORD-002',
-    date: '2025年12月15日',
+    id: "ORD-002",
+    date: "2025年12月15日",
     total: 5500,
-    status: 'completed',
-    items: [{ id: '3', name: 'ヨガマット', quantity: 1, price: 5500 }],
+    status: "completed",
+    items: [{ id: "3", name: "ヨガマット", quantity: 1, price: 5500 }],
   },
   {
-    id: 'ORD-003',
-    date: '2025年12月10日',
+    id: "ORD-003",
+    date: "2025年12月10日",
     total: 12000,
-    status: 'completed',
-    items: [{ id: '4', name: 'ダンベルセット', quantity: 1, price: 12000 }],
+    status: "completed",
+    items: [{ id: "4", name: "ダンベルセット", quantity: 1, price: 12000 }],
   },
 ];
 
@@ -56,7 +56,7 @@ export default function ReceiptPage() {
 
   const handlePrint = () => {
     if (receiptRef.current) {
-      const printWindow = window.open('', '', 'width=800,height=600');
+      const printWindow = window.open("", "", "width=800,height=600");
       if (printWindow) {
         // クローンした領収証要素を新しいウィンドウに追加
         const clonedReceipt = receiptRef.current.cloneNode(true) as HTMLElement;
@@ -70,9 +70,9 @@ export default function ReceiptPage() {
           try {
             const sheet = document.styleSheets[i];
             const rules = sheet.cssRules || sheet.rules;
-            let css = '';
+            let css = "";
             for (let j = 0; j < rules.length; j++) {
-              css += rules[j].cssText + '\n';
+              css += rules[j].cssText + "\n";
             }
             if (css) {
               printWindow.document.write(`<style>${css}</style>`);
@@ -86,7 +86,7 @@ export default function ReceiptPage() {
           '</head><body style="margin: 0; padding: 20px;">'
         );
         printWindow.document.write(clonedReceipt.innerHTML);
-        printWindow.document.write('</body></html>');
+        printWindow.document.write("</body></html>");
         printWindow.document.close();
 
         printWindow.onload = () => {
@@ -212,8 +212,18 @@ export default function ReceiptPage() {
               <div className={styles.summaryRow}>
                 <span className={styles.summaryLabel}>小計</span>
                 <span className={styles.summaryValue}>
-                  ¥{subtotal.toLocaleString()}
+                  ¥{(subtotal + tax).toLocaleString()}
                 </span>
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#9ca3af",
+                  textAlign: "right",
+                  marginBottom: "8px",
+                }}
+              >
+                （内消費税 ¥{tax.toLocaleString()}）
               </div>
               <div className={styles.summaryRow}>
                 <span className={styles.summaryLabel}>配送料</span>
@@ -221,13 +231,7 @@ export default function ReceiptPage() {
                   ¥{shipping.toLocaleString()}
                 </span>
               </div>
-              <div className={styles.summaryRow}>
-                <span className={styles.summaryLabel}>税金（10%）</span>
-                <span className={styles.summaryValue}>
-                  ¥{tax.toLocaleString()}
-                </span>
-              </div>
-              <div className={styles.summaryRow + ' ' + styles.total}>
+              <div className={styles.summaryRow + " " + styles.total}>
                 <span className={styles.summaryLabel}>合計金額</span>
                 <span className={styles.summaryValue}>
                   ¥{order.total.toLocaleString()}

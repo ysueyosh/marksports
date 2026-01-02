@@ -1,9 +1,10 @@
-import Link from 'next/link';
-import MainLayout from '@/components/Layout/MainLayout';
-import ProductCard from '@/components/ProductCard/ProductCard';
-import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
-import styles from './product.module.css';
-import productsData from '@/data/products.json';
+import Link from "next/link";
+import MainLayout from "@/components/Layout/MainLayout";
+import ProductCard from "@/components/ProductCard/ProductCard";
+import ClientAddToCart from "@/components/AddToCartButton/ClientAddToCart";
+import styles from "./product.module.css";
+import productsData from "@/data/products.json";
+import { formatPriceIncludedTax } from "@/utils/price";
 
 interface Product {
   id: string;
@@ -68,12 +69,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <div className={styles.priceSection}>
               <div className={styles.price}>
-                ¥{product.price.toLocaleString('ja-JP')}
+                {formatPriceIncludedTax(product.price)}
               </div>
               {product.originalPrice && (
                 <>
                   <span className={styles.originalPrice}>
-                    ¥{product.originalPrice.toLocaleString('ja-JP')}
+                    {formatPriceIncludedTax(product.originalPrice)}
                   </span>
                   {product.discount && (
                     <span className={styles.discount}>{product.discount}</span>

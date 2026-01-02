@@ -1,80 +1,90 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react';
-import CheckoutLayout from '@/components/Layout/CheckoutLayout';
-import { processPayment, PaymentRequest } from '@/utils/square-payment';
-import styles from './checkout.module.css';
-
-declare global {
-  interface Window {
-    Square?: {
-      web: {
-        payments: (appId: string, locationId: string) => Promise<any>;
-      };
-    };
-  }
-}
+import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import {
+  PaymentForm,
+  CreditCard,
+  ApplePay,
+  GooglePay,
+} from "react-square-web-payments-sdk";
+import CheckoutLayout from "@/components/Layout/CheckoutLayout";
+import { submitPayment } from "@/app/actions/actions";
+import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
+import { usePaymentMethod } from "@/context/PaymentMethodContext";
+import { getPriceWithTax } from "@/utils/price";
+import styles from "./checkout.module.css";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { isLoggedIn, user } = useAuth();
+  const { items: cartItems } = useCart();
+  const { paymentMethods, addPaymentMethod } = usePaymentMethod();
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const paymentsRef = useRef<any>(null);
-  const webPaymentInstanceRef = useRef<any>(null);
+  const [paymentMode, setPaymentMode] = useState<
+    "credit_card" | "bank_transfer" | "apple_pay" | "google_pay"
+  >("credit_card");
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<
+    string | null
+  >(null);
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    postalCode: '',
-    prefecture: '',
-    address: '',
-    building: '',
-    shipping: 'normal',
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    postalCode: "",
+    prefecture: "",
+    address: "",
+    building: "",
   });
 
-  // Squareスクリプトをロード
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://web.squarecdn.com/v1/square.js';
-    script.async = true;
-    document.body.appendChild(script);
+  // 金額計算（税率10%を仮定）
+  const TAX_RATE = 0.1;
+  const SHIPPING_FEE_NORMAL = 500; // 通常配送料金
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+  // 金額計算のメモ化
+  const priceInfo = useMemo(() => {
+    const subtotal = cartItems.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+    const shippingFee = SHIPPING_FEE_NORMAL;
+    // 消費税は商品代金にのみかかる（送料は税抜き）
+    const tax = Math.floor(subtotal * TAX_RATE);
+    const total = subtotal + shippingFee + tax;
+    // 税込み小計（商品代金 + 消費税）
+    const subtotalWithTax = subtotal + tax;
+
+    return {
+      subtotal,
+      subtotalWithTax,
+      shippingFee,
+      tax,
+      total,
     };
-  }, []);
+  }, [cartItems]);
 
-  // Squareの初期化
+  // ログイン状態で配送先情報を自動入力
   useEffect(() => {
-    if (currentStep === 2 && window.Square) {
-      initializeSquare();
+    if (isLoggedIn && user?.shippingAddress) {
+      const { shippingAddress } = user;
+      setFormData((prev) => ({
+        ...prev,
+        firstName: shippingAddress.firstName,
+        lastName: shippingAddress.lastName,
+        email: user.email || "",
+        phone: shippingAddress.phone,
+        postalCode: shippingAddress.postalCode,
+        prefecture: shippingAddress.prefecture,
+        address: shippingAddress.address,
+        building: shippingAddress.building || "",
+      }));
     }
-  }, [currentStep]);
-
-  const initializeSquare = async () => {
-    try {
-      const payments = await window.Square!.web.payments(
-        'YOUR_SQUARE_APPLICATION_ID',
-        'YOUR_SQUARE_LOCATION_ID'
-      );
-      paymentsRef.current = payments;
-
-      const webPaymentInstance = await payments.webPaymentInstance();
-      webPaymentInstanceRef.current = webPaymentInstance;
-
-      await webPaymentInstance.attach('#sq-web-payments-container');
-    } catch (error) {
-      console.error('Failed to initialize Squarebridge:', error);
-      setPaymentError('決済システムの初期化に失敗しました');
-    }
-  };
-
+  }, [isLoggedIn, user]);
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -92,6 +102,11 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleConfirmStep = () => {
+    setCurrentStep(3);
+    setPaymentError(null);
+  };
+
   const validateStep1 = (): boolean => {
     if (
       !formData.firstName ||
@@ -102,102 +117,69 @@ export default function CheckoutPage() {
       !formData.prefecture ||
       !formData.address
     ) {
-      setPaymentError('すべての必須項目を入力してください');
+      setPaymentError("すべての必須項目を入力してください");
       return false;
     }
     return true;
   };
 
-  const handlePayment = async () => {
-    if (!webPaymentInstanceRef.current) {
-      setPaymentError('決済システムが準備できていません');
-      return;
-    }
-
+  const handlePayment = async (sourceId?: string) => {
     setIsProcessing(true);
     setPaymentError(null);
 
     try {
-      // Squareから支払いトークンを取得
-      const result = await webPaymentInstanceRef.current.requestCardPayment({
-        amount: 1370600, // 金額（セント単位）
-        currencyCode: 'JPY',
-        intent: 'CHARGE',
+      let paymentSourceId: string;
+
+      // 支払い方法ごとの処理
+      switch (paymentMode) {
+        case "credit_card":
+          if (!sourceId) {
+            setPaymentError("カード情報を入力してください");
+            setIsProcessing(false);
+            return;
+          }
+          paymentSourceId = sourceId;
+          break;
+
+        case "bank_transfer":
+          // 口座振込は即座に完了
+          paymentSourceId = `bank_${Date.now()}`;
+          break;
+
+        case "apple_pay":
+          // Apple Pay のトークン取得処理
+          paymentSourceId = `apple_pay_${Date.now()}`;
+          break;
+
+        case "google_pay":
+          // Google Pay のトークン取得処理
+          paymentSourceId = `google_pay_${Date.now()}`;
+          break;
+
+        default:
+          setPaymentError("支払い方法を選択してください");
+          setIsProcessing(false);
+          return;
+      }
+
+      const result = await submitPayment({
+        sourceId: paymentSourceId,
+        amount: priceInfo.total,
+        currency: "JPY",
+        orderId: `ORDER_${Date.now()}`,
       });
 
-      if (result.status === 'SUCCESS') {
-        const token = result.details.card.token;
-
-        // 決済リクエストを作成
-        const paymentRequest: PaymentRequest = {
-          amount: 137060,
-          currency: 'JPY',
-          sourceId: token,
-          idempotencyKey: `${Date.now()}_${Math.random()
-            .toString(36)
-            .substr(2, 9)}`,
-          customerDetails: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-          },
-          shippingAddress: {
-            postalCode: formData.postalCode,
-            prefecture: formData.prefecture,
-            address: formData.address,
-            building: formData.building,
-          },
-          shippingMethod:
-            formData.shipping === 'normal' ? 'standard' : 'express',
-          orderItems: [
-            {
-              id: 1,
-              name: 'バレーボール',
-              quantity: 1,
-              price: 3500,
-            },
-            {
-              id: 2,
-              name: 'バスケットボール',
-              quantity: 1,
-              price: 4200,
-            },
-            {
-              id: 3,
-              name: '卓球ラケット',
-              quantity: 2,
-              price: 2800,
-            },
-          ],
-        };
-
-        // モック決済処理
-        const paymentResponse = await processPayment(paymentRequest);
-
-        if (paymentResponse.success) {
-          // 決済成功時は領収書ページへ遷移
-          router.push(
-            `/receipt/${paymentResponse.receiptNumber}?transactionId=${paymentResponse.transactionId}`
-          );
-        } else {
-          setPaymentError(
-            paymentResponse.error || '決済処理中にエラーが発生しました'
-          );
-        }
-      } else if (result.status === 'CANCELLED') {
-        setPaymentError('決済がキャンセルされました');
+      if (result && result.id) {
+        router.push(`/orders?id=${result.id}`);
       } else {
-        setPaymentError(
-          result.errors?.[0]?.message || '決済処理中にエラーが発生しました'
-        );
+        setPaymentError("決済処理中にエラーが発生しました");
       }
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error("Payment error:", error);
       setPaymentError(
         error instanceof Error
           ? error.message
-          : '決済処理中にエラーが発生しました'
+          : "決済処理中にエラーが発生しました"
       );
     } finally {
       setIsProcessing(false);
@@ -208,12 +190,12 @@ export default function CheckoutPage() {
     <CheckoutLayout>
       {/* Navigation Buttons */}
       <div className={styles.navigation}>
-        <button className={styles.navButton} onClick={() => router.push('/')}>
+        <button className={styles.navButton} onClick={() => router.push("/")}>
           ← トップに戻る
         </button>
         <button
           className={styles.navButton}
-          onClick={() => router.push('/cart')}
+          onClick={() => router.push("/cart")}
         >
           ← カートに戻る
         </button>
@@ -228,27 +210,27 @@ export default function CheckoutPage() {
         <div className={styles.steps}>
           <div
             className={`${styles.step} ${
-              currentStep >= 1 ? styles.active : ''
+              currentStep >= 1 ? styles.active : ""
             }`}
           >
             <span className={styles.stepNumber}>1</span>
-            <span>配送情報</span>
+            <span>配送情報入力</span>
           </div>
           <div
             className={`${styles.step} ${
-              currentStep >= 2 ? styles.active : ''
+              currentStep >= 2 ? styles.active : ""
             }`}
           >
             <span className={styles.stepNumber}>2</span>
-            <span>支払い方法</span>
+            <span>注文内容確認</span>
           </div>
           <div
             className={`${styles.step} ${
-              currentStep >= 3 ? styles.active : ''
+              currentStep >= 3 ? styles.active : ""
             }`}
           >
             <span className={styles.stepNumber}>3</span>
-            <span>確認</span>
+            <span>決済</span>
           </div>
         </div>
 
@@ -256,12 +238,12 @@ export default function CheckoutPage() {
           {paymentError && (
             <div
               style={{
-                backgroundColor: '#fee2e2',
-                border: '1px solid #fca5a5',
-                borderRadius: '4px',
-                padding: '12px',
-                marginBottom: '20px',
-                color: '#991b1b',
+                backgroundColor: "#fee2e2",
+                border: "1px solid #fca5a5",
+                borderRadius: "4px",
+                padding: "12px",
+                marginBottom: "20px",
+                color: "#991b1b",
               }}
             >
               ⚠️ {paymentError}
@@ -382,83 +364,609 @@ export default function CheckoutPage() {
                   />
                 </div>
               </fieldset>
-
-              {/* Shipping Method */}
-              <fieldset className={styles.fieldset}>
-                <legend className={styles.legend}>配送方法</legend>
-
-                <div className={styles.radioGroup}>
-                  <label className={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="shipping"
-                      value="normal"
-                      checked={formData.shipping === 'normal'}
-                      onChange={handleInputChange}
-                    />
-                    <span className={styles.radioCustom}></span>
-                    <span>通常配送 - ¥500（1-2営業日）</span>
-                  </label>
-                </div>
-
-                <div className={styles.radioGroup}>
-                  <label className={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="shipping"
-                      value="express"
-                      checked={formData.shipping === 'express'}
-                      onChange={handleInputChange}
-                    />
-                    <span className={styles.radioCustom}></span>
-                    <span>速達配送 - ¥1,000（当日配送可能）</span>
-                  </label>
-                </div>
-              </fieldset>
             </>
           )}
 
           {currentStep === 2 && (
             <>
-              {/* Payment Information */}
+              {/* Order Confirmation */}
               <fieldset className={styles.fieldset}>
-                <legend className={styles.legend}>支払い方法</legend>
+                <legend className={styles.legend}>注文内容確認</legend>
+
+                {/* Shipping Information Display */}
                 <div
-                  id="sq-web-payments-container"
-                  style={{ marginBottom: '20px' }}
+                  style={{
+                    marginBottom: "20px",
+                    paddingBottom: "20px",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
                 >
-                  {/* Square Web Payments SDKがここにマウントされます */}
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    配送先情報
+                  </h3>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      color: "#6b7280",
+                      lineHeight: "1.8",
+                    }}
+                  >
+                    <p>
+                      {formData.firstName} {formData.lastName}
+                    </p>
+                    <p>〒{formData.postalCode}</p>
+                    <p>
+                      {formData.prefecture} {formData.address}
+                    </p>
+                    {formData.building && <p>{formData.building}</p>}
+                    <p>{formData.email}</p>
+                    <p>{formData.phone}</p>
+                  </div>
+                </div>
+
+                {/* Order Items */}
+                {cartItems.length > 0 && (
+                  <div
+                    style={{
+                      marginBottom: "20px",
+                      paddingBottom: "20px",
+                      borderBottom: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      商品
+                    </h3>
+                    {cartItems.map((item) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "14px",
+                          marginBottom: "8px",
+                          color: "#6b7280",
+                        }}
+                      >
+                        <span>
+                          {item.name} × {item.quantity}
+                        </span>
+                        <span>
+                          ¥
+                          {(
+                            getPriceWithTax(item.price) * item.quantity
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Price Summary */}
+                <div style={{ marginBottom: "20px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "14px",
+                      marginBottom: "8px",
+                      color: "#6b7280",
+                    }}
+                  >
+                    <span>小計</span>
+                    <span>¥{priceInfo.subtotalWithTax.toLocaleString()}</span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#9ca3af",
+                      marginBottom: "8px",
+                      textAlign: "right",
+                    }}
+                  >
+                    （内消費税 ¥{priceInfo.tax.toLocaleString()}）
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "14px",
+                      marginBottom: "8px",
+                      color: "#6b7280",
+                    }}
+                  >
+                    <span>送料</span>
+                    <span>¥{priceInfo.shippingFee.toLocaleString()}</span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: "16px",
+                      fontWeight: "600",
+                      paddingTop: "12px",
+                      borderTop: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <span>合計</span>
+                    <span>¥{priceInfo.total.toLocaleString()}</span>
+                  </div>
                 </div>
               </fieldset>
             </>
           )}
 
-          {/* Order Summary */}
-          <div className={styles.orderSummary}>
-            <h2 className={styles.summaryTitle}>注文概要</h2>
+          {currentStep === 3 && (
+            <>
+              {/* Order Summary - at the top */}
+              <div className={styles.orderSummary}>
+                <h2 className={styles.summaryTitle}>注文概要</h2>
 
-            <div className={styles.summaryItem}>
-              <span>小計</span>
-              <span>¥11,960</span>
-            </div>
-            <div className={styles.summaryItem}>
-              <span>送料</span>
-              <span>¥{formData.shipping === 'normal' ? '500' : '1,000'}</span>
-            </div>
-            <div className={styles.summaryItem}>
-              <span>消費税</span>
-              <span>¥{formData.shipping === 'normal' ? '1,246' : '1,296'}</span>
-            </div>
+                {/* Cart Items */}
+                {cartItems.length > 0 && (
+                  <div
+                    style={{
+                      marginBottom: "20px",
+                      paddingBottom: "20px",
+                      borderBottom: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <h3
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        marginBottom: "10px",
+                      }}
+                    >
+                      商品
+                    </h3>
+                    {cartItems.map((item) => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "14px",
+                          marginBottom: "8px",
+                          color: "#6b7280",
+                        }}
+                      >
+                        <span>
+                          {item.name} × {item.quantity}
+                        </span>
+                        <span>
+                          ¥
+                          {(
+                            getPriceWithTax(item.price) * item.quantity
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-            <div className={styles.summaryDivider}></div>
+                <div className={styles.summaryItem}>
+                  <span>小計</span>
+                  <span>¥{priceInfo.subtotalWithTax.toLocaleString()}</span>
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#9ca3af",
+                    marginBottom: "8px",
+                    textAlign: "right",
+                    paddingRight: "0",
+                  }}
+                >
+                  （内消費税 ¥{priceInfo.tax.toLocaleString()}）
+                </div>
+                <div className={styles.summaryItem}>
+                  <span>送料</span>
+                  <span>¥{priceInfo.shippingFee.toLocaleString()}</span>
+                </div>
 
-            <div className={styles.summaryTotal}>
-              <span>合計</span>
-              <span>
-                ¥{formData.shipping === 'normal' ? '13,706' : '14,256'}
-              </span>
-            </div>
-          </div>
+                <div className={styles.summaryDivider}></div>
+
+                <div className={styles.summaryTotal}>
+                  <span>合計</span>
+                  <span>¥{priceInfo.total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Payment Information - at the bottom */}
+              <fieldset className={styles.fieldset}>
+                <legend className={styles.legend}>決済</legend>
+
+                {/* Payment Method Type Selection */}
+                <div style={{ marginBottom: "20px" }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      padding: "8px 0",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="bank_transfer"
+                      checked={paymentMode === "bank_transfer"}
+                      onChange={() => {
+                        setPaymentMode("bank_transfer");
+                        setSelectedPaymentMethodId(null);
+                      }}
+                      style={{ marginRight: "12px" }}
+                    />
+                    口座振込
+                  </label>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      padding: "8px 0",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="credit_card"
+                      checked={paymentMode === "credit_card"}
+                      onChange={() => {
+                        setPaymentMode("credit_card");
+                        setSelectedPaymentMethodId(null);
+                      }}
+                      style={{ marginRight: "12px" }}
+                    />
+                    クレジットカード
+                  </label>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      padding: "8px 0",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="apple_pay"
+                      checked={paymentMode === "apple_pay"}
+                      onChange={() => {
+                        setPaymentMode("apple_pay");
+                        setSelectedPaymentMethodId(null);
+                      }}
+                      style={{ marginRight: "12px" }}
+                    />
+                    Apple Pay
+                  </label>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      padding: "8px 0",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMode"
+                      value="google_pay"
+                      checked={paymentMode === "google_pay"}
+                      onChange={() => {
+                        setPaymentMode("google_pay");
+                        setSelectedPaymentMethodId(null);
+                      }}
+                      style={{ marginRight: "12px" }}
+                    />
+                    Google Pay
+                  </label>
+                </div>
+
+                {/* Credit Card Payment */}
+                {paymentMode === "credit_card" && (
+                  <PaymentForm
+                    applicationId="sandbox-sq0idb-dJ_V4eIHsIfJGNqmHjQvMA"
+                    locationId="LP30F7K9QGGXC"
+                    cardTokenizeResponseReceived={async (token: any) => {
+                      if (token.status === "OK") {
+                        await handlePayment(token.token);
+                      } else {
+                        setPaymentError(
+                          token.errors?.[0]?.message ||
+                            "トークン生成中にエラーが発生しました"
+                        );
+                      }
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ marginBottom: "15px" }}>
+                        クレジットカード情報
+                      </h4>
+
+                      {/* Saved Cards Section */}
+                      <div style={{ marginBottom: "20px" }}>
+                        <h5 style={{ marginBottom: "10px", fontSize: "14px" }}>
+                          保存済みカードから選択
+                        </h5>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "10px",
+                          }}
+                        >
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="saved_card"
+                              value="sandbox_4111"
+                              checked={
+                                selectedPaymentMethodId === "sandbox_4111"
+                              }
+                              onChange={(e) =>
+                                setSelectedPaymentMethodId(e.target.value)
+                              }
+                              style={{ marginRight: "10px" }}
+                            />
+                            <span>•••• •••• •••• 1111 (Sandbox Test Card)</span>
+                          </label>
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="saved_card"
+                              value="new_card"
+                              checked={selectedPaymentMethodId === "new_card"}
+                              onChange={(e) =>
+                                setSelectedPaymentMethodId(e.target.value)
+                              }
+                              style={{ marginRight: "10px" }}
+                            />
+                            <span>新しいカードを追加</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* New Card Form */}
+                      {selectedPaymentMethodId === "new_card" && (
+                        <div style={{ marginBottom: "20px" }}>
+                          <CreditCard />
+                        </div>
+                      )}
+
+                      {/* Saved Card Info */}
+                      {selectedPaymentMethodId === "sandbox_4111" && (
+                        <div
+                          style={{
+                            padding: "15px",
+                            backgroundColor: "#f3f4f6",
+                            borderRadius: "4px",
+                            marginBottom: "20px",
+                            fontSize: "14px",
+                          }}
+                        >
+                          <p style={{ marginBottom: "8px" }}>
+                            <strong>カード番号:</strong> •••• •••• •••• 1111
+                          </p>
+                          <p style={{ marginBottom: "8px" }}>
+                            <strong>カード所有者:</strong> Test User
+                          </p>
+                          <p>
+                            <strong>有効期限:</strong> 12/25
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </PaymentForm>
+                )}
+
+                {/* Bank Transfer Payment */}
+                {paymentMode === "bank_transfer" && (
+                  <div
+                    style={{
+                      backgroundColor: "#f9fafb",
+                      padding: "15px",
+                      borderRadius: "4px",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <h4 style={{ marginBottom: "10px" }}>口座振込情報</h4>
+                    <p style={{ marginBottom: "8px", fontSize: "14px" }}>
+                      <strong>銀行:</strong> 〇〇銀行
+                    </p>
+                    <p style={{ marginBottom: "8px", fontSize: "14px" }}>
+                      <strong>支店:</strong> 〇〇支店
+                    </p>
+                    <p style={{ marginBottom: "8px", fontSize: "14px" }}>
+                      <strong>口座種別:</strong> 普通
+                    </p>
+                    <p style={{ marginBottom: "8px", fontSize: "14px" }}>
+                      <strong>口座番号:</strong> 1234567
+                    </p>
+                    <p style={{ marginBottom: "8px", fontSize: "14px" }}>
+                      <strong>名義人:</strong> マークスポーツ
+                    </p>
+                    <p
+                      style={{
+                        marginTop: "15px",
+                        fontSize: "12px",
+                        color: "#6b7280",
+                      }}
+                    >
+                      ご注文完了後、上記の口座にお振込みください。口座情報はメールでも送信いたします。振込確認後、商品の発送手配をいたします。
+                    </p>
+                  </div>
+                )}
+
+                {/* Apple Pay */}
+                {paymentMode === "apple_pay" && (
+                  <div>
+                    <h4 style={{ marginBottom: "15px" }}>Apple Pay</h4>
+                    <p
+                      style={{
+                        marginBottom: "15px",
+                        fontSize: "14px",
+                        color: "#6b7280",
+                      }}
+                    >
+                      iPhone または iPad の Apple Pay で支払います。Safari
+                      ブラウザ上でのみご利用いただけます。
+                    </p>
+                    <PaymentForm
+                      applicationId="sandbox-sq0idb-dJ_V4eIHsIfJGNqmHjQvMA"
+                      locationId="LP30F7K9QGGXC"
+                      createPaymentRequest={() => ({
+                        countryCode: "JP",
+                        currencyCode: "JPY",
+                        lineItems: [
+                          {
+                            amount: String(priceInfo.subtotal),
+                            label: "商品代金",
+                            pending: false,
+                          },
+                          {
+                            amount: String(priceInfo.shippingFee),
+                            label: "送料",
+                            pending: false,
+                          },
+                          {
+                            amount: String(priceInfo.tax),
+                            label: "消費税",
+                            pending: false,
+                          },
+                        ],
+                        requestShippingAddress: false,
+                        requestBillingInfo: false,
+                        total: {
+                          amount: String(priceInfo.total),
+                          label: "合計",
+                        },
+                      })}
+                      cardTokenizeResponseReceived={async (token: any) => {
+                        if (token.status === "OK") {
+                          await handlePayment(token.token);
+                        } else {
+                          setPaymentError(
+                            token.errors?.[0]?.message ||
+                              "トークン生成中にエラーが発生しました"
+                          );
+                        }
+                      }}
+                    >
+                      <ApplePay />
+                    </PaymentForm>
+                  </div>
+                )}
+
+                {/* Google Pay */}
+                {paymentMode === "google_pay" && (
+                  <div>
+                    <h4 style={{ marginBottom: "15px" }}>Google Pay</h4>
+                    <p
+                      style={{
+                        marginBottom: "15px",
+                        fontSize: "14px",
+                        color: "#6b7280",
+                      }}
+                    >
+                      Android デバイスの Google Pay
+                      で支払います。対応ブラウザ上でのみご利用いただけます。
+                    </p>
+                    <PaymentForm
+                      applicationId="sandbox-sq0idb-dJ_V4eIHsIfJGNqmHjQvMA"
+                      locationId="LP30F7K9QGGXC"
+                      createPaymentRequest={() => ({
+                        countryCode: "JP",
+                        currencyCode: "JPY",
+                        lineItems: [
+                          {
+                            amount: String(priceInfo.subtotal),
+                            label: "商品代金",
+                            pending: false,
+                          },
+                          {
+                            amount: String(priceInfo.shippingFee),
+                            label: "送料",
+                            pending: false,
+                          },
+                          {
+                            amount: String(priceInfo.tax),
+                            label: "消費税",
+                            pending: false,
+                          },
+                        ],
+                        requestShippingAddress: false,
+                        requestBillingInfo: false,
+                        total: {
+                          amount: String(priceInfo.total),
+                          label: "合計",
+                        },
+                      })}
+                      cardTokenizeResponseReceived={async (token: any) => {
+                        if (token.status === "OK") {
+                          await handlePayment(token.token);
+                        } else {
+                          setPaymentError(
+                            token.errors?.[0]?.message ||
+                              "トークン生成中にエラーが発生しました"
+                          );
+                        }
+                      }}
+                    >
+                      <GooglePay />
+                    </PaymentForm>
+                  </div>
+                )}
+
+                {/* Purchase Button - only for bank transfer */}
+                {paymentMode === "bank_transfer" && (
+                  <div style={{ marginTop: "20px" }}>
+                    <button
+                      type="button"
+                      className={styles.nextButton}
+                      onClick={() => handlePayment()}
+                      disabled={isProcessing}
+                      style={{
+                        opacity: isProcessing ? 0.6 : 1,
+                        cursor: isProcessing ? "not-allowed" : "pointer",
+                        width: "100%",
+                      }}
+                    >
+                      {isProcessing ? "処理中..." : "購入する"}
+                    </button>
+                  </div>
+                )}
+              </fieldset>
+            </>
+          )}
 
           {/* Buttons */}
           <div className={styles.buttonGroup}>
@@ -466,17 +974,10 @@ export default function CheckoutPage() {
               <>
                 <button
                   type="button"
-                  className={styles.backButton}
-                  onClick={() => router.push('/cart')}
-                >
-                  ← 戻る
-                </button>
-                <button
-                  type="button"
                   className={styles.nextButton}
                   onClick={handleNextStep}
                 >
-                  支払い方法へ進む →
+                  注文内容確認へ進む →
                 </button>
               </>
             )}
@@ -494,14 +995,23 @@ export default function CheckoutPage() {
                 <button
                   type="button"
                   className={styles.nextButton}
-                  onClick={handlePayment}
+                  onClick={handleConfirmStep}
                   disabled={isProcessing}
-                  style={{
-                    opacity: isProcessing ? 0.6 : 1,
-                    cursor: isProcessing ? 'not-allowed' : 'pointer',
-                  }}
                 >
-                  {isProcessing ? '処理中...' : '決済する'}
+                  決済へ進む →
+                </button>
+              </>
+            )}
+
+            {currentStep === 3 && (
+              <>
+                <button
+                  type="button"
+                  className={styles.backButton}
+                  onClick={() => setCurrentStep(2)}
+                  disabled={isProcessing}
+                >
+                  ← 戻る
                 </button>
               </>
             )}

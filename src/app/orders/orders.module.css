@@ -314,3 +314,152 @@
   color: white;
   border-color: var(--primary-color);
 }
+
+/* Detail Page Styles */
+.detailContainer {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.detailSection {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detailLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.detailValue {
+  font-size: 16px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-x: auto;
+}
+
+.itemsHeader {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 2px solid var(--border-color);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.itemsRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  font-size: 14px;
+}
+
+.itemsRow:last-child {
+  border-bottom: none;
+}
+
+.itemsFooter {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 2px solid var(--border-color);
+  border-bottom: none;
+}
+
+.itemName {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.itemQuantity {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.itemPrice {
+  text-align: right;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.itemSubtotal {
+  text-align: right;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.summaryContainer {
+  padding: 16px 0;
+  border-radius: 4px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.detailActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+@media (max-width: 768px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .itemsTable {
+    overflow-x: auto;
+    display: block;
+  }
+
+  .itemsHeader,
+  .itemsRow {
+    min-width: 500px;
+  }
+
+  .detailActions {
+    flex-direction: column;
+  }
+}
