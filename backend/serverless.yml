@@ -1,0 +1,76 @@
+service: ecsite-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ap-northeast-1
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${sls:stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource: 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.DYNAMODB_TABLE}'
+
+functions:
+  # Authentication
+  login:
+    handler: src.handlers.auth.login
+    events:
+      - httpApi:
+          path: /login
+          method: post
+
+  requestPasswordReset:
+    handler: src.handlers.auth.request_password_reset
+    events:
+      - httpApi:
+          path: /password-reset/request
+          method: post
+
+  verifyResetToken:
+    handler: src.handlers.auth.verify_reset_token
+    events:
+      - httpApi:
+          path: /password-reset/verify
+          method: post
+
+  resetPassword:
+    handler: src.handlers.auth.reset_password
+    events:
+      - httpApi:
+          path: /password-reset/reset
+          method: post
+
+  health:
+    handler: src.app.health_check
+    events:
+      - httpApi:
+          path: /health
+          method: get
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}-users
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+
+plugins:
+  - serverless-offline

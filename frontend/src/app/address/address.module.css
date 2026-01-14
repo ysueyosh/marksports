@@ -1,0 +1,370 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.breadcrumb a {
+  color: var(--accent-color);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb span {
+  color: var(--text-secondary);
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.errorMessage {
+  color: #d32f2f;
+  font-size: 14px;
+  padding: 12px 16px;
+  background: #ffebee;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #d32f2f;
+}
+
+.successMessage {
+  color: #388e3c;
+  font-size: 14px;
+  padding: 12px 16px;
+  background: #e8f5e9;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #388e3c;
+}
+
+.addButton {
+  display: inline-block;
+  padding: 12px 20px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: background-color 0.2s;
+}
+
+.addButton:hover {
+  background: var(--primary-color);
+}
+
+.formSection {
+  display: none;
+}
+
+.formSection h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.required {
+  color: #e74c3c;
+  margin-left: 4px;
+}
+
+.fieldError {
+  color: #e74c3c;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.dropdownOption {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition: background-color 0.2s;
+}
+
+.dropdownOption:hover {
+  background-color: var(--bg-primary);
+}
+
+.dropdownOption span {
+  display: block;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.submitButton {
+  flex: 1;
+  padding: 12px 20px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submitButton:hover {
+  background: var(--primary-color);
+}
+
+.cancelButton {
+  flex: 1;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancelButton:hover {
+  background: var(--border-color);
+}
+
+.editButton {
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.editButton:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.deleteButton {
+  padding: 8px 12px;
+  background: #ffebee;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteButton:hover {
+  background: #d32f2f;
+  color: white;
+}
+
+.searchButton {
+  padding: 10px 20px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  height: 40px;
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.searchButton:hover {
+  background: var(--primary-color);
+}
+
+.addressList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.emptyMessage {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.addressCard {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  transition: box-shadow 0.2s;
+}
+
+.addressCard:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.addressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.addressHeader h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.defaultBadge {
+  display: inline-block;
+  background: var(--accent-color);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.addressContent {
+  margin-bottom: 16px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.addressContent p {
+  margin: 0;
+}
+
+.addressActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.setDefaultButton {
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  color: var(--accent-color);
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.setDefaultButton:hover {
+  background: var(--accent-color);
+  color: white;
+}
+
+.editButton {
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editButton:hover {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.deleteButton {
+  padding: 8px 12px;
+  background: #ffebee;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteButton:hover {
+  background: #d32f2f;
+  color: white;
+}
+
+.notLoggedIn {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.notLoggedIn h1 {
+  font-size: 24px;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.notLoggedIn p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.backButton {
+  display: inline-block;
+  padding: 10px 20px;
+  background: var(--accent-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.backButton:hover {
+  background: var(--primary-color);
+}
