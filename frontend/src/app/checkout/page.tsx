@@ -14,7 +14,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { usePaymentMethod } from '@/context/PaymentMethodContext';
 import { getPriceWithTax } from '@/utils/price';
-import { searchAddressByPostalCode } from '@/api/address';
+import {
+  searchAddressByPostalCode,
+  getAddresses,
+  addAddress,
+  AddressItem,
+} from '@/api/address';
 import TextInput from '@/components/Input/TextInput';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import styles from './checkout.module.css';
@@ -37,6 +42,23 @@ export default function CheckoutPage() {
   const [isPrefectureDropdownOpen, setIsPrefectureDropdownOpen] =
     useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [userAddresses, setUserAddresses] = useState<AddressItem[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null
+  );
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+  const [useNewAddress, setUseNewAddress] = useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [newAddressError, setNewAddressError] = useState<string | null>(null);
+  const [newAddressFormData, setNewAddressFormData] = useState({
+    postalCode: '',
+    prefecture: '',
+    address: '',
+    option: '',
+  });
+  const [isPrefectureDropdownOpenInModal, setIsPrefectureDropdownOpenInModal] =
+    useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -77,8 +99,8 @@ export default function CheckoutPage() {
         if (coupon.max_discount_amount) {
           discountAmount = Math.min(discountAmount, coupon.max_discount_amount);
         }
-      } else {
-        // fixed型
+      } else if (coupon.discount_type === 'amount') {
+        // amount型：固定額割引
         discountAmount = Math.min(coupon.discount_value, couponTargetAmount);
       }
     }
@@ -95,21 +117,52 @@ export default function CheckoutPage() {
     };
   }, [cartItems, coupon]);
 
-  // ログイン状態で配送先情報を自動入力
+  // ログイン状態で情報を自動入力
   useEffect(() => {
-    if (isLoggedIn && user?.shippingAddress) {
-      const { shippingAddress } = user;
+    if (isLoggedIn && user) {
+      // 名前のフルネームを分割（簡易版：スペースで分割、またはデータがあればそれを使用）
+      const firstName =
+        user.shippingAddress?.firstName ||
+        (user.name ? user.name.split(' ')[0] : '');
+      const lastName =
+        user.shippingAddress?.lastName ||
+        (user.name ? user.name.split(' ').slice(1).join(' ') : '');
+
       setFormData((prev) => ({
         ...prev,
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
+        firstName: firstName,
+        lastName: lastName,
         email: user.email || '',
-        phone: shippingAddress.phone,
-        postalCode: shippingAddress.postalCode,
-        prefecture: shippingAddress.prefecture,
-        address: shippingAddress.address,
-        building: shippingAddress.building || '',
+        phone: user.shippingAddress?.phone || user.phone || '',
+        postalCode: user.shippingAddress?.postalCode || '',
+        prefecture: user.shippingAddress?.prefecture || '',
+        address: user.shippingAddress?.address || '',
+        building: user.shippingAddress?.building || '',
       }));
+
+      // ログインユーザーの場合、住所一覧を取得
+      const loadAddresses = async () => {
+        try {
+          setIsLoadingAddresses(true);
+          const response = await getAddresses();
+          if (response.success && response.data) {
+            setUserAddresses(response.data);
+            // デフォルトではメイン住所を選択
+            const mainAddress = response.data.find((addr) => addr.isMain);
+            if (mainAddress) {
+              setSelectedAddressId(mainAddress.id);
+            } else if (response.data.length > 0) {
+              setSelectedAddressId(response.data[0].id);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load addresses:', error);
+        } finally {
+          setIsLoadingAddresses(false);
+        }
+      };
+
+      loadAddresses();
     }
   }, [isLoggedIn, user]);
 
@@ -228,6 +281,11 @@ export default function CheckoutPage() {
   const [addressSearchError, setAddressSearchError] = useState<string | null>(
     null
   );
+  const [isSearchingAddressInModal, setIsSearchingAddressInModal] =
+    useState(false);
+  const [addressSearchErrorInModal, setAddressSearchErrorInModal] = useState<
+    string | null
+  >(null);
 
   const handleSearchAddress = async () => {
     const postalCode = formData.postalCode.trim();
@@ -270,6 +328,48 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleSearchAddressInModal = async () => {
+    const postalCode = newAddressFormData.postalCode.trim();
+
+    if (!postalCode) {
+      setAddressSearchErrorInModal('郵便番号を入力してください');
+      return;
+    }
+
+    if (postalCode.length !== 7) {
+      setAddressSearchErrorInModal('郵便番号は7文字である必要があります');
+      return;
+    }
+
+    setIsSearchingAddressInModal(true);
+    setAddressSearchErrorInModal(null);
+
+    try {
+      const result = await searchAddressByPostalCode(postalCode);
+
+      if (result.success && result.data) {
+        // prefectureは日本語名なので、prefectureOptionsから該当するIDを探す
+        const prefectureId = prefectureOptions.find(
+          (opt) => opt.label === result.data!.prefecture
+        )?.id;
+
+        if (prefectureId) {
+          handleNewAddressFormChange('prefecture', prefectureId);
+        }
+        handleNewAddressFormChange('address', result.data.address);
+      } else {
+        setAddressSearchErrorInModal(
+          result.message || '指定の郵便番号が見つかりません'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to search address:', error);
+      setAddressSearchErrorInModal('住所の検索に失敗しました');
+    } finally {
+      setIsSearchingAddressInModal(false);
+    }
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -305,16 +405,91 @@ export default function CheckoutPage() {
     setPaymentError(null);
   };
 
+  const handleAddNewAddress = async () => {
+    if (
+      !newAddressFormData.postalCode ||
+      !newAddressFormData.prefecture ||
+      !newAddressFormData.address
+    ) {
+      setNewAddressError('必須項目を入力してください');
+      return;
+    }
+
+    setIsAddingAddress(true);
+    try {
+      const response = await addAddress({
+        postalCode: newAddressFormData.postalCode,
+        prefecture: newAddressFormData.prefecture,
+        address: newAddressFormData.address,
+        option: newAddressFormData.option || undefined,
+      });
+
+      if (response.success && response.data) {
+        // モーダルを閉じ、新しい住所を選択状態にする
+        setIsAddressModalOpen(false);
+        setSelectedAddressId(response.data.id);
+        setUseNewAddress(false);
+
+        // 住所リストを更新
+        setUserAddresses([...userAddresses, response.data]);
+
+        // フォーム履歴から削除
+        setNewAddressFormData({
+          postalCode: '',
+          prefecture: '',
+          address: '',
+          option: '',
+        });
+        setNewAddressError(null);
+      } else {
+        setNewAddressError(response.message || '住所の追加に失敗しました');
+      }
+    } catch (error) {
+      setNewAddressError('住所の追加中にエラーが発生しました');
+    } finally {
+      setIsAddingAddress(false);
+    }
+  };
+
+  const handleNewAddressFormChange = (field: string, value: string) => {
+    setNewAddressFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   const validateStep1 = (): boolean => {
     const errors: Record<string, string> = {};
 
+    // Always validate basic contact info
     if (!formData.firstName) errors.firstName = '姓を入力してください';
     if (!formData.lastName) errors.lastName = '名を入力してください';
     if (!formData.email) errors.email = 'メールアドレスを入力してください';
     if (!formData.phone) errors.phone = '電話番号を入力してください';
-    if (!formData.postalCode) errors.postalCode = '郵便番号を入力してください';
-    if (!formData.prefecture) errors.prefecture = '都道府県を選択してください';
-    if (!formData.address) errors.address = '住所を入力してください';
+
+    // For logged-in users with saved addresses: validate selected address or new address
+    if (isLoggedIn && userAddresses.length > 0) {
+      if (useNewAddress) {
+        // Using new address: validate address fields
+        if (!formData.postalCode)
+          errors.postalCode = '郵便番号を入力してください';
+        if (!formData.prefecture)
+          errors.prefecture = '都道府県を選択してください';
+        if (!formData.address) errors.address = '住所を入力してください';
+      } else {
+        // Using saved address: validate selection
+        if (!selectedAddressId) {
+          errors.addressSelection = '配送先住所を選択してください';
+        }
+      }
+    } else {
+      // For non-logged-in users or when no saved addresses: validate address fields
+      if (!formData.postalCode)
+        errors.postalCode = '郵便番号を入力してください';
+      if (!formData.prefecture)
+        errors.prefecture = '都道府県を選択してください';
+      if (!formData.address) errors.address = '住所を入力してください';
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -474,10 +649,11 @@ export default function CheckoutPage() {
 
               {currentStep === 1 && (
                 <>
-                  {/* Shipping Information */}
+                  {/* Shipping Information Form (for new address or non-logged-in users) */}
                   <fieldset className={styles.fieldset}>
                     <legend className={styles.legend}>配送先情報</legend>
 
+                    {/* Always show: Name, Email, Phone */}
                     <div className={styles.formRow}>
                       <TextInput
                         name="firstName"
@@ -527,194 +703,695 @@ export default function CheckoutPage() {
                       containerStyle={{ marginBottom: '16px' }}
                     />
 
-                    <div className={styles.formGroup}>
+                    {/* For non-logged-in users or when no addresses available: show full address form */}
+                    {(!isLoggedIn || userAddresses.length === 0) && (
+                      <>
+                        <div className={styles.formGroup}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: '8px',
+                              alignItems: 'flex-start',
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <TextInput
+                                name="postalCode"
+                                value={formData.postalCode}
+                                onChange={handleInputChange}
+                                placeholder="8112108"
+                                label="郵便番号"
+                                inputType="number"
+                                maxLength={7}
+                                disabled={isSearchingAddress}
+                                required
+                                error={fieldErrors.postalCode}
+                                containerStyle={{ marginBottom: '0px' }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleSearchAddress}
+                              disabled={isSearchingAddress}
+                              onMouseEnter={(e) => {
+                                if (!isSearchingAddress) {
+                                  e.currentTarget.style.backgroundColor =
+                                    '#f0f0f0';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#fff';
+                              }}
+                              style={{
+                                padding: '10px 16px',
+                                backgroundColor: '#fff',
+                                color: '#333',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: isSearchingAddress
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                whiteSpace: 'nowrap',
+                                opacity: isSearchingAddress ? 0.6 : 1,
+                                transition: 'background-color 0.2s',
+                                height: '38px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                marginTop: '28px',
+                              }}
+                            >
+                              {isSearchingAddress ? '検索中...' : '住所検索'}
+                            </button>
+                          </div>
+                          {addressSearchError && (
+                            <div
+                              style={{
+                                color: '#c33',
+                                fontSize: '12px',
+                                marginTop: '4px',
+                              }}
+                            >
+                              {addressSearchError}
+                            </div>
+                          )}
+                          {isSearchingAddress && (
+                            <div
+                              style={{
+                                color: '#0066cc',
+                                fontSize: '12px',
+                                marginTop: '4px',
+                              }}
+                            >
+                              住所を検索中...
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          style={{ marginBottom: '16px', position: 'relative' }}
+                        >
+                          <label
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              color: 'var(--text-primary)',
+                              display: 'block',
+                              marginBottom: '8px',
+                            }}
+                          >
+                            都道府県
+                            <span
+                              style={{ color: '#e74c3c', marginLeft: '4px' }}
+                            >
+                              *
+                            </span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <Dropdown
+                              isOpen={isPrefectureDropdownOpen}
+                              onToggle={() =>
+                                setIsPrefectureDropdownOpen(
+                                  !isPrefectureDropdownOpen
+                                )
+                              }
+                              onClose={() => setIsPrefectureDropdownOpen(false)}
+                              buttonText={
+                                prefectureOptions.find(
+                                  (opt) => opt.id === formData.prefecture
+                                )?.label || '選択してください'
+                              }
+                              containerClassName={
+                                fieldErrors.prefecture
+                                  ? 'prefectureDropdownError'
+                                  : undefined
+                              }
+                            >
+                              {prefectureOptions.map((option) => (
+                                <div
+                                  key={option.id}
+                                  style={{
+                                    padding: '8px 12px',
+                                    cursor: 'pointer',
+                                    transition: 'background-color 0.2s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      'var(--bg-secondary)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      'transparent';
+                                  }}
+                                  onClick={() => {
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      prefecture: option.id,
+                                    }));
+                                    setIsPrefectureDropdownOpen(false);
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: '14px',
+                                      color: 'var(--text-primary)',
+                                    }}
+                                  >
+                                    {option.label}
+                                  </span>
+                                </div>
+                              ))}
+                            </Dropdown>
+                          </div>
+                          {fieldErrors.prefecture && (
+                            <div
+                              style={{
+                                color: '#e74c3c',
+                                fontSize: '12px',
+                                marginTop: '4px',
+                              }}
+                            >
+                              {fieldErrors.prefecture}
+                            </div>
+                          )}
+                        </div>
+
+                        <TextInput
+                          name="address"
+                          value={formData.address}
+                          onChange={handleInputChange}
+                          placeholder="丸の内1-1-1"
+                          label="住所"
+                          inputType="text"
+                          required
+                          error={fieldErrors.address}
+                          containerStyle={{ marginBottom: '16px' }}
+                        />
+
+                        <TextInput
+                          name="building"
+                          value={formData.building}
+                          onChange={handleInputChange}
+                          placeholder="◇◇ビル 4階"
+                          label="建物名（オプション）"
+                          inputType="text"
+                          containerStyle={{ marginBottom: '16px' }}
+                        />
+                      </>
+                    )}
+
+                    {/* For logged-in users with saved addresses: show address selection */}
+                    {isLoggedIn && userAddresses.length > 0 && (
                       <div
                         style={{
-                          display: 'flex',
-                          gap: '8px',
-                          alignItems: 'flex-start',
+                          marginTop: '24px',
+                          paddingTop: '24px',
+                          borderTop: '1px solid #e5e7eb',
                         }}
                       >
-                        <div style={{ flex: 1 }}>
-                          <TextInput
-                            name="postalCode"
-                            value={formData.postalCode}
-                            onChange={handleInputChange}
-                            placeholder="8112108"
-                            label="郵便番号"
-                            inputType="number"
-                            maxLength={7}
-                            disabled={isSearchingAddress}
-                            required
-                            error={fieldErrors.postalCode}
-                            containerStyle={{ marginBottom: '0px' }}
-                          />
+                        <h3
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            marginBottom: '12px',
+                          }}
+                        >
+                          配送先住所を選択
+                        </h3>
+                        <div style={{ marginBottom: '20px' }}>
+                          {isLoadingAddresses ? (
+                            <div style={{ textAlign: 'center', color: '#999' }}>
+                              住所を読み込み中...
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px',
+                              }}
+                            >
+                              {userAddresses.map((address) => (
+                                <label
+                                  key={address.id}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    padding: '12px',
+                                    border:
+                                      selectedAddressId === address.id
+                                        ? '2px solid #0066cc'
+                                        : '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    backgroundColor:
+                                      selectedAddressId === address.id
+                                        ? '#f0f7ff'
+                                        : '#fff',
+                                    transition: 'all 0.2s',
+                                  }}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="addressSelection"
+                                    value={address.id}
+                                    checked={selectedAddressId === address.id}
+                                    onChange={(e) =>
+                                      setSelectedAddressId(e.target.value)
+                                    }
+                                    style={{
+                                      marginRight: '12px',
+                                      marginTop: '2px',
+                                      cursor: 'pointer',
+                                    }}
+                                  />
+                                  <div style={{ flex: 1 }}>
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        marginBottom: '4px',
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          fontWeight: '600',
+                                          color: '#333',
+                                        }}
+                                      >
+                                        〒{address.postalCode}{' '}
+                                        {address.prefecture}
+                                        {address.address}
+                                      </div>
+                                      {address.isMain && (
+                                        <span
+                                          style={{
+                                            fontSize: '12px',
+                                            backgroundColor: '#0066cc',
+                                            color: '#fff',
+                                            padding: '2px 8px',
+                                            borderRadius: '12px',
+                                            fontWeight: '500',
+                                          }}
+                                        >
+                                          メイン
+                                        </span>
+                                      )}
+                                    </div>
+                                    {address.option && (
+                                      <div
+                                        style={{
+                                          fontSize: '14px',
+                                          color: '#666',
+                                        }}
+                                      >
+                                        {address.option}
+                                      </div>
+                                    )}
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          )}
                         </div>
+
+                        {/* Button to add a new address */}
                         <button
                           type="button"
-                          onClick={handleSearchAddress}
-                          disabled={isSearchingAddress}
+                          onClick={() => {
+                            setIsAddressModalOpen(true);
+                            setNewAddressError(null);
+                            setNewAddressFormData({
+                              postalCode: '',
+                              prefecture: '',
+                              address: '',
+                              option: '',
+                            });
+                          }}
+                          style={{
+                            padding: '12px',
+                            border: '1px solid #0066cc',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            backgroundColor: '#fff',
+                            color: '#0066cc',
+                            fontWeight: '500',
+                            fontSize: '14px',
+                            transition: 'all 0.2s',
+                            width: '100%',
+                            marginTop: '12px',
+                          }}
                           onMouseEnter={(e) => {
-                            if (!isSearchingAddress) {
-                              e.currentTarget.style.backgroundColor = '#f0f0f0';
-                            }
+                            e.currentTarget.style.backgroundColor = '#f0f7ff';
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = '#fff';
                           }}
-                          style={{
-                            padding: '10px 16px',
-                            backgroundColor: '#fff',
-                            color: '#333',
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            cursor: isSearchingAddress
-                              ? 'not-allowed'
-                              : 'pointer',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            whiteSpace: 'nowrap',
-                            opacity: isSearchingAddress ? 0.6 : 1,
-                            transition: 'background-color 0.2s',
-                            height: '38px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginTop: '28px',
-                          }}
                         >
-                          {isSearchingAddress ? '検索中...' : '住所検索'}
+                          + 新しい配送先を追加する
                         </button>
                       </div>
-                      {addressSearchError && (
-                        <div
-                          style={{
-                            color: '#c33',
-                            fontSize: '12px',
-                            marginTop: '4px',
-                          }}
-                        >
-                          {addressSearchError}
-                        </div>
-                      )}
-                      {isSearchingAddress && (
-                        <div
-                          style={{
-                            color: '#0066cc',
-                            fontSize: '12px',
-                            marginTop: '4px',
-                          }}
-                        >
-                          住所を検索中...
-                        </div>
-                      )}
-                    </div>
+                    )}
+                  </fieldset>
 
-                    <div style={{ marginBottom: '16px', position: 'relative' }}>
-                      <label
+                  {/* Address Modal */}
+                  {isAddressModalOpen && (
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                      }}
+                      onClick={() => {
+                        if (!isAddingAddress) setIsAddressModalOpen(false);
+                      }}
+                    >
+                      <div
                         style={{
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: 'var(--text-primary)',
-                          display: 'block',
-                          marginBottom: '8px',
+                          backgroundColor: '#fff',
+                          borderRadius: '8px',
+                          padding: '30px',
+                          maxWidth: '500px',
+                          width: '90%',
+                          maxHeight: '90vh',
+                          overflowY: 'auto',
                         }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        都道府県
-                        <span style={{ color: '#e74c3c', marginLeft: '4px' }}>
-                          *
-                        </span>
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                        <Dropdown
-                          isOpen={isPrefectureDropdownOpen}
-                          onToggle={() =>
-                            setIsPrefectureDropdownOpen(
-                              !isPrefectureDropdownOpen
-                            )
-                          }
-                          onClose={() => setIsPrefectureDropdownOpen(false)}
-                          buttonText={
-                            prefectureOptions.find(
-                              (opt) => opt.id === formData.prefecture
-                            )?.label || '選択してください'
-                          }
-                          containerClassName={
-                            fieldErrors.prefecture
-                              ? 'prefectureDropdownError'
-                              : undefined
-                          }
+                        <h2
+                          style={{
+                            fontSize: '18px',
+                            fontWeight: '600',
+                            marginBottom: '20px',
+                          }}
                         >
-                          {prefectureOptions.map((option) => (
-                            <div
-                              key={option.id}
+                          新しい配送先を追加
+                        </h2>
+
+                        {newAddressError && (
+                          <div
+                            style={{
+                              backgroundColor: '#fee',
+                              color: '#c33',
+                              padding: '12px',
+                              borderRadius: '4px',
+                              marginBottom: '16px',
+                              fontSize: '14px',
+                            }}
+                          >
+                            {newAddressError}
+                          </div>
+                        )}
+
+                        <div style={{ marginBottom: '16px' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            郵便番号
+                            <span
+                              style={{ color: '#e74c3c', marginLeft: '4px' }}
+                            >
+                              *
+                            </span>
+                          </label>
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: '8px',
+                            }}
+                          >
+                            <input
+                              type="number"
+                              maxLength={7}
+                              value={newAddressFormData.postalCode}
+                              onChange={(e) =>
+                                handleNewAddressFormChange(
+                                  'postalCode',
+                                  e.target.value
+                                )
+                              }
+                              placeholder="8112108"
+                              disabled={isSearchingAddressInModal}
                               style={{
-                                padding: '8px 12px',
-                                cursor: 'pointer',
+                                flex: 1,
+                                padding: '10px',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleSearchAddressInModal}
+                              disabled={isSearchingAddressInModal}
+                              style={{
+                                padding: '10px 16px',
+                                backgroundColor: '#fff',
+                                color: '#333',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                cursor: isSearchingAddressInModal
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                whiteSpace: 'nowrap',
+                                opacity: isSearchingAddressInModal ? 0.6 : 1,
                                 transition: 'background-color 0.2s',
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  'var(--bg-secondary)';
+                                if (!isSearchingAddressInModal) {
+                                  e.currentTarget.style.backgroundColor =
+                                    '#f0f0f0';
+                                }
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor =
-                                  'transparent';
-                              }}
-                              onClick={() => {
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  prefecture: option.id,
-                                }));
-                                setIsPrefectureDropdownOpen(false);
+                                e.currentTarget.style.backgroundColor = '#fff';
                               }}
                             >
-                              <span
-                                style={{
-                                  fontSize: '14px',
-                                  color: 'var(--text-primary)',
-                                }}
-                              >
-                                {option.label}
-                              </span>
+                              {isSearchingAddressInModal
+                                ? '検索中...'
+                                : '住所検索'}
+                            </button>
+                          </div>
+                          {addressSearchErrorInModal && (
+                            <div
+                              style={{
+                                color: '#c33',
+                                fontSize: '12px',
+                                marginTop: '4px',
+                              }}
+                            >
+                              {addressSearchErrorInModal}
                             </div>
-                          ))}
-                        </Dropdown>
-                      </div>
-                      {fieldErrors.prefecture && (
+                          )}
+                        </div>
+
+                        <div
+                          style={{ marginBottom: '16px', position: 'relative' }}
+                        >
+                          <label
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              marginBottom: '6px',
+                              display: 'block',
+                            }}
+                          >
+                            都道府県
+                            <span
+                              style={{ color: '#e74c3c', marginLeft: '4px' }}
+                            >
+                              *
+                            </span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <Dropdown
+                              isOpen={isPrefectureDropdownOpenInModal}
+                              onToggle={() =>
+                                setIsPrefectureDropdownOpenInModal(
+                                  !isPrefectureDropdownOpenInModal
+                                )
+                              }
+                              onClose={() =>
+                                setIsPrefectureDropdownOpenInModal(false)
+                              }
+                              buttonText={
+                                prefectureOptions.find(
+                                  (opt) =>
+                                    opt.id === newAddressFormData.prefecture
+                                )?.label || '選択してください'
+                              }
+                            >
+                              {prefectureOptions.map((option) => (
+                                <div
+                                  key={option.id}
+                                  style={{
+                                    padding: '8px 12px',
+                                    cursor: 'pointer',
+                                    transition: 'background-color 0.2s',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      'var(--bg-secondary)';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor =
+                                      'transparent';
+                                  }}
+                                  onClick={() => {
+                                    handleNewAddressFormChange(
+                                      'prefecture',
+                                      option.id
+                                    );
+                                    setIsPrefectureDropdownOpenInModal(false);
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: '14px',
+                                      color: 'var(--text-primary)',
+                                    }}
+                                  >
+                                    {option.label}
+                                  </span>
+                                </div>
+                              ))}
+                            </Dropdown>
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: '16px' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            住所
+                            <span
+                              style={{ color: '#e74c3c', marginLeft: '4px' }}
+                            >
+                              *
+                            </span>
+                          </label>
+                          <input
+                            type="text"
+                            value={newAddressFormData.address}
+                            onChange={(e) =>
+                              handleNewAddressFormChange(
+                                'address',
+                                e.target.value
+                              )
+                            }
+                            placeholder="丸の内1-1-1"
+                            style={{
+                              width: '100%',
+                              padding: '10px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: '14px',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ marginBottom: '20px' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            建物名（オプション）
+                          </label>
+                          <input
+                            type="text"
+                            value={newAddressFormData.option}
+                            onChange={(e) =>
+                              handleNewAddressFormChange(
+                                'option',
+                                e.target.value
+                              )
+                            }
+                            placeholder="◇◇ビル 4階"
+                            style={{
+                              width: '100%',
+                              padding: '10px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: '14px',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+
                         <div
                           style={{
-                            color: '#e74c3c',
-                            fontSize: '12px',
-                            marginTop: '4px',
+                            display: 'flex',
+                            gap: '12px',
+                            justifyContent: 'flex-end',
                           }}
                         >
-                          {fieldErrors.prefecture}
+                          <button
+                            type="button"
+                            onClick={() => setIsAddressModalOpen(false)}
+                            disabled={isAddingAddress}
+                            style={{
+                              padding: '10px 20px',
+                              border: '1px solid #ddd',
+                              backgroundColor: '#fff',
+                              borderRadius: '4px',
+                              cursor: isAddingAddress
+                                ? 'not-allowed'
+                                : 'pointer',
+                              fontSize: '14px',
+                              opacity: isAddingAddress ? 0.6 : 1,
+                            }}
+                          >
+                            キャンセル
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAddNewAddress}
+                            disabled={isAddingAddress}
+                            style={{
+                              padding: '10px 20px',
+                              border: 'none',
+                              backgroundColor: '#0066cc',
+                              color: '#fff',
+                              borderRadius: '4px',
+                              cursor: isAddingAddress
+                                ? 'not-allowed'
+                                : 'pointer',
+                              fontSize: '14px',
+                              opacity: isAddingAddress ? 0.6 : 1,
+                            }}
+                          >
+                            {isAddingAddress ? '追加中...' : '追加する'}
+                          </button>
                         </div>
-                      )}
+                      </div>
                     </div>
-
-                    <TextInput
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      placeholder="丸の内1-1-1"
-                      label="住所"
-                      inputType="text"
-                      required
-                      error={fieldErrors.address}
-                      containerStyle={{ marginBottom: '16px' }}
-                    />
-
-                    <TextInput
-                      name="building"
-                      value={formData.building}
-                      onChange={handleInputChange}
-                      placeholder="◇◇ビル 4階"
-                      label="建物名（オプション）"
-                      inputType="text"
-                      containerStyle={{ marginBottom: '16px' }}
-                    />
-                  </fieldset>
+                  )}
                 </>
               )}
 
@@ -751,11 +1428,37 @@ export default function CheckoutPage() {
                         <p>
                           {formData.firstName} {formData.lastName}
                         </p>
-                        <p>〒{formData.postalCode}</p>
-                        <p>
-                          {formData.prefecture} {formData.address}
-                        </p>
-                        {formData.building && <p>{formData.building}</p>}
+                        {/* Display selected saved address for logged-in users */}
+                        {isLoggedIn &&
+                        selectedAddressId &&
+                        userAddresses.length > 0 &&
+                        !useNewAddress ? (
+                          (() => {
+                            const selectedAddress = userAddresses.find(
+                              (addr) => addr.id === selectedAddressId
+                            );
+                            return selectedAddress ? (
+                              <>
+                                <p>〒{selectedAddress.postalCode}</p>
+                                <p>
+                                  {selectedAddress.prefecture}{' '}
+                                  {selectedAddress.address}
+                                </p>
+                                {selectedAddress.option && (
+                                  <p>{selectedAddress.option}</p>
+                                )}
+                              </>
+                            ) : null;
+                          })()
+                        ) : (
+                          <>
+                            <p>〒{formData.postalCode}</p>
+                            <p>
+                              {formData.prefecture} {formData.address}
+                            </p>
+                            {formData.building && <p>{formData.building}</p>}
+                          </>
+                        )}
                         <p>{formData.email}</p>
                         <p>{formData.phone}</p>
                       </div>

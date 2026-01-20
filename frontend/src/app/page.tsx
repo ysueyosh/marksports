@@ -46,12 +46,18 @@ export default function Home() {
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>おすすめ商品</h2>
           <div className={styles.productGrid}>
-            {Object.values(featuredProducts)
-              .flat()
+            {Array.from(
+              new Map(
+                Object.values(featuredProducts)
+                  .flat()
+                  .map((product) => [product.id, product])
+              ).values()
+            )
               .slice(0, 6)
-              .map((product) => (
+              .map((product, index) => (
                 <ProductCard
-                  key={product.id}
+                  image={product.image}
+                  key={`featured-${product.id}-${index}`}
                   id={product.id}
                   name={product.name}
                   price={product.price}
@@ -76,9 +82,10 @@ export default function Home() {
               </Link>
             </div>
             <div className={styles.productGrid}>
-              {featuredProducts[category.id]?.map((product) => (
+              {featuredProducts[category.id]?.map((product, index) => (
                 <ProductCard
-                  key={product.id}
+                  image={product.image}
+                  key={`${category.id}-${product.id}-${index}`}
                   id={product.id}
                   name={product.name}
                   price={product.price}

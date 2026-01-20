@@ -4,11 +4,20 @@ Search handler - Product search with filtering and sorting
 
 import json
 import logging
+from decimal import Decimal
 from src.models.product import ProductsResponse
-from src.handlers.product import DUMMY_PRODUCTS
+from src.utils.dynamodb import get_commerce_table, PRODUCT_PK
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+class DecimalEncoder(json.JSONEncoder):
+    """JSON encoder that converts Decimal to float"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 
 def search_products(event, context):
@@ -46,23 +55,31 @@ def search_products(event, context):
         
         logger.info(f"Search products - keyword: {keyword}, categories: {categories}, price_range: {price_range}, sort: {sort_by}, page: {page}, limit: {limit}")
         
+        # Get products from DynamoDB
+        table = get_commerce_table()
+        
+        response = table.query(
+            KeyConditionExpression='PK = :pk',
+            ExpressionAttributeValues={':pk': PRODUCT_PK}
+        )
+        
+        all_products = response.get('Items', [])
+        
         # Filter products
         filtered_products = []
         
-        for product in DUMMY_PRODUCTS:
+        for product in all_products:
             # Keyword filter
-            if keyword and keyword not in product["name"].lower():
+            if keyword and keyword not in product.get("name", "").lower():
                 continue
             
             # Category filter
             if categories:
-                # Since DUMMY_PRODUCTS doesn't have subcategory_id, we use category_id as fallback
-                # In production, this would filter by subcategory_id
-                if product.get("category_id") not in categories:
+                if product.get("categoryId") not in categories:
                     continue
             
             # Price filter
-            price = product["price"]
+            price = float(product.get("price", 0))
             if price_range == "lt1000":
                 if price > 1000:
                     continue
@@ -83,7 +100,7 @@ def search_products(event, context):
             if not keyword:
                 return 0
             
-            product_name_lower = product["name"].lower()
+            product_name_lower = product.get("name", "").lower()
             
             # Split keyword into words
             keywords = keyword.split()
@@ -101,9 +118,9 @@ def search_products(event, context):
         
         # Sort products
         if sort_by == "asc":
-            filtered_products.sort(key=lambda x: x["price"])
+            filtered_products.sort(key=lambda x: float(x.get("price", 0)))
         elif sort_by == "desc":
-            filtered_products.sort(key=lambda x: x["price"], reverse=True)
+            filtered_products.sort(key=lambda x: float(x.get("price", 0)), reverse=True)
         elif sort_by == "relevance":
             # Sort by relevance score (descending) if keyword exists, otherwise keep original order
             if keyword:
@@ -120,15 +137,23 @@ def search_products(event, context):
         end_idx = start_idx + limit
         paginated_products = filtered_products[start_idx:end_idx]
         
-        # Add subcategory_id field for frontend compatibility
-        # In production, this would come from the database
+        # Map DynamoDB fields to Product model fields for response
+        mapped_products = []
         for product in paginated_products:
-            if "subcategory_id" not in product:
-                product["subcategory_id"] = f"{product['category_id']}-item"
-                product["subcategory_name"] = product.get("category_name", "")
+            image_urls = product.get('imageUrls', [])
+            mapped_product = {
+                'id': product.get('productId'),
+                'name': product.get('name'),
+                'price': product.get('price'),
+                'image': image_urls[0] if image_urls else '',
+                'description': product.get('description', ''),
+                'category_id': product.get('categoryId'),
+                'category_name': product.get('categoryName', ''),
+            }
+            mapped_products.append(mapped_product)
         
         response_data = {
-            "products": paginated_products,
+            "products": mapped_products,
             "total": total_count,
             "page": page,
             "limit": limit,
@@ -147,7 +172,7 @@ def search_products(event, context):
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": json.dumps(response.model_dump()),
+            "body": json.dumps(response.model_dump(), cls=DecimalEncoder),
         }
     
     except Exception as e:
@@ -161,5 +186,5 @@ def search_products(event, context):
             "body": json.dumps({
                 "success": False,
                 "message": f"Failed to search products: {str(e)}"
-            }),
+            }, cls=DecimalEncoder),
         }

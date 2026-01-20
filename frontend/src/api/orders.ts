@@ -2,7 +2,7 @@
  * Orders API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface OrderItem {
   productId: string;
@@ -100,9 +100,7 @@ export interface CancelOrderResponse {
  * Get user's orders list
  */
 export async function getOrders(): Promise<GetOrdersResponse> {
-  const response = await apiRequest<GetOrdersResponse>('/orders', {
-    method: 'GET',
-  });
+  const response = await apiClient.get<GetOrdersResponse>('/orders');
 
   return response;
 }
@@ -114,11 +112,8 @@ export async function getOrders(): Promise<GetOrdersResponse> {
 export async function getOrderDetail(
   orderId: string
 ): Promise<GetOrderDetailResponse> {
-  const response = await apiRequest<GetOrderDetailResponse>(
-    `/orders/${orderId}`,
-    {
-      method: 'GET',
-    }
+  const response = await apiClient.get<GetOrderDetailResponse>(
+    `/orders/${orderId}`
   );
 
   return response;
@@ -133,12 +128,9 @@ export async function cancelOrder(
   orderId: string,
   reason: string
 ): Promise<CancelOrderResponse> {
-  const response = await apiRequest<CancelOrderResponse>(
+  const response = await apiClient.post<CancelOrderResponse>(
     `/orders/${orderId}/cancel`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    }
+    { reason }
   );
 
   return response;

@@ -2,22 +2,45 @@
 Local Flask app for testing
 """
 
+import os
+
+# Set environment variables for local testing
+os.environ['ADMIN_TABLE_NAME'] = 'Admin'
+os.environ['COMMERCE_TABLE_NAME'] = 'Commerce'
+os.environ['USERS_TABLE_NAME'] = 'User'
+os.environ['CART_TABLE_NAME'] = 'User'
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from src.handlers.auth import login, refresh_token, verify_token, update_profile, change_password, update_notification_settings, delete_account, get_profile, request_password_reset, verify_reset_token, reset_password
 from src.handlers.register import register
-from src.handlers.address import get_addresses, add_address, update_address, delete_address, set_default_address
+from src.handlers.cart import get_cart, add_to_cart, update_cart_item, delete_from_cart, clear_cart
+from src.handlers.address import get_addresses, add_address, update_address, delete_address, set_main_address
 from src.handlers.category import get_categories
 from src.handlers.payment import get_saved_cards, add_card, delete_card, set_default_card
 from src.handlers.product import get_featured_products, get_product_detail, get_related_products, check_product_exists, check_products_exist
 from src.handlers.search import search_products
 from src.handlers.coupon import apply_coupon
-from src.handlers.notification import get_notifications, get_notification_count
+from src.handlers.notification import get_notifications, get_notification_detail, get_notification_count
 from src.handlers.order import get_orders, get_order_detail, cancel_order
+from src.handlers.admin import admin_login, admin_refresh_token, admin_verify_token, create_admin, get_admin_settings, update_admin_settings
+from src.handlers.admin_product import create_product, update_product, delete_product, get_all_products
+from src.handlers.admin_category import admin_create_category_route, admin_get_all_categories_route, admin_update_category_route, admin_delete_category_route
+from src.handlers.admin_coupon import create_coupon, update_coupon, delete_coupon, get_all_coupons
+from src.handlers.admin_user import get_all_users, get_user, update_user, delete_user
+from src.handlers.admin_notification import get_all_notifications, get_notification, create_notification, update_notification, delete_notification
 import json
 
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS
+cors_config = {
+    "origins": "*",
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization", "X-User-UUID", "X-User-Id"],
+    "max_age": 3600
+}
+CORS(app, resources={r"/*": cors_config})
 
 
 @app.route('/login', methods=['POST'])
@@ -48,6 +71,348 @@ def verify_token_route():
     result = verify_token(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
+
+
+# Admin Authentication Endpoints
+@app.route('/admin/login', methods=['POST'])
+def admin_login_route():
+    """Admin login endpoint"""
+    # Lambda event形式に変換
+    event = {'body': request.data.decode()}
+    result = admin_login(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/refresh-token', methods=['POST'])
+def admin_refresh_token_route():
+    """Admin refresh token endpoint"""
+    # Lambda event形式に変換
+    event = {'body': request.data.decode()}
+    result = admin_refresh_token(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/verify-token', methods=['POST'])
+def admin_verify_token_route():
+    """Admin verify token endpoint"""
+    # Lambda event形式に変換
+    event = {'body': request.data.decode()}
+    result = admin_verify_token(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/create', methods=['POST'])
+def create_admin_route():
+    """Create admin endpoint"""
+    # Lambda event形式に変換
+    event = {'body': request.data.decode()}
+    result = create_admin(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/settings', methods=['GET'])
+def get_admin_settings_route():
+    """Get admin settings endpoint"""
+    # Lambda event形式に変換
+    event = {
+        'headers': dict(request.headers)
+    }
+    result = get_admin_settings(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/settings', methods=['PUT'])
+def update_admin_settings_route():
+    """Update admin settings endpoint"""
+    # Lambda event形式に変換
+    event = {
+        'headers': dict(request.headers),
+        'body': request.data.decode()
+    }
+    result = update_admin_settings(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+# Admin Product Management Endpoints
+@app.route('/admin/products', methods=['POST'])
+def admin_create_product_route():
+    """Create product endpoint (admin only)"""
+    # Lambda event形式に変換
+    event = {'body': request.data.decode(), 'headers': dict(request.headers)}
+    result = create_product(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/products', methods=['GET'])
+def admin_get_all_products_route():
+    """Get all products endpoint (admin only)"""
+    event = {
+        'headers': dict(request.headers),
+        'queryStringParameters': request.args.to_dict()
+    }
+    result = get_all_products(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/products/<product_id>', methods=['PUT'])
+def admin_update_product_route(product_id):
+    """Update product endpoint (admin only)"""
+    event = {
+        'pathParameters': {'productId': product_id},
+        'body': request.data.decode(),
+        'headers': dict(request.headers)
+    }
+    result = update_product(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/products/<product_id>', methods=['DELETE'])
+def admin_delete_product_route(product_id):
+    """Delete product endpoint (admin only)"""
+    event = {
+        'pathParameters': {'productId': product_id},
+        'headers': dict(request.headers)
+    }
+    result = delete_product(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+# Admin Category Management Endpoints
+@app.route('/admin/categories', methods=['POST'])
+def admin_create_category_route_wrapper():
+    """Create category endpoint (admin only)"""
+    return admin_create_category_route()
+
+
+@app.route('/admin/categories', methods=['GET'])
+def admin_get_all_categories_route_wrapper():
+    """Get all categories endpoint (admin only)"""
+    return admin_get_all_categories_route()
+
+
+@app.route('/admin/categories/<category_id>', methods=['PUT'])
+def admin_update_category_route_wrapper(category_id):
+    """Update category endpoint (admin only)"""
+    return admin_update_category_route(category_id)
+
+
+@app.route('/admin/categories/<category_id>', methods=['DELETE'])
+def admin_delete_category_route_wrapper(category_id):
+    """Delete category endpoint (admin only)"""
+    return admin_delete_category_route(category_id)
+
+
+@app.route('/admin/coupons', methods=['POST'])
+def create_coupon_route():
+    """Create coupon endpoint (admin only)"""
+    event = {'body': request.data.decode(), 'headers': dict(request.headers)}
+    result = create_coupon(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/coupons', methods=['GET'])
+def get_all_coupons_route():
+    """Get all coupons endpoint (admin only)"""
+    event = {
+        'queryStringParameters': dict(request.args),
+        'headers': dict(request.headers)
+    }
+    result = get_all_coupons(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/coupons/<coupon_id>', methods=['PUT'])
+def update_coupon_route(coupon_id):
+    """Update coupon endpoint (admin only)"""
+    event = {
+        'pathParameters': {'couponId': coupon_id},
+        'body': request.data.decode(),
+        'headers': dict(request.headers)
+    }
+    result = update_coupon(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/coupons/<coupon_id>', methods=['DELETE'])
+def delete_coupon_route(coupon_id):
+    """Delete coupon endpoint (admin only)"""
+    event = {
+        'pathParameters': {'couponId': coupon_id},
+        'headers': dict(request.headers)
+    }
+    result = delete_coupon(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+# ===== Admin User Management Routes =====
+
+@app.route('/admin/users', methods=['GET'])
+def get_all_users_route():
+    """Get all users endpoint (admin only)"""
+    event = {
+        'queryStringParameters': request.args.to_dict() or {},
+        'headers': dict(request.headers)
+    }
+    result = get_all_users(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/users/<user_id>', methods=['GET'])
+def get_user_route(user_id):
+    """Get user by ID endpoint (admin only)"""
+    event = {
+        'pathParameters': {'user_id': user_id},
+        'headers': dict(request.headers)
+    }
+    result = get_user(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/users/<user_id>', methods=['PUT'])
+def update_user_route(user_id):
+    """Update user endpoint (admin only)"""
+    event = {
+        'body': request.data.decode(),
+        'pathParameters': {'user_id': user_id},
+        'headers': dict(request.headers)
+    }
+    result = update_user(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/users/<user_id>', methods=['DELETE'])
+def delete_user_route(user_id):
+    """Delete user endpoint (admin only)"""
+    event = {
+        'pathParameters': {'user_id': user_id},
+        'headers': dict(request.headers)
+    }
+    result = delete_user(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+# Admin Notification Routes
+@app.route('/admin/notifications', methods=['GET'])
+def get_all_notifications_route():
+    """Get all notifications endpoint (admin only)"""
+    event = {
+        'queryStringParameters': request.args.to_dict(),
+        'headers': dict(request.headers)
+    }
+    result = get_all_notifications(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/notifications/<notification_id>', methods=['GET'])
+def get_notification_route(notification_id):
+    """Get notification endpoint (admin only)"""
+    event = {
+        'pathParameters': {'notification_id': notification_id},
+        'headers': dict(request.headers)
+    }
+    result = get_notification(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/notifications', methods=['POST'])
+def create_notification_route():
+    """Create notification endpoint (admin only)"""
+    event = {
+        'body': request.get_data(as_text=True),
+        'headers': dict(request.headers)
+    }
+    result = create_notification(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/notifications/<notification_id>', methods=['PUT'])
+def update_notification_route(notification_id):
+    """Update notification endpoint (admin only)"""
+    event = {
+        'pathParameters': {'notification_id': notification_id},
+        'body': request.get_data(as_text=True),
+        'headers': dict(request.headers)
+    }
+    result = update_notification(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/notifications/<notification_id>', methods=['DELETE'])
+def delete_notification_route(notification_id):
+    """Delete notification endpoint (admin only)"""
+    event = {
+        'pathParameters': {'notification_id': notification_id},
+        'headers': dict(request.headers)
+    }
+    result = delete_notification(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/images/upload', methods=['POST'])
+def upload_image_route():
+    """Upload image to S3 (admin only)"""
+    try:
+        from src.handlers.admin_image import verify_admin_token
+        from src.utils.s3 import upload_image_to_s3
+        
+        # Verify admin token
+        admin_info = verify_admin_token(dict(request.headers))
+        if not admin_info:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
+        # Get form data
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        product_id = request.form.get('productId')
+        image_name = request.form.get('imageName')
+        
+        if not product_id or not image_name:
+            return jsonify({'success': False, 'error': 'productId and imageName are required'}), 400
+        
+        # Read file content
+        file_content = file.read()
+        
+        # Upload to S3
+        s3_url = upload_image_to_s3(product_id, image_name, file_content)
+        
+        if not s3_url:
+            return jsonify({'success': False, 'error': 'Failed to upload image'}), 500
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                's3Url': s3_url
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 
 @app.route('/register', methods=['POST'])
@@ -122,6 +487,16 @@ def get_notification_count_route():
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
+@app.route('/notifications/<notification_id>', methods=['GET'])
+def get_notification_detail_route(notification_id):
+    """Get notification detail endpoint"""
+    event = {
+        'pathParameters': {'notification_id': notification_id}
+    }
+    result = get_notification_detail(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
 @app.route('/password-reset/request', methods=['POST'])
 def request_password_reset_route():
     """Request password reset endpoint"""
@@ -193,10 +568,10 @@ def delete_address_route(address_id):
 
 
 @app.route('/addresses/<address_id>/default', methods=['PUT'])
-def set_default_address_route(address_id):
-    """Set address as default endpoint"""
+def set_main_address_route(address_id):
+    """Set address as main endpoint"""
     event = {'pathParameters': {'id': address_id}, 'headers': dict(request.headers)}
-    result = set_default_address(event, None)
+    result = set_main_address(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
@@ -237,6 +612,72 @@ def set_default_card_route(card_id):
     return jsonify(body), result['statusCode']
 
 
+# ================== CART ENDPOINTS ==================
+
+@app.route('/cart', methods=['GET'])
+def get_cart_route():
+    """Get cart items endpoint"""
+    event = {
+        'headers': dict(request.headers),
+        'queryStringParameters': request.args.to_dict(),
+    }
+    result = get_cart(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/cart', methods=['POST'])
+def add_to_cart_route():
+    """Add item to cart endpoint"""
+    event = {
+        'headers': dict(request.headers),
+        'queryStringParameters': request.args.to_dict(),
+        'body': request.data.decode(),
+    }
+    result = add_to_cart(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/cart/<product_id>', methods=['PUT'])
+def update_cart_item_route(product_id):
+    """Update cart item quantity endpoint"""
+    event = {
+        'headers': dict(request.headers),
+        'queryStringParameters': request.args.to_dict(),
+        'pathParameters': {'product_id': product_id},
+        'body': request.data.decode(),
+    }
+    result = update_cart_item(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/cart/<product_id>', methods=['DELETE'])
+def delete_from_cart_route(product_id):
+    """Delete item from cart endpoint"""
+    event = {
+        'headers': dict(request.headers),
+        'queryStringParameters': request.args.to_dict(),
+        'pathParameters': {'product_id': product_id},
+    }
+    result = delete_from_cart(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/cart/clear', methods=['POST'])
+def clear_cart_route():
+    """Clear cart endpoint (after successful payment)"""
+    event = {
+        'headers': dict(request.headers),
+        'queryStringParameters': request.args.to_dict(),
+    }
+    result = clear_cart(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
 @app.route('/categories', methods=['GET'])
 def categories_route():
     """Get categories endpoint"""
@@ -253,19 +694,19 @@ def featured_products_route():
     return jsonify(body), result['statusCode']
 
 
-@app.route('/product/<int:product_id>', methods=['GET'])
+@app.route('/product/<product_id>', methods=['GET'])
 def product_detail_route(product_id):
     """Get product detail endpoint"""
-    event = {'pathParameters': {'id': str(product_id)}}
+    event = {'pathParameters': {'id': product_id}}
     result = get_product_detail(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
 
-@app.route('/product/<int:product_id>/exists', methods=['GET'])
+@app.route('/product/<product_id>/exists', methods=['GET'])
 def product_exists_route(product_id):
     """Check if product exists endpoint"""
-    event = {'pathParameters': {'id': str(product_id)}}
+    event = {'pathParameters': {'id': product_id}}
     result = check_product_exists(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
@@ -351,7 +792,7 @@ def cancel_order_route(order_id):
 @app.route('/search-address', methods=['POST'])
 def search_address_route():
     """Search address by postal code endpoint"""
-    from src.handlers.address import handler as search_address_handler
+    from src.handlers.address import search_address_handler
     event = {'body': request.data.decode()}
     result = search_address_handler(event, None)
     body = json.loads(result['body'])
@@ -380,6 +821,13 @@ if __name__ == '__main__':
     print("    POST   /password-reset/verify")
     print("    POST   /password-reset/reset")
     
+    # Admin Authentication endpoints
+    print("\n  🛡️  ADMIN AUTH")
+    print("    POST   /admin/login")
+    print("    POST   /admin/refresh-token")
+    print("    POST   /admin/verify-token")
+    print("    POST   /admin/create")
+    
     # Profile endpoints
     print("\n  👤 PROFILE")
     print("    GET    /get-profile")
@@ -396,6 +844,14 @@ if __name__ == '__main__':
     print("    DELETE /addresses/<address_id>")
     print("    PUT    /addresses/<address_id>/default")
     print("    POST   /search-address")
+    
+    # Cart endpoints
+    print("\n  🛒 CART")
+    print("    GET    /cart?userUuid=<uuid> (or with Authorization header)")
+    print("    POST   /cart (body: {productId, quantity})")
+    print("    PUT    /cart/<product_id> (body: {quantity})")
+    print("    DELETE /cart/<product_id>")
+    print("    POST   /cart/clear")
     
     # Payment endpoints
     print("\n  💳 PAYMENT")
@@ -423,6 +879,20 @@ if __name__ == '__main__':
     # Coupon endpoint
     print("\n  🎟️  COUPON")
     print("    POST   /apply-coupon")
+    
+    # Admin coupon endpoints
+    print("\n  🎟️  ADMIN COUPON MANAGEMENT")
+    print("    POST   /admin/coupons")
+    print("    GET    /admin/coupons?page=<page>&limit=<limit>")
+    print("    PUT    /admin/coupons/<coupon_id>")
+    print("    DELETE /admin/coupons/<coupon_id>")
+    
+    # Admin user endpoints
+    print("\n  👥 ADMIN USER MANAGEMENT")
+    print("    GET    /admin/users?page=<page>&limit=<limit>")
+    print("    GET    /admin/users/<user_id>")
+    print("    PUT    /admin/users/<user_id>")
+    print("    DELETE /admin/users/<user_id>")
     
     # Notification endpoints
     print("\n  🔔 NOTIFICATIONS")

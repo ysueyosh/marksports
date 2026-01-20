@@ -2,7 +2,7 @@
  * Search API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface SearchProduct {
   id: number;
@@ -71,7 +71,5 @@ export async function searchProducts(
   const queryString = params.toString();
   const endpoint = `/search${queryString ? `?${queryString}` : ''}`;
 
-  return apiRequest<SearchResponse>(endpoint, {
-    method: 'GET',
-  });
+  return apiClient.get<SearchResponse>(endpoint);
 }

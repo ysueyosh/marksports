@@ -205,9 +205,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const response = await verifyToken(parsedTokens.accessToken);
 
               if (response.success && response.data) {
-                setUserWithTokens(response.data, parsedTokens);
+                // ユーザー情報を取得してログイン状態を復元
+                const userData = {
+                  id: response.data.id,
+                  name: response.data.name,
+                  email: response.data.email,
+                  phone: response.data.phone,
+                  address: response.data.address,
+                };
+                setUserWithTokens(userData, parsedTokens);
               } else {
                 // トークン検証失敗 → ログアウト
+                console.warn('Token verification failed:', response.message);
                 logout();
               }
             } else {
@@ -229,12 +238,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const verifyResponse = await verifyToken(newTokens.accessToken);
 
                 if (verifyResponse.success && verifyResponse.data) {
-                  setUserWithTokens(verifyResponse.data, newTokens);
+                  // ユーザー情報を取得してログイン状態を復元
+                  const userData = {
+                    id: verifyResponse.data.id,
+                    name: verifyResponse.data.name,
+                    email: verifyResponse.data.email,
+                    phone: verifyResponse.data.phone,
+                    address: verifyResponse.data.address,
+                  };
+                  setUserWithTokens(userData, newTokens);
                 } else {
                   logout();
                 }
               } else {
                 // リフレッシュ失敗 → ログアウト
+                console.warn('Token refresh failed:', refreshResponse.message);
                 logout();
               }
             }

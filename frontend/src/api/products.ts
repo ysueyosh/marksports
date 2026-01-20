@@ -2,7 +2,7 @@
  * Products API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface Product {
   id: number;
@@ -12,6 +12,7 @@ export interface Product {
   description: string;
   category_id: string;
   category_name: string;
+  redirectUrl?: string;
 }
 
 export interface ProductDetail extends Product {
@@ -22,6 +23,8 @@ export interface ProductDetail extends Product {
   originalPrice?: number;
   discount?: string;
   productDetails?: string;
+  imageUrls?: string[];
+  redirectUrl?: string;
 }
 
 export interface FeaturedProductsResponse {
@@ -66,17 +69,13 @@ export interface ProductsExistResponse {
 }
 
 export async function getFeaturedProducts(): Promise<FeaturedProductsResponse> {
-  return apiRequest<FeaturedProductsResponse>('/featured-products', {
-    method: 'GET',
-  });
+  return apiClient.get<FeaturedProductsResponse>('/featured-products');
 }
 
 export async function getProductDetail(
   productId: number | string
 ): Promise<ProductDetailResponse> {
-  return apiRequest<ProductDetailResponse>(`/product/${productId}`, {
-    method: 'GET',
-  });
+  return apiClient.get<ProductDetailResponse>(`/product/${productId}`);
 }
 
 export async function getRelatedProducts(
@@ -88,29 +87,21 @@ export async function getRelatedProducts(
     limit: String(limit),
   });
 
-  return apiRequest<RelatedProductsResponse>(
-    `/related-products?${params.toString()}`,
-    {
-      method: 'GET',
-    }
+  return apiClient.get<RelatedProductsResponse>(
+    `/related-products?${params.toString()}`
   );
 }
 
 export async function checkProductExists(
   productId: number | string
 ): Promise<ProductExistsResponse> {
-  return apiRequest<ProductExistsResponse>(`/product/${productId}/exists`, {
-    method: 'GET',
-  });
+  return apiClient.get<ProductExistsResponse>(`/product/${productId}/exists`);
 }
 
 export async function checkProductsExist(
   productIds: (number | string)[]
 ): Promise<ProductsExistResponse> {
-  return apiRequest<ProductsExistResponse>('/products/exists', {
-    method: 'POST',
-    body: JSON.stringify({
-      product_ids: productIds,
-    }),
+  return apiClient.post<ProductsExistResponse>('/products/exists', {
+    product_ids: productIds,
   });
 }

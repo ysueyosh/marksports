@@ -47,10 +47,15 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    postalCode: str
-    prefecture: str
-    address: str
-    building: str = None
+    confirmPassword: str
+    phone: str = None
+    sex: str = None
+    # Address fields (optional)
+    registerAddress: bool = False  # チェックボックス
+    postalCode: str = None
+    prefecture: str = None
+    address: str = None
+    option: str = None  # building/option
 
 
 class RegisterResponse(BaseModel):

@@ -4,104 +4,91 @@ Notification handler
 
 import json
 import logging
+from decimal import Decimal
+import boto3
+import os
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Constants
+NOTIFICATION_TABLE_NAME = os.environ.get('NOTIFICATION_TABLE_NAME', 'Notification')
+NOTIFICATION_PK = 'NOTIFICATION'
+
+def get_notification_table():
+    """Get DynamoDB Notification table"""
+    dynamodb = boto3.resource('dynamodb')
+    return dynamodb.Table(NOTIFICATION_TABLE_NAME)
+
+class DecimalEncoder(json.JSONEncoder):
+    """JSON encoder that converts Decimal to float"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
 
 def get_notifications(event, context):
     """
-    Get notifications
+    Get notifications from database
+    
+    Returns only notifications that are currently active (startDate <= today <= endDate or no endDate)
     
     Args:
         event: Lambda event
         context: Lambda context
     
     Returns:
-        API response
+        API response with active notifications
     """
     try:
-        logger.info(f"Get notifications event: {event}")
+        logger.info("Get notifications from database")
         
-        # TODO: Get notifications from database
-        # For now, return dummy notifications
-        dummy_notifications = [
-            {
-                "id": "1",
-                "title": "新商品が登録されました",
-                "message": "春の新作コレクションが入荷しました",
-                "timestamp": "2026-01-07T10:00:00Z",
-                "type": "info"
-            },
-            {
-                "id": "2",
-                "title": "【重要】システムメンテナンスのお知らせ",
-                "message": "1月15日 23:00～1月16日 03:00 の間、システムメンテナンスを実施いたします",
-                "timestamp": "2026-01-06T15:30:00Z",
-                "type": "warning",
-                "important": True
-            },
-            {
-                "id": "3",
-                "title": "配送完了のお知らせ",
-                "message": "ご注文の商品が配送されました",
-                "timestamp": "2026-01-05T09:15:00Z",
-                "type": "success"
-            },
-            {
-                "id": "4",
-                "title": "ポイント還元のお知らせ",
-                "message": "お買い物でポイントが還元されました",
-                "timestamp": "2026-01-04T14:45:00Z",
-                "type": "success"
-            },
-            {
-                "id": "5",
-                "title": "クーポンコード配信",
-                "message": "会員限定のクーポンコードを配信しました",
-                "timestamp": "2026-01-03T11:20:00Z",
-                "type": "info"
-            },
-            {
-                "id": "6",
-                "title": "【重要】システムメンテナンス完了のお知らせ",
-                "message": "予定していたシステムメンテナンスが完了いたしました",
-                "timestamp": "2026-01-02T08:00:00Z",
-                "type": "success",
-                "important": True
-            },
-            {
-                "id": "7",
-                "title": "新機能リリース",
-                "message": "在庫管理機能がリリースされました",
-                "timestamp": "2026-01-01T12:00:00Z",
-                "type": "info"
-            },
-            {
-                "id": "8",
-                "title": "誕生日特典のお知らせ",
-                "message": "お誕生日月の特典をご用意しました",
-                "timestamp": "2025-12-31T10:30:00Z",
-                "type": "info"
-            },
-            {
-                "id": "9",
-                "title": "注文確認のお知らせ",
-                "message": "ご注文ありがとうございます",
-                "timestamp": "2025-12-30T16:45:00Z",
-                "type": "success"
-            },
-            {
-                "id": "10",
-                "title": "キャンペーン開始",
-                "message": "冬のキャンペーンが開始されました",
-                "timestamp": "2025-12-29T09:00:00Z",
-                "type": "info"
+        table = get_notification_table()
+        
+        # Query all notifications from database
+        response = table.query(
+            KeyConditionExpression='PK = :pk',
+            ExpressionAttributeValues={
+                ':pk': NOTIFICATION_PK
             }
-        ]
+        )
+        
+        notifications = response.get('Items', [])
+        
+        # Map database fields to API response fields
+        # Filter to only active notifications (based on startDate and endDate)
+        from datetime import datetime
+        today = datetime.utcnow().date().isoformat()
+        
+        active_notifications = []
+        for notification in notifications:
+            start_date = notification.get('startDate', '')
+            end_date = notification.get('endDate', '')
+            
+            # Check if notification is active
+            is_active = True
+            if start_date and start_date > today:
+                is_active = False
+            if end_date and end_date < today:
+                is_active = False
+            
+            if is_active:
+                mapped = {
+                    'id': notification.get('notificationId'),
+                    'title': notification.get('title', ''),
+                    'message': notification.get('content', ''),
+                    'timestamp': notification.get('createdAt', ''),
+                    'type': 'info',  # Default type
+                    'important': notification.get('type') == 'important'
+                }
+                active_notifications.append(mapped)
+        
+        # Sort by timestamp (newest first)
+        active_notifications.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
         # Limit to top 10 notifications
-        notifications = dummy_notifications[:10]
+        notifications_limited = active_notifications[:10]
         
         return {
             "statusCode": 200,
@@ -113,10 +100,10 @@ def get_notifications(event, context):
                 "success": True,
                 "message": "Notifications retrieved successfully",
                 "data": {
-                    "notifications": notifications,
-                    "total": len(notifications)
+                    "notifications": notifications_limited,
+                    "total": len(notifications_limited)
                 }
-            }),
+            }, cls=DecimalEncoder),
         }
     
     except Exception as e:
@@ -134,9 +121,130 @@ def get_notifications(event, context):
         }
 
 
+def get_notification_detail(event, context):
+    """
+    Get a single notification by notificationId using GSI
+    
+    Args:
+        event: Lambda event with pathParameters containing notification_id
+        context: Lambda context
+    
+    Returns:
+        API response with notification detail
+    """
+    try:
+        # Get notification ID from path parameter
+        notification_id = event.get("pathParameters", {}).get("notification_id")
+        
+        if not notification_id:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Notification ID is required"
+                }),
+            }
+        
+        logger.info(f"Get notification detail: {notification_id}")
+        
+        table = get_notification_table()
+        
+        # Query notification by notificationId using Scan
+        response = table.scan(
+            FilterExpression='notificationId = :notification_id',
+            ExpressionAttributeValues={
+                ':notification_id': notification_id
+            }
+        )
+        
+        items = response.get('Items', [])
+        
+        if not items or len(items) == 0:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Notification not found"
+                }),
+            }
+        
+        notification = items[0]
+        
+        # Check if notification is active
+        from datetime import datetime
+        today = datetime.utcnow().date().isoformat()
+        
+        start_date = notification.get('startDate', '')
+        end_date = notification.get('endDate', '')
+        
+        is_active = True
+        if start_date and start_date > today:
+            is_active = False
+        if end_date and end_date < today:
+            is_active = False
+        
+        if not is_active:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Notification is not currently available"
+                }),
+            }
+        
+        # Map DynamoDB fields to API response fields
+        mapped_notification = {
+            'id': notification.get('notificationId'),
+            'title': notification.get('title', ''),
+            'message': notification.get('content', ''),
+            'timestamp': notification.get('createdAt', ''),
+            'type': 'info',  # Default type
+            'important': notification.get('type') == 'important'
+        }
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": True,
+                "message": "Notification detail retrieved successfully",
+                "data": mapped_notification
+            }, cls=DecimalEncoder),
+        }
+    
+    except Exception as e:
+        logger.error(f"Error getting notification detail: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": False,
+                "message": f"Failed to get notification detail: {str(e)}"
+            }),
+        }
+
+
 def get_notification_count(event, context):
     """
-    Get unread notification count
+    Get unread notification count by querying the database
     
     Args:
         event: Lambda event with queryStringParameters containing readIds (JSON array string)
@@ -157,10 +265,39 @@ def get_notification_count(event, context):
             except (json.JSONDecodeError, TypeError):
                 read_ids = []
         
-        # TODO: DB から全件数を取得
-        # 現在はダミーデータから未読件数を計算
-        total_count = 10
-        unread_count = total_count - len(read_ids)  # 既読ID以外が未読
+        # DB から全通知数を取得
+        table = get_notification_table()
+        response = table.query(
+            KeyConditionExpression='PK = :pk',
+            ExpressionAttributeValues={
+                ':pk': NOTIFICATION_PK
+            }
+        )
+        
+        notifications = response.get('Items', [])
+        
+        # 有効な通知のみをカウント
+        from datetime import datetime
+        today = datetime.utcnow().date().isoformat()
+        
+        active_count = 0
+        for notification in notifications:
+            start_date = notification.get('startDate', '')
+            end_date = notification.get('endDate', '')
+            
+            # Check if notification is active
+            is_active = True
+            if start_date and start_date > today:
+                is_active = False
+            if end_date and end_date < today:
+                is_active = False
+            
+            if is_active:
+                active_count += 1
+        
+        # 未読件数 = 全通知数 - 既読ID数
+        unread_count = active_count - len(read_ids)
+        unread_count = max(0, unread_count)  # 負の値は0に
         
         return {
             "statusCode": 200,
@@ -172,10 +309,10 @@ def get_notification_count(event, context):
                 "success": True,
                 "message": "Notification count retrieved successfully",
                 "data": {
-                    "total": total_count,
+                    "total": active_count,
                     "unread": unread_count
                 }
-            }),
+            }, cls=DecimalEncoder),
         }
     
     except Exception as e:

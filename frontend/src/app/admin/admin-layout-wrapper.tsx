@@ -5,10 +5,17 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminHeader from '@/components/Header/AdminHeader';
 import Overlay from '@/components/Common/Overlay';
+import { verifyAdminToken, refreshAdminToken } from '@/api/admin';
 import styles from './admin-layout.module.css';
 
 interface AdminLayoutWrapperProps {
   children: React.ReactNode;
+}
+
+interface AdminTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
 }
 
 export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
@@ -19,19 +26,110 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // ログインページは常に表示（リダイレクト処理なし）
-    if (pathname === '/admin/login') {
+    // ログインページと新規管理者作成ページは常に表示（リダイレクト処理なし）
+    if (pathname === '/admin/login' || pathname === '/admin/create-admin') {
       setIsLoading(false);
       return;
     }
 
-    const adminLogged = localStorage.getItem('adminLogged');
-    if (!adminLogged) {
-      router.push('/admin/login');
-    } else {
-      setIsLoggedIn(true);
-    }
-    setIsLoading(false);
+    const initializeAdminAuth = async () => {
+      const adminLogged = localStorage.getItem('adminLogged');
+
+      if (!adminLogged) {
+        router.push('/admin/login');
+        setIsLoading(false);
+        return;
+      }
+
+      // トークンが保存されている場合、検証を実行
+      const savedTokens = localStorage.getItem('adminTokens');
+
+      if (savedTokens) {
+        try {
+          const parsedTokens = JSON.parse(savedTokens) as AdminTokens;
+
+          // アクセストークンが有効か確認
+          if (parsedTokens.expiresAt > Date.now()) {
+            // トークンがまだ有効 → /admin/verify-token で自動ログイン
+            const response = await verifyAdminToken(parsedTokens.accessToken);
+
+            if (response.success) {
+              setIsLoggedIn(true);
+              setIsLoading(false);
+              return;
+            } else {
+              // トークン検証失敗 → ログアウト
+              console.warn(
+                'Admin token verification failed:',
+                response.message
+              );
+              localStorage.removeItem('adminLogged');
+              localStorage.removeItem('adminTokens');
+              router.push('/admin/login');
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            // アクセストークン期限切れ → リフレッシュトークンで更新
+            const refreshResponse = await refreshAdminToken(
+              parsedTokens.refreshToken
+            );
+
+            if (refreshResponse.success && refreshResponse.data) {
+              // 新しいアクセストークンで更新
+              const newTokens: AdminTokens = {
+                accessToken: refreshResponse.data.accessToken,
+                refreshToken: parsedTokens.refreshToken,
+                expiresAt: Date.now() + refreshResponse.data.expiresIn * 1000,
+              };
+
+              // 新しいアクセストークンで検証
+              const verifyResponse = await verifyAdminToken(
+                newTokens.accessToken
+              );
+
+              if (verifyResponse.success) {
+                localStorage.setItem('adminTokens', JSON.stringify(newTokens));
+                setIsLoggedIn(true);
+                setIsLoading(false);
+                return;
+              } else {
+                localStorage.removeItem('adminLogged');
+                localStorage.removeItem('adminTokens');
+                router.push('/admin/login');
+                setIsLoading(false);
+                return;
+              }
+            } else {
+              // リフレッシュ失敗 → ログアウト
+              console.warn(
+                'Admin token refresh failed:',
+                refreshResponse.message
+              );
+              localStorage.removeItem('adminLogged');
+              localStorage.removeItem('adminTokens');
+              router.push('/admin/login');
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Failed to auto-login admin:', error);
+          localStorage.removeItem('adminLogged');
+          localStorage.removeItem('adminTokens');
+          router.push('/admin/login');
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // トークンが保存されていない場合、ログアウト
+        localStorage.removeItem('adminLogged');
+        router.push('/admin/login');
+        setIsLoading(false);
+      }
+    };
+
+    initializeAdminAuth();
   }, [pathname, router]);
 
   const isActive = (href: string) => {
@@ -42,8 +140,8 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
     return null;
   }
 
-  // ログインページはレイアウトを表示しない（ログイン状態に関わらず）
-  if (pathname === '/admin/login') {
+  // ログインページと新規管理者作成ページはレイアウトを表示しない（ログイン状態に関わらず）
+  if (pathname === '/admin/login' || pathname === '/admin/create-admin') {
     return children;
   }
 

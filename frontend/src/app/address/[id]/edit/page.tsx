@@ -21,15 +21,17 @@ interface Address {
   postalCode: string;
   prefecture: string;
   address: string;
-  building?: string;
-  isDefault?: boolean;
+  option?: string;
+  isMain?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface AddressFormData {
   postalCode: string;
   prefecture: string;
   address: string;
-  building: string;
+  option?: string;
 }
 
 const prefectureOptions = [
@@ -101,7 +103,7 @@ export default function EditAddressPage() {
     postalCode: '',
     prefecture: '',
     address: '',
-    building: '',
+    option: '',
   });
   const [isPrefectureDropdownOpen, setIsPrefectureDropdownOpen] =
     useState(false);
@@ -120,7 +122,7 @@ export default function EditAddressPage() {
               postalCode: foundAddress.postalCode,
               prefecture: foundAddress.prefecture,
               address: foundAddress.address,
-              building: foundAddress.building || '',
+              option: foundAddress.option || '',
             });
           } else {
             showSnackbar('住所が見つかりません', 'error');
@@ -274,7 +276,7 @@ export default function EditAddressPage() {
         postalCode: formData.postalCode,
         prefecture: formData.prefecture,
         address: formData.address,
-        building: formData.building || undefined,
+        option: formData.option || undefined,
       });
 
       if (response.success) {
@@ -411,8 +413,8 @@ export default function EditAddressPage() {
           <div className={styles.formGroup}>
             <TextInput
               label="建物名・部屋番号（オプション）"
-              name="building"
-              value={formData.building}
+              name="option"
+              value={formData.option || ''}
               onChange={handleInputChange}
               placeholder="例：○○ビル 101号室"
             />

@@ -2,7 +2,7 @@
  * Notification API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface Notification {
   id: string;
@@ -12,6 +12,12 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
   important?: boolean;
   read?: boolean; // Frontend で localStorage から追加される
+}
+
+export interface NotificationDetailResponse {
+  success: boolean;
+  message: string;
+  data?: Notification;
 }
 
 export interface GetNotificationsResponse {
@@ -33,14 +39,24 @@ export interface GetNotificationCountResponse {
 }
 
 /**
- * Get notifications
+ * Get all notifications
  */
 export async function getNotifications(): Promise<GetNotificationsResponse> {
-  const response = await apiRequest<GetNotificationsResponse>(
-    '/notifications',
-    {
-      method: 'GET',
-    }
+  const response = await apiClient.get<GetNotificationsResponse>(
+    '/notifications'
+  );
+
+  return response;
+}
+
+/**
+ * Get a single notification by ID
+ */
+export async function getNotificationDetail(
+  notificationId: string
+): Promise<NotificationDetailResponse> {
+  const response = await apiClient.get<NotificationDetailResponse>(
+    `/notifications/${notificationId}`
   );
 
   return response;
@@ -56,11 +72,8 @@ export async function getNotificationCount(
   const params = new URLSearchParams();
   params.append('readIds', JSON.stringify(readIds));
 
-  const response = await apiRequest<GetNotificationCountResponse>(
-    `/notifications/count?${params.toString()}`,
-    {
-      method: 'GET',
-    }
+  const response = await apiClient.get<GetNotificationCountResponse>(
+    `/notifications/count?${params.toString()}`
   );
 
   return response;

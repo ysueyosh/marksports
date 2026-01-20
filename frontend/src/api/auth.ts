@@ -2,7 +2,7 @@
  * Authentication API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface LoginRequest {
   email: string;
@@ -13,8 +13,13 @@ export interface LoginResponse {
   success: boolean;
   message: string;
   data?: {
+    userId: string;
     email: string;
-    token: string;
+    name: string;
+    phone: string;
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
   };
 }
 
@@ -114,13 +119,10 @@ export async function login(
   email: string,
   password: string
 ): Promise<LoginResponse> {
-  const response = await apiRequest<LoginResponse>('/login', {
-    method: 'POST',
-    body: JSON.stringify({
-      email,
-      password,
-    } as LoginRequest),
-  });
+  const response = await apiClient.post<LoginResponse>('/login', {
+    email,
+    password,
+  } as LoginRequest);
 
   return response;
 }
@@ -131,10 +133,10 @@ export async function login(
 export async function updateProfile(
   data: UpdateProfileRequest
 ): Promise<UpdateProfileResponse> {
-  const response = await apiRequest<UpdateProfileResponse>('/update-profile', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+  const response = await apiClient.post<UpdateProfileResponse>(
+    '/update-profile',
+    data
+  );
 
   return response;
 }
@@ -145,12 +147,9 @@ export async function updateProfile(
 export async function changePassword(
   data: ChangePasswordRequest
 ): Promise<ChangePasswordResponse> {
-  const response = await apiRequest<ChangePasswordResponse>(
+  const response = await apiClient.post<ChangePasswordResponse>(
     '/change-password',
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
+    data
   );
 
   return response;
@@ -162,12 +161,9 @@ export async function changePassword(
 export async function updateNotificationSettings(
   data: UpdateNotificationSettingsRequest
 ): Promise<UpdateNotificationSettingsResponse> {
-  const response = await apiRequest<UpdateNotificationSettingsResponse>(
+  const response = await apiClient.post<UpdateNotificationSettingsResponse>(
     '/update-notification-settings',
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
+    data
   );
 
   return response;
@@ -177,10 +173,10 @@ export async function updateNotificationSettings(
  * Delete account
  */
 export async function deleteAccount(): Promise<DeleteAccountResponse> {
-  const response = await apiRequest<DeleteAccountResponse>('/delete-account', {
-    method: 'POST',
-    body: JSON.stringify({}),
-  });
+  const response = await apiClient.post<DeleteAccountResponse>(
+    '/delete-account',
+    {}
+  );
 
   return response;
 }
@@ -189,9 +185,7 @@ export async function deleteAccount(): Promise<DeleteAccountResponse> {
  * Get user profile with loading spinner
  */
 export async function getUserProfile(): Promise<GetProfileResponse> {
-  return apiRequest<GetProfileResponse>('/get-profile', {
-    method: 'GET',
-  });
+  return apiClient.get<GetProfileResponse>('/get-profile');
 }
 
 /**
@@ -200,12 +194,9 @@ export async function getUserProfile(): Promise<GetProfileResponse> {
 export async function requestPasswordReset(
   data: RequestPasswordResetRequest
 ): Promise<RequestPasswordResetResponse> {
-  const response = await apiRequest<RequestPasswordResetResponse>(
+  const response = await apiClient.post<RequestPasswordResetResponse>(
     '/password-reset/request',
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
+    data
   );
 
   return response;
@@ -217,12 +208,9 @@ export async function requestPasswordReset(
 export async function verifyResetToken(
   data: VerifyResetTokenRequest
 ): Promise<VerifyResetTokenResponse> {
-  const response = await apiRequest<VerifyResetTokenResponse>(
+  const response = await apiClient.post<VerifyResetTokenResponse>(
     '/password-reset/verify',
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
+    data
   );
 
   return response;
@@ -234,12 +222,9 @@ export async function verifyResetToken(
 export async function resetPassword(
   data: ResetPasswordRequest
 ): Promise<ResetPasswordResponse> {
-  const response = await apiRequest<ResetPasswordResponse>(
+  const response = await apiClient.post<ResetPasswordResponse>(
     '/password-reset/reset',
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
+    data
   );
 
   return response;

@@ -338,6 +338,80 @@
   color: var(--text-secondary);
 }
 
+.productDetails {
+  line-height: 1.6;
+  color: var(--text-color);
+  margin: 24px 0;
+}
+
+.productDetails h1,
+.productDetails h2,
+.productDetails h3,
+.productDetails h4,
+.productDetails h5,
+.productDetails h6 {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+}
+
+.productDetails h1 {
+  font-size: 24px;
+}
+
+.productDetails h2 {
+  font-size: 20px;
+}
+
+.productDetails h3 {
+  font-size: 18px;
+}
+
+.productDetails p {
+  margin: 8px 0;
+}
+
+.productDetails ul,
+.productDetails ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.productDetails li {
+  margin: 6px 0;
+}
+
+.productDetails code {
+  background-color: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.productDetails pre {
+  background-color: var(--bg-secondary);
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.productDetails blockquote {
+  border-left: 4px solid var(--accent-color);
+  padding-left: 12px;
+  margin: 12px 0;
+  color: var(--text-secondary);
+}
+
+.productDetails a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.productDetails a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .productContent {
     grid-template-columns: 1fr;

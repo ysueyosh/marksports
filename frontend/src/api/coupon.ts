@@ -2,7 +2,7 @@
  * Coupon API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface ApplyCouponResponse {
   success: boolean;
@@ -10,9 +10,11 @@ export interface ApplyCouponResponse {
   data?: {
     coupon_code: string;
     coupon_description: string;
-    discount_type: 'percentage' | 'fixed';
+    discount_type: 'percentage' | 'amount';
     discount_value: number;
     discount_amount: number;
+    max_discount_amount?: number;
+    min_order_amount?: number;
   };
 }
 
@@ -20,11 +22,8 @@ export async function applyCoupon(
   couponCode: string,
   subtotal: number
 ): Promise<ApplyCouponResponse> {
-  return apiRequest<ApplyCouponResponse>('/apply-coupon', {
-    method: 'POST',
-    body: JSON.stringify({
-      coupon_code: couponCode,
-      subtotal: subtotal,
-    }),
+  return apiClient.post<ApplyCouponResponse>('/apply-coupon', {
+    coupon_code: couponCode,
+    subtotal: subtotal,
   });
 }

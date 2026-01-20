@@ -1,47 +1,14 @@
 """
-Category handler
+Category handler - Commerce table integration
 """
 
 import json
 import logging
 from src.models.category import CategoriesResponse, Category, Subcategory
+from src.utils.dynamodb import get_commerce_table, CATEGORY_PK
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-# Dummy categories data
-DUMMY_CATEGORIES = [
-    {
-        "id": "volley",
-        "name": "バレー",
-        "subcategories": [
-            {"id": "volley-ball", "name": "ボール"},
-            {"id": "volley-shoes", "name": "シューズ"},
-            {"id": "volley-wear", "name": "ウェア"},
-            {"id": "volley-acc", "name": "アクセサリー"},
-        ],
-    },
-    {
-        "id": "basketball",
-        "name": "バスケットボール",
-        "subcategories": [
-            {"id": "basket-ball", "name": "ボール"},
-            {"id": "basket-shoes", "name": "シューズ"},
-            {"id": "basket-wear", "name": "ウェア"},
-            {"id": "basket-acc", "name": "アクセサリー"},
-        ],
-    },
-    {
-        "id": "ping-pong",
-        "name": "卓球",
-        "subcategories": [
-            {"id": "ping-ball", "name": "ボール"},
-            {"id": "ping-racket", "name": "ラケット"},
-            {"id": "ping-table", "name": "テーブル"},
-            {"id": "ping-acc", "name": "アクセサリー"},
-        ],
-    },
-]
 
 
 def get_categories(event, context):
@@ -53,23 +20,68 @@ def get_categories(event, context):
         context: Lambda context
     
     Returns:
-        API response
+        API response with parent categories and their subcategories
     """
     try:
         logger.info("Get categories event")
         
-        # Convert to Category models
-        categories = [
-            Category(
-                id=cat["id"],
-                name=cat["name"],
-                subcategories=[
-                    Subcategory(id=sub["id"], name=sub["name"])
-                    for sub in cat["subcategories"]
-                ],
+        table = get_commerce_table()
+        
+        # Query all categories from Commerce table
+        response = table.query(
+            KeyConditionExpression='PK = :pk',
+            ExpressionAttributeValues={':pk': CATEGORY_PK}
+        )
+        
+        category_items = response.get('Items', [])
+        
+        # Build category dictionary and separate parent/child
+        category_map = {}
+        parent_categories = []
+        
+        for cat_item in category_items:
+            category_id = cat_item.get('categoryId')
+            parent_category_id = cat_item.get('parentCategoryId')
+            category_name = cat_item.get('categoryName')
+            
+            # Store in map for easy lookup
+            category_map[category_id] = {
+                'id': category_id,
+                'name': category_name,
+                'parentCategoryId': parent_category_id,
+                'index': cat_item.get('index', 0),
+            }
+            
+            # If no parent, it's a top-level category
+            if not parent_category_id:
+                parent_categories.append(category_id)
+        
+        # Build Category models with subcategories
+        categories = []
+        for parent_id in parent_categories:
+            parent_data = category_map[parent_id]
+            
+            # Find all subcategories for this parent
+            subcategories = []
+            for cat_id, cat_data in category_map.items():
+                if cat_data['parentCategoryId'] == parent_id:
+                    subcategories.append(Subcategory(
+                        id=cat_id,
+                        name=cat_data['name']
+                    ))
+            
+            # Sort subcategories by index
+            subcategories.sort(key=lambda x: category_map[x.id].get('index', 0))
+            
+            category = Category(
+                id=parent_id,
+                name=parent_data['name'],
+                subcategories=subcategories,
             )
-            for cat in DUMMY_CATEGORIES
-        ]
+            categories.append(category)
+        
+        # Sort parent categories by index
+        categories.sort(key=lambda x: category_map[x.id].get('index', 0))
         
         response = CategoriesResponse(
             success=True,
@@ -99,3 +111,4 @@ def get_categories(event, context):
                 "message": f"Failed to get categories: {str(e)}"
             }),
         }
+

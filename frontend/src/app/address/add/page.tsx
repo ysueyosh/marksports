@@ -15,7 +15,7 @@ interface AddressFormData {
   postalCode: string;
   prefecture: string;
   address: string;
-  building: string;
+  option?: string;
 }
 
 const prefectureOptions = [
@@ -84,7 +84,7 @@ export default function AddAddressPage() {
     postalCode: '',
     prefecture: '',
     address: '',
-    building: '',
+    option: '',
   });
   const [isPrefectureDropdownOpen, setIsPrefectureDropdownOpen] =
     useState(false);
@@ -201,7 +201,7 @@ export default function AddAddressPage() {
         postalCode: formData.postalCode,
         prefecture: formData.prefecture,
         address: formData.address,
-        building: formData.building || undefined,
+        option: formData.option || undefined,
       });
 
       if (response.success) {
@@ -316,8 +316,8 @@ export default function AddAddressPage() {
           <div className={styles.formGroup}>
             <TextInput
               label="建物名・部屋番号（オプション）"
-              name="building"
-              value={formData.building}
+              name="option"
+              value={formData.option || ''}
               onChange={handleInputChange}
               placeholder="例：○○ビル 101号室"
             />

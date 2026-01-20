@@ -2,7 +2,7 @@
  * Categories API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface Subcategory {
   id: string;
@@ -22,7 +22,5 @@ export interface CategoriesResponse {
 }
 
 export async function getCategories(): Promise<CategoriesResponse> {
-  return apiRequest<CategoriesResponse>('/categories', {
-    method: 'GET',
-  });
+  return apiClient.get<CategoriesResponse>('/categories');
 }

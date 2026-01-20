@@ -2,7 +2,7 @@
  * Token Refresh API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface TokenRefreshResponse {
   success: boolean;
@@ -28,21 +28,15 @@ export interface VerifyTokenResponse {
 export async function refreshToken(
   refreshToken: string
 ): Promise<TokenRefreshResponse> {
-  return apiRequest<TokenRefreshResponse>('/refresh-token', {
-    method: 'POST',
-    body: JSON.stringify({
-      refresh_token: refreshToken,
-    }),
+  return apiClient.post<TokenRefreshResponse>('/refresh-token', {
+    refresh_token: refreshToken,
   });
 }
 
 export async function verifyToken(
   accessToken: string
 ): Promise<VerifyTokenResponse> {
-  return apiRequest<VerifyTokenResponse>('/verify-token', {
-    method: 'POST',
-    body: JSON.stringify({
-      access_token: accessToken,
-    }),
+  return apiClient.post<VerifyTokenResponse>('/verify-token', {
+    access_token: accessToken,
   });
 }

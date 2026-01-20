@@ -1,255 +1,291 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
 import AdminModal from '@/components/Admin/AdminModal';
-import AdminTable, { TableColumn } from '@/components/Admin/AdminTable';
+import AdminTable from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
-import LoadingSpinner from '@/components/Admin/LoadingSpinner';
+import Snackbar from '@/components/Snackbar/Snackbar';
 import sharedStyles from '../admin-shared.module.css';
-import pageStyles from './coupons.module.css';
+import { adminCouponAPI, Coupon } from '@/api/admin-coupons';
 
-const styles = { ...sharedStyles, ...pageStyles };
+const styles = sharedStyles;
 
-interface Coupon {
-  id: number;
-  code: string;
-  discountType: 'percentage' | 'fixed'; // パーセンテージまたは固定額
-  discountValue: number;
-  maxUses: number;
-  currentUses: number;
-  validFrom: string; // YYYY-MM-DD
-  validUntil: string; // YYYY-MM-DD
-  minPurchaseAmount?: number;
+interface CouponForm {
+  couponCode: string;
+  discountType: 'percentage' | 'amount';
+  discountValue: string;
+  minOrderAmount: string;
+  maxDiscountAmount: string;
+  startDate: string;
+  endDate: string;
   isActive: boolean;
-  createdDate: string;
-  description?: string;
 }
 
 export default function AdminCouponsPage() {
-  const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [coupons, setCoupons] = useState<Coupon[]>([
-    {
-      id: 1,
-      code: 'SUMMER2024',
-      discountType: 'percentage',
-      discountValue: 20,
-      maxUses: 100,
-      currentUses: 45,
-      validFrom: '2024-06-01',
-      validUntil: '2024-08-31',
-      minPurchaseAmount: 5000,
-      isActive: true,
-      createdDate: '2024-05-15',
-      description: '夏のセールクーポン',
-    },
-    {
-      id: 2,
-      code: 'WELCOME500',
-      discountType: 'fixed',
-      discountValue: 500,
-      maxUses: 200,
-      currentUses: 120,
-      validFrom: '2024-01-01',
-      validUntil: '2025-12-31',
-      minPurchaseAmount: 3000,
-      isActive: true,
-      createdDate: '2024-01-01',
-      description: '新規顧客向けウェルカムクーポン',
-    },
-    {
-      id: 3,
-      code: 'VIPSPECIAL',
-      discountType: 'percentage',
-      discountValue: 30,
-      maxUses: 50,
-      currentUses: 15,
-      validFrom: '2024-12-01',
-      validUntil: '2024-12-31',
-      minPurchaseAmount: 10000,
-      isActive: true,
-      createdDate: '2024-11-15',
-      description: 'VIP限定クーポン',
-    },
-    {
-      id: 4,
-      code: 'HOLIDAY1000',
-      discountType: 'fixed',
-      discountValue: 1000,
-      maxUses: 30,
-      currentUses: 30,
-      validFrom: '2024-12-20',
-      validUntil: '2024-12-25',
-      minPurchaseAmount: 5000,
-      isActive: false,
-      createdDate: '2024-12-01',
-      description: 'クリスマス限定クーポン',
-    },
-  ]);
-
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const pageSize = 10;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const [deleteInputValue, setDeleteInputValue] = useState('');
-  const [formData, setFormData] = useState<Omit<Coupon, 'id' | 'createdDate'>>({
-    code: '',
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    type: 'success' | 'error';
+  } | null>(null);
+
+  const [formData, setFormData] = useState<CouponForm>({
+    couponCode: '',
     discountType: 'percentage',
-    discountValue: 0,
-    maxUses: 0,
-    currentUses: 0,
-    validFrom: '',
-    validUntil: '',
-    minPurchaseAmount: undefined,
+    discountValue: '',
+    minOrderAmount: '',
+    maxDiscountAmount: '',
+    startDate: '',
+    endDate: '',
     isActive: true,
-    description: '',
   });
 
+  // ページロード時の初期化
   useEffect(() => {
-    // 管理者ログイン状態を確認
-    const adminLogged = localStorage.getItem('adminLogged');
-    if (!adminLogged) {
-      router.push('/admin/login');
+    loadCoupons();
+  }, [currentPage]);
+
+  // クーポン一覧を読み込み
+  const loadCoupons = async () => {
+    try {
+      setIsLoading(true);
+      const response = await adminCouponAPI.getAllCoupons(
+        currentPage,
+        pageSize
+      );
+      if (response.success && response.data) {
+        // response.data は { coupons: Coupon[] } または Coupon の場合がある
+        const data = response.data as any;
+        if ('coupons' in data && Array.isArray(data.coupons)) {
+          setCoupons(data.coupons);
+        } else if (Array.isArray(data)) {
+          setCoupons(data);
+        } else {
+          setCoupons([]);
+        }
+      } else {
+        setSnackbar({
+          message: response.message || 'クーポンの読み込みに失敗しました',
+          type: 'error',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading coupons:', error);
+      setSnackbar({
+        message: 'クーポンの読み込みに失敗しました',
+        type: 'error',
+      });
+    } finally {
       setIsLoading(false);
-    } else {
-      setIsLoggedIn(true);
-      // 1秒間スピナーを表示
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
-      return () => clearTimeout(timer);
     }
-  }, [router]);
+  };
 
-  // ページ遷移時にスピナーを表示
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [router]);
-
-  if (!isLoggedIn) {
-    return null;
-  }
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  // フィルタリング
-  const filteredCoupons = coupons.filter((coupon) =>
-    coupon.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // ページネーション
-  const totalPages = Math.ceil(filteredCoupons.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedCoupons = filteredCoupons.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
-
-  const handleAddClick = () => {
-    setEditingCoupon(null);
+  // フォームをリセット
+  const resetForm = () => {
     setFormData({
-      code: '',
+      couponCode: '',
       discountType: 'percentage',
-      discountValue: 0,
-      maxUses: 0,
-      currentUses: 0,
-      validFrom: '',
-      validUntil: '',
-      minPurchaseAmount: undefined,
+      discountValue: '',
+      minOrderAmount: '',
+      maxDiscountAmount: '',
+      startDate: '',
+      endDate: '',
       isActive: true,
-      description: '',
     });
+    setEditingCoupon(null);
+    setIsDeleteConfirming(false);
+    setDeleteInputValue('');
+  };
+
+  // 新規クーポンボタンをクリック
+  const handleAddClick = () => {
+    resetForm();
     setIsModalOpen(true);
   };
 
+  // 編集ボタンをクリック
   const handleEditClick = (coupon: Coupon) => {
     setEditingCoupon(coupon);
     setFormData({
-      code: coupon.code,
-      discountType: coupon.discountType,
-      discountValue: coupon.discountValue,
-      maxUses: coupon.maxUses,
-      currentUses: coupon.currentUses,
-      validFrom: coupon.validFrom,
-      validUntil: coupon.validUntil,
-      minPurchaseAmount: coupon.minPurchaseAmount,
-      isActive: coupon.isActive,
-      description: coupon.description,
+      couponCode: coupon.couponCode || '',
+      discountType:
+        (coupon.discountType as 'percentage' | 'amount') || 'percentage',
+      discountValue: coupon.discountValue?.toString() || '',
+      minOrderAmount: coupon.minOrderAmount?.toString() || '',
+      maxDiscountAmount: coupon.maxDiscountAmount?.toString() || '',
+      startDate: coupon.startDate || '',
+      endDate: coupon.endDate || '',
+      isActive: coupon.isActive !== false,
     });
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formData.code.trim()) {
-      alert('クーポンコードを入力してください');
-      return;
-    }
-    if (formData.validFrom >= formData.validUntil) {
-      alert('有効期間を正しく設定してください');
+  // フォーム送信（作成・更新）
+  const handleAddCoupon = async () => {
+    if (!formData.couponCode.trim()) {
+      setSnackbar({
+        message: 'クーポンコードを入力してください',
+        type: 'error',
+      });
       return;
     }
 
-    if (editingCoupon) {
-      // 編集
-      setCoupons(
-        coupons.map((c) =>
-          c.id === editingCoupon.id
-            ? {
-                ...c,
-                ...formData,
-              }
-            : c
-        )
-      );
-    } else {
-      // 新規追加
-      const newCoupon: Coupon = {
-        id: Math.max(...coupons.map((c) => c.id), 0) + 1,
-        ...formData,
-        createdDate: new Date().toISOString().split('T')[0],
-      };
-      setCoupons([newCoupon, ...coupons]);
+    if (formData.discountType === 'percentage' && !formData.maxDiscountAmount) {
+      setSnackbar({
+        message: 'パーセンテージ割引の場合、最大割引額を入力してください',
+        type: 'error',
+      });
+      return;
     }
 
-    setIsModalOpen(false);
+    if (formData.discountType === 'amount' && !formData.minOrderAmount) {
+      setSnackbar({
+        message: '固定額割引の場合、最小注文額を入力してください',
+        type: 'error',
+      });
+      return;
+    }
+
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      formData.startDate >= formData.endDate
+    ) {
+      setSnackbar({
+        message: '有効期間を正しく設定してください',
+        type: 'error',
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      if (editingCoupon) {
+        // 更新
+        const response = await adminCouponAPI.updateCoupon(
+          editingCoupon.couponId!,
+          {
+            couponCode: formData.couponCode,
+            discountType: formData.discountType,
+            discountValue: parseFloat(formData.discountValue),
+            minOrderAmount: formData.minOrderAmount
+              ? parseFloat(formData.minOrderAmount)
+              : undefined,
+            maxDiscountAmount: formData.maxDiscountAmount
+              ? parseFloat(formData.maxDiscountAmount)
+              : undefined,
+            startDate: formData.startDate || undefined,
+            endDate: formData.endDate || undefined,
+            isActive: formData.isActive,
+          }
+        );
+
+        if (response.success) {
+          setSnackbar({ message: 'クーポンを更新しました', type: 'success' });
+          await loadCoupons();
+          setIsModalOpen(false);
+          resetForm();
+        } else {
+          setSnackbar({
+            message: response.message || 'クーポンの更新に失敗しました',
+            type: 'error',
+          });
+        }
+      } else {
+        // 作成
+        const response = await adminCouponAPI.createCoupon({
+          couponCode: formData.couponCode,
+          discountType: formData.discountType,
+          discountValue: parseFloat(formData.discountValue),
+          minOrderAmount: formData.minOrderAmount
+            ? parseFloat(formData.minOrderAmount)
+            : undefined,
+          maxDiscountAmount: formData.maxDiscountAmount
+            ? parseFloat(formData.maxDiscountAmount)
+            : undefined,
+          startDate: formData.startDate || undefined,
+          endDate: formData.endDate || undefined,
+          isActive: formData.isActive,
+        });
+
+        if (response.success) {
+          setSnackbar({ message: 'クーポンを作成しました', type: 'success' });
+          await loadCoupons();
+          setIsModalOpen(false);
+          resetForm();
+        } else {
+          setSnackbar({
+            message: response.message || 'クーポンの作成に失敗しました',
+            type: 'error',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving coupon:', error);
+      setSnackbar({ message: 'クーポンの保存に失敗しました', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // 削除確認を開始
   const handleStartDelete = () => {
     setIsDeleteConfirming(true);
     setDeleteInputValue('');
   };
 
+  // 削除確認をキャンセル
   const handleCancelDelete = () => {
     setIsDeleteConfirming(false);
     setDeleteInputValue('');
   };
 
-  const handleConfirmDelete = () => {
-    if (editingCoupon && deleteInputValue === editingCoupon.code) {
-      setCoupons(coupons.filter((c) => c.id !== editingCoupon.id));
-      setIsModalOpen(false);
-      setEditingCoupon(null);
-      setIsDeleteConfirming(false);
-      setDeleteInputValue('');
-    } else {
-      alert('クーポンコードが正しくありません');
+  // 削除を確定
+  const handleConfirmDelete = async () => {
+    if (!editingCoupon || deleteInputValue !== editingCoupon.couponCode) {
+      setSnackbar({
+        message: 'クーポンコードが正しくありません',
+        type: 'error',
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await adminCouponAPI.deleteCoupon(
+        editingCoupon.couponId!
+      );
+
+      if (response.success) {
+        setSnackbar({ message: 'クーポンを削除しました', type: 'success' });
+        await loadCoupons();
+        setIsModalOpen(false);
+        resetForm();
+      } else {
+        setSnackbar({
+          message: response.message || 'クーポンの削除に失敗しました',
+          type: 'error',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting coupon:', error);
+      setSnackbar({ message: 'クーポンの削除に失敗しました', type: 'error' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDelete = () => {
-    handleStartDelete();
-  };
-
+  // フォーム入力を処理
   const handleFormChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -263,12 +299,29 @@ export default function AdminCouponsPage() {
     });
   };
 
+  // フィルタリング
+  const filteredCoupons = coupons.filter((coupon) =>
+    coupon.couponCode?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // ページネーション
+  const totalPages = Math.ceil(filteredCoupons.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const displayedCoupons = filteredCoupons.slice(
+    startIndex,
+    startIndex + pageSize
+  );
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>クーポンコード管理</h1>
         <div className={styles.headerButtons}>
-          <button onClick={handleAddClick} className={styles.primaryButton}>
+          <button
+            onClick={handleAddClick}
+            className={styles.primaryButton}
+            disabled={isLoading}
+          >
             新規クーポン
           </button>
         </div>
@@ -290,7 +343,7 @@ export default function AdminCouponsPage() {
       <AdminTable
         columns={[
           {
-            key: 'code',
+            key: 'couponCode',
             label: 'クーポンコード',
             render: (value) => (
               <span style={{ fontWeight: '500' }}>{value}</span>
@@ -308,21 +361,15 @@ export default function AdminCouponsPage() {
             render: (value, row) =>
               row.discountType === 'percentage'
                 ? `${value}%`
-                : `¥${value.toLocaleString()}`,
+                : `¥${value?.toLocaleString?.() || value}`,
           },
           {
-            key: 'currentUses',
-            label: '利用状況',
-            render: (value, row) => `${value}/${row.maxUses}回`,
-            hide: { mobile: true },
-          },
-          {
-            key: 'validFrom',
-            label: '有効期限',
+            key: 'startDate',
+            label: '有効期間',
             render: (value, row) => (
               <>
-                <div>{value}</div>
-                <div>{row.validUntil}</div>
+                <div>{value || '-'}</div>
+                <div>{row.endDate || '-'}</div>
               </>
             ),
             hide: { mobile: true },
@@ -347,7 +394,7 @@ export default function AdminCouponsPage() {
           },
         ]}
         data={displayedCoupons}
-        rowKey="id"
+        rowKey="couponId"
         actions={[
           {
             label: '編集',
@@ -374,7 +421,6 @@ export default function AdminCouponsPage() {
         title={editingCoupon ? 'クーポンを編集' : '新規クーポンを作成'}
         buttons={
           <div
-            className={styles.formActions}
             style={{
               display: 'flex',
               gap: '10px',
@@ -386,7 +432,7 @@ export default function AdminCouponsPage() {
               {editingCoupon && !isDeleteConfirming && (
                 <button
                   className={`${styles.secondaryButton} ${styles.danger}`}
-                  onClick={handleDelete}
+                  onClick={handleStartDelete}
                 >
                   削除
                 </button>
@@ -403,8 +449,12 @@ export default function AdminCouponsPage() {
               >
                 キャンセル
               </button>
-              <button className={styles.primaryButton} onClick={handleSave}>
-                保存
+              <button
+                className={styles.primaryButton}
+                onClick={handleAddCoupon}
+                disabled={isLoading}
+              >
+                {editingCoupon ? '更新' : '作成'}
               </button>
             </div>
           </div>
@@ -430,14 +480,8 @@ export default function AdminCouponsPage() {
             >
               ⚠️ 確認: 以下のクーポンを削除します
             </label>
-            <p
-              style={{
-                margin: '8px 0',
-                fontSize: '14px',
-                color: '#1f2937',
-              }}
-            >
-              <strong>クーポンコード:</strong> {editingCoupon.code}
+            <p style={{ margin: '8px 0', fontSize: '14px', color: '#1f2937' }}>
+              <strong>クーポンコード:</strong> {editingCoupon.couponCode}
             </p>
             <label
               style={{
@@ -452,7 +496,7 @@ export default function AdminCouponsPage() {
               type="text"
               value={deleteInputValue}
               onChange={(e) => setDeleteInputValue(e.target.value)}
-              placeholder={`「${editingCoupon.code}」と入力`}
+              placeholder={`「${editingCoupon.couponCode}」と入力`}
               style={{
                 width: '100%',
                 padding: '8px',
@@ -466,22 +510,22 @@ export default function AdminCouponsPage() {
             <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
               <button
                 onClick={handleConfirmDelete}
-                disabled={deleteInputValue !== editingCoupon.code}
+                disabled={deleteInputValue !== editingCoupon.couponCode}
                 style={{
                   flex: 1,
                   padding: '8px',
                   backgroundColor:
-                    deleteInputValue === editingCoupon.code
+                    deleteInputValue === editingCoupon.couponCode
                       ? '#dc2626'
                       : '#f3f4f6',
                   color:
-                    deleteInputValue === editingCoupon.code
+                    deleteInputValue === editingCoupon.couponCode
                       ? 'white'
                       : '#9ca3af',
                   border: 'none',
                   borderRadius: '4px',
                   cursor:
-                    deleteInputValue === editingCoupon.code
+                    deleteInputValue === editingCoupon.couponCode
                       ? 'pointer'
                       : 'not-allowed',
                   fontSize: '14px',
@@ -516,8 +560,8 @@ export default function AdminCouponsPage() {
           </label>
           <input
             type="text"
-            name="code"
-            value={formData.code}
+            name="couponCode"
+            value={formData.couponCode}
             onChange={handleFormChange}
             placeholder="例: SUMMER2024"
             style={{
@@ -527,25 +571,6 @@ export default function AdminCouponsPage() {
               borderRadius: '4px',
               fontSize: '14px',
               boxSizing: 'border-box',
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px' }}>説明</label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleFormChange}
-            placeholder="クーポンの説明"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              fontSize: '14px',
-              boxSizing: 'border-box',
-              minHeight: '60px',
             }}
           />
         </div>
@@ -575,7 +600,7 @@ export default function AdminCouponsPage() {
               }}
             >
               <option value="percentage">パーセンテージ</option>
-              <option value="fixed">固定額</option>
+              <option value="amount">固定額</option>
             </select>
           </div>
 
@@ -590,6 +615,7 @@ export default function AdminCouponsPage() {
               onChange={handleFormChange}
               placeholder="0"
               min="0"
+              step="0.01"
               style={{
                 width: '100%',
                 padding: '8px',
@@ -601,6 +627,56 @@ export default function AdminCouponsPage() {
             />
           </div>
         </div>
+
+        {formData.discountType === 'percentage' && (
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              最大割引額*
+            </label>
+            <input
+              type="number"
+              name="maxDiscountAmount"
+              value={formData.maxDiscountAmount}
+              onChange={handleFormChange}
+              placeholder="0"
+              min="0"
+              step="0.01"
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
+
+        {formData.discountType === 'amount' && (
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              最小注文額*
+            </label>
+            <input
+              type="number"
+              name="minOrderAmount"
+              value={formData.minOrderAmount}
+              onChange={handleFormChange}
+              placeholder="0"
+              min="0"
+              step="0.01"
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
 
         <div
           style={{
@@ -612,67 +688,12 @@ export default function AdminCouponsPage() {
         >
           <div>
             <label style={{ display: 'block', marginBottom: '4px' }}>
-              最大利用回数*
-            </label>
-            <input
-              type="number"
-              name="maxUses"
-              value={formData.maxUses}
-              onChange={handleFormChange}
-              placeholder="0"
-              min="0"
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              現在の利用回数
-            </label>
-            <input
-              type="number"
-              name="currentUses"
-              value={formData.currentUses}
-              onChange={handleFormChange}
-              placeholder="0"
-              min="0"
-              disabled
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                backgroundColor: '#f3f4f6',
-              }}
-            />
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px',
-            marginBottom: '16px',
-          }}
-        >
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              有効開始日*
+              有効開始日
             </label>
             <input
               type="date"
-              name="validFrom"
-              value={formData.validFrom}
+              name="startDate"
+              value={formData.startDate}
               onChange={handleFormChange}
               style={{
                 width: '100%',
@@ -687,12 +708,12 @@ export default function AdminCouponsPage() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '4px' }}>
-              有効終了日*
+              有効終了日
             </label>
             <input
               type="date"
-              name="validUntil"
-              value={formData.validUntil}
+              name="endDate"
+              value={formData.endDate}
               onChange={handleFormChange}
               style={{
                 width: '100%',
@@ -704,28 +725,6 @@ export default function AdminCouponsPage() {
               }}
             />
           </div>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px' }}>
-            最小購入額（オプション）
-          </label>
-          <input
-            type="number"
-            name="minPurchaseAmount"
-            value={formData.minPurchaseAmount || ''}
-            onChange={handleFormChange}
-            placeholder="0"
-            min="0"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              fontSize: '14px',
-              boxSizing: 'border-box',
-            }}
-          />
         </div>
 
         <div style={{ marginBottom: '20px' }}>
@@ -746,6 +745,14 @@ export default function AdminCouponsPage() {
           </label>
         </div>
       </AdminModal>
+
+      {snackbar && (
+        <Snackbar
+          message={snackbar.message}
+          type={snackbar.type}
+          onClose={() => setSnackbar(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Notification } from '@/api/notifications';
+import { Notification, getNotifications } from '@/api/notifications';
 import NotificationTag from '@/components/NotificationTag/NotificationTag';
 import Overlay from '@/components/Common/Overlay';
 import styles from './NotificationPopup.module.css';
@@ -15,9 +15,34 @@ interface NotificationPopupProps {
 
 export default function NotificationPopup({
   isOpen,
-  notifications,
+  notifications: initialNotifications,
   onClose,
 }: NotificationPopupProps) {
+  const [notifications, setNotifications] =
+    useState<Notification[]>(initialNotifications);
+  const [loading, setLoading] = useState(false);
+
+  // ポップアップが開かれるたびにデータベースからお知らせを取得
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true);
+        const response = await getNotifications();
+        if (response.success && response.data?.notifications) {
+          setNotifications(response.data.notifications);
+        }
+      } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotifications();
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -35,7 +60,13 @@ export default function NotificationPopup({
         </div>
 
         <div className={styles.notificationList}>
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div
+              style={{ padding: '20px', textAlign: 'center', color: '#999' }}
+            >
+              読み込み中...
+            </div>
+          ) : notifications.length === 0 ? (
             <p className={styles.empty}>お知らせはありません</p>
           ) : (
             notifications.slice(0, 10).map((notification) => (

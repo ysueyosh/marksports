@@ -15,6 +15,9 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const handleLogout = () => {
     localStorage.removeItem('adminLogged');
     localStorage.removeItem('adminEmail');
+    localStorage.removeItem('adminId');
+    localStorage.removeItem('adminName');
+    localStorage.removeItem('adminTokens');
     router.push('/');
   };
 

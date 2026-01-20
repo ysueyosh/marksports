@@ -22,15 +22,13 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type ImageView = 'main' | 'back' | 'right' | 'left';
-
 export default function ProductDetailPage({ params }: PageProps) {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [id, setId] = useState<string | null>(null);
   const [searchUrl, setSearchUrl] = useState<string>('/search');
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-  const [selectedImageView, setSelectedImageView] = useState<ImageView>('main');
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const { conditions } = useSearch();
   const { show: showSnackbar } = useSnackbar();
 
@@ -69,7 +67,11 @@ export default function ProductDetailPage({ params }: PageProps) {
     const fetchProduct = async () => {
       try {
         const response = await getProductDetail(id);
+        console.log('Product Detail Response:', response);
         if (response.success && response.data) {
+          console.log('Product Data:', response.data);
+          console.log('Product Details Text:', response.data.productDetails);
+          console.log('Redirect URL:', response.data.redirectUrl);
           setProduct(response.data);
           setError(null);
         } else {
@@ -140,34 +142,48 @@ export default function ProductDetailPage({ params }: PageProps) {
           {/* Product Images */}
           <div className={styles.imageSection}>
             <div className={styles.mainImage}>
-              <Image
-                src={`https://d23pzr22xoegue.cloudfront.net/${selectedImageView}.jpg`}
-                alt={`${product?.name || '商品'} - ${selectedImageView}`}
-                fill
-                className={styles.image}
-                priority
-              />
+              {product?.imageUrls && product.imageUrls.length > 0 ? (
+                <Image
+                  src={
+                    product.imageUrls[selectedImageIndex] ||
+                    product.imageUrls[0]
+                  }
+                  alt={`${product?.name || '商品'} - 画像${
+                    selectedImageIndex + 1
+                  }`}
+                  fill
+                  className={styles.image}
+                  priority
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#f0f0f0',
+                  }}
+                />
+              )}
             </div>
             <div className={styles.thumbnails}>
-              {(['main', 'back', 'right', 'left'] as ImageView[]).map(
-                (view) => (
+              {product?.imageUrls &&
+                product.imageUrls.map((imageUrl, index) => (
                   <button
-                    key={view}
+                    key={index}
                     className={`${styles.thumbnail} ${
-                      selectedImageView === view ? styles.active : ''
+                      selectedImageIndex === index ? styles.active : ''
                     }`}
-                    onClick={() => setSelectedImageView(view)}
-                    aria-label={`${view}の画像を表示`}
+                    onClick={() => setSelectedImageIndex(index)}
+                    aria-label={`画像${index + 1}を表示`}
                   >
                     <Image
-                      src={`https://d23pzr22xoegue.cloudfront.net/${view}.jpg`}
-                      alt={`${product?.name || '商品'} - ${view}`}
+                      src={imageUrl}
+                      alt={`${product?.name || '商品'} - 画像${index + 1}`}
                       fill
                       className={styles.thumbnailImage}
                     />
                   </button>
-                )
-              )}
+                ))}
             </div>
           </div>
 
@@ -193,33 +209,43 @@ export default function ProductDetailPage({ params }: PageProps) {
 
             {/* Product Details Text */}
             <div className={styles.productDetails}>
-              {product.productDetails ? (
-                <ReactMarkdown>{product.productDetails}</ReactMarkdown>
-              ) : (
-                <>
-                  <p>
-                    <strong>ブランド:</strong> {product.brand}
-                  </p>
-                  <p>
-                    <strong>カラー:</strong> {product.color}
-                  </p>
-                  <p>
-                    <strong>素材:</strong> {product.material}
-                  </p>
-                  <p>
-                    <strong>対応:</strong> {product.level}
-                  </p>
-                </>
-              )}
+              <ReactMarkdown>{product.description || ''}</ReactMarkdown>
             </div>
 
             <div style={{ marginTop: 8 }}>
-              <ClientAddToCart
-                id={String(product.id)}
-                name={product.name}
-                price={product.price}
-                image={product.image}
-              />
+              {product.redirectUrl ? (
+                <a
+                  href={product.redirectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    padding: '10px 20px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '4px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.target as HTMLElement).style.backgroundColor = '#0056b3';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.target as HTMLElement).style.backgroundColor = '#007bff';
+                  }}
+                >
+                  サイトに移動
+                </a>
+              ) : (
+                <ClientAddToCart
+                  id={String(product.id)}
+                  name={product.name}
+                  price={product.price}
+                  image={product.image}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -236,6 +262,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                   name={relatedProduct.name}
                   price={relatedProduct.price}
                   showDetails={true}
+                  image={relatedProduct.image}
                 />
               ))
             ) : (

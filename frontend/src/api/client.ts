@@ -62,14 +62,40 @@ export async function apiRequest<T>(
       ...options.headers,
     };
 
+    // If body is FormData, remove Content-Type to let browser set it
+    if (options.body instanceof FormData) {
+      delete headers['Content-Type'];
+    }
+
     // Only add Authorization header if not already present
     if (typeof window !== 'undefined' && !headers['Authorization']) {
       try {
-        const authTokensStr = localStorage.getItem('authTokens');
-        if (authTokensStr) {
-          const authTokens = JSON.parse(authTokensStr);
-          if (authTokens.accessToken) {
-            headers['Authorization'] = `Bearer ${authTokens.accessToken}`;
+        // Try to get admin tokens first (for admin pages)
+        const adminTokensStr = localStorage.getItem('adminTokens');
+        if (adminTokensStr) {
+          try {
+            const adminTokens = JSON.parse(adminTokensStr);
+            if (adminTokens.accessToken) {
+              headers['Authorization'] = `Bearer ${adminTokens.accessToken}`;
+            }
+          } catch {
+            // adminTokens is not valid JSON, try regular auth tokens
+            const authTokensStr = localStorage.getItem('authTokens');
+            if (authTokensStr) {
+              const authTokens = JSON.parse(authTokensStr);
+              if (authTokens.accessToken) {
+                headers['Authorization'] = `Bearer ${authTokens.accessToken}`;
+              }
+            }
+          }
+        } else {
+          // No admin tokens, try regular auth tokens
+          const authTokensStr = localStorage.getItem('authTokens');
+          if (authTokensStr) {
+            const authTokens = JSON.parse(authTokensStr);
+            if (authTokens.accessToken) {
+              headers['Authorization'] = `Bearer ${authTokens.accessToken}`;
+            }
           }
         }
       } catch (error) {
@@ -87,8 +113,17 @@ export async function apiRequest<T>(
         `API Response Error: ${response.status} ${response.statusText}`,
         response
       );
-      const errorData: T = await response.json();
-      return errorData;
+      try {
+        const errorData: T = await response.json();
+        return errorData;
+      } catch (e) {
+        // レスポンスのJSONパースに失敗した場合
+        console.error('Failed to parse error response as JSON:', e);
+        return {
+          success: false,
+          message: `API Error: ${response.status} ${response.statusText}`,
+        } as T;
+      }
     }
 
     const data: T = await response.json();
@@ -107,3 +142,38 @@ export async function apiRequest<T>(
     responseInterceptor();
   }
 }
+
+/**
+ * API Client - convenient methods for common HTTP operations
+ */
+export const apiClient = {
+  get: async <T>(endpoint: string, options: RequestInit = {}) => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'GET',
+    });
+  },
+
+  post: async <T>(endpoint: string, body?: any, options: RequestInit = {}) => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  },
+
+  put: async <T>(endpoint: string, body?: any, options: RequestInit = {}) => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  },
+
+  delete: async <T>(endpoint: string, options: RequestInit = {}) => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'DELETE',
+    });
+  },
+};

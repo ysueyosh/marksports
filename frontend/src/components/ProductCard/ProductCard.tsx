@@ -11,6 +11,7 @@ interface ProductCardProps {
   price?: number;
   showDetails?: boolean;
   onClick?: () => void;
+  image?: string;
 }
 
 export default function ProductCard({
@@ -19,6 +20,7 @@ export default function ProductCard({
   price,
   showDetails = true,
   onClick,
+  image,
 }: ProductCardProps) {
   const handleClick = () => {
     if (onClick) {
@@ -33,13 +35,29 @@ export default function ProductCard({
       style={onClick ? { cursor: 'pointer' } : {}}
     >
       <div className={styles.productImage}>
-        <Image
-          src="https://d23pzr22xoegue.cloudfront.net/main.jpg"
-          alt={name || '商品画像'}
-          fill
-          className={styles.image}
-          priority
-        />
+        {image ? (
+          <Image
+            src={image}
+            alt={name || '商品画像'}
+            fill
+            className={styles.image}
+            priority
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#f0f0f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ccc',
+            }}
+          >
+            画像なし
+          </div>
+        )}
       </div>
       {showDetails && (
         <>

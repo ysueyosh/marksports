@@ -1,4 +1,4 @@
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface SavedCard {
   id: string;
@@ -43,9 +43,7 @@ export interface SetDefaultCardResponse {
  * Get user's saved cards
  */
 export async function getSavedCards(): Promise<GetSavedCardsResponse> {
-  return apiRequest<GetSavedCardsResponse>('/payment-methods', {
-    method: 'GET',
-  });
+  return apiClient.get<GetSavedCardsResponse>('/payment-methods');
 }
 
 /**
@@ -54,19 +52,14 @@ export async function getSavedCards(): Promise<GetSavedCardsResponse> {
 export async function addCard(
   cardData: AddCardRequest
 ): Promise<AddCardResponse> {
-  return apiRequest<AddCardResponse>('/payment-methods', {
-    method: 'POST',
-    body: JSON.stringify(cardData),
-  });
+  return apiClient.post<AddCardResponse>('/payment-methods', cardData);
 }
 
 /**
  * Delete card
  */
 export async function deleteCard(cardId: string): Promise<DeleteCardResponse> {
-  return apiRequest<DeleteCardResponse>(`/payment-methods/${cardId}`, {
-    method: 'DELETE',
-  });
+  return apiClient.delete<DeleteCardResponse>(`/payment-methods/${cardId}`);
 }
 
 /**
@@ -75,10 +68,8 @@ export async function deleteCard(cardId: string): Promise<DeleteCardResponse> {
 export async function setDefaultCard(
   cardId: string
 ): Promise<SetDefaultCardResponse> {
-  return apiRequest<SetDefaultCardResponse>(
+  return apiClient.put<SetDefaultCardResponse>(
     `/payment-methods/${cardId}/default`,
-    {
-      method: 'PUT',
-    }
+    {}
   );
 }

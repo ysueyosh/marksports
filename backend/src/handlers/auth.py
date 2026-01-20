@@ -5,16 +5,39 @@ Authentication handler
 import json
 import logging
 from datetime import datetime, timedelta
+import boto3
+import os
+import bcrypt
+from decimal import Decimal
 from src.models.auth import (
     LoginRequest, LoginResponse, TokenRefreshRequest, TokenRefreshResponse,
     VerifyTokenRequest, VerifyTokenResponse, UpdateProfileRequest,
     UpdateProfileResponse, ChangePasswordRequest, ChangePasswordResponse
 )
 from src.utils.auth import require_auth_handler
+from src.utils.jwt import generate_access_token, generate_refresh_token, verify_token as verify_jwt_token
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# DynamoDB
+dynamodb = boto3.resource(
+    'dynamodb',
+    region_name='ap-northeast-1',
+    endpoint_url=os.environ.get('DYNAMODB_ENDPOINT_URL', None)
+)
+USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'User')
+
+def get_users_table():
+    """Get Users table"""
+    return dynamodb.Table(USERS_TABLE_NAME)
+
+class DecimalEncoder(json.JSONEncoder):
+    """Helper class to convert DynamoDB Decimal type to JSON"""
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        return super().default(o)
 
 def login(event, context):
     """
@@ -34,32 +57,115 @@ def login(event, context):
         body = json.loads(event.get("body", "{}"))
         login_request = LoginRequest(**body)
         
-        # TODO: Validate against database
-        # For now, just accept any email/password combination
-        
-        response = LoginResponse(
-            success=True,
-            message="Login successful",
-            data={
-                "id": "user_001",
-                "email": login_request.email,
-                "name": "山田太郎",
-                "phone": "090-1234-5678",
-                "address": "東京都渋谷区1-2-3",
-                "accessToken": "dummy_access_token_123",  # TODO: Generate JWT token
-                "refreshToken": "dummy_refresh_token_456",  # TODO: Generate refresh token
-                "expiresIn": 3600  # Token expires in 1 hour (seconds)
+        # Get user from database by email
+        users_table = get_users_table()
+        try:
+            response = users_table.query(
+                IndexName='GSI_MAIL',
+                KeyConditionExpression='email = :email',
+                ExpressionAttributeValues={':email': login_request.email}
+            )
+            
+            if not response['Items']:
+                return {
+                    "statusCode": 401,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "メールアドレスまたはパスワードが正しくありません",
+                    }, ensure_ascii=False),
+                }
+            
+            user_item = response['Items'][0]
+            user_id = user_item.get('userId')
+            password_hash = user_item.get('passwordHash', '')
+            
+            # Verify password - password_hash should be a UTF-8 encoded hash stored as string
+            try:
+                if not bcrypt.checkpw(login_request.password.encode('utf-8'), password_hash.encode('utf-8')):
+                    return {
+                        "statusCode": 401,
+                        "headers": {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                        "body": json.dumps({
+                            "success": False,
+                            "message": "メールアドレスまたはパスワードが正しくありません",
+                        }, ensure_ascii=False),
+                    }
+            except ValueError as e:
+                logger.error(f"Invalid password hash format: {str(e)}")
+                return {
+                    "statusCode": 401,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "メールアドレスまたはパスワードが正しくありません",
+                    }, ensure_ascii=False),
+                }
+            
+            # Check if user is active
+            if user_item.get('status') != 'active':
+                return {
+                    "statusCode": 401,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "このアカウントは使用できません",
+                    }, ensure_ascii=False),
+                }
+            
+            # Generate JWT tokens
+            access_token = generate_access_token(user_id, login_request.email, user_type="user")
+            refresh_token_str = generate_refresh_token(user_id, login_request.email, user_type="user")
+            
+            response_data = LoginResponse(
+                success=True,
+                message="ログインしました",
+                data={
+                    "userId": user_id,
+                    "email": login_request.email,
+                    "name": user_item.get('name', ''),
+                    "phone": user_item.get('phone', ''),
+                    "accessToken": access_token,
+                    "refreshToken": refresh_token_str,
+                    "expiresIn": 3600  # Token expires in 1 hour (seconds)
+                }
+            )
+            
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps(response_data.model_dump(), cls=DecimalEncoder, ensure_ascii=False),
             }
-        )
         
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps(response.model_dump()),
-        }
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            # If GSI query fails, return generic error
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "ログインに失敗しました",
+                }, ensure_ascii=False),
+            }
     
     except ValueError as e:
         logger.error(f"Validation error: {str(e)}")
@@ -71,8 +177,8 @@ def login(event, context):
             },
             "body": json.dumps({
                 "success": False,
-                "message": f"Invalid input: {str(e)}"
-            }),
+                "message": f"入力エラー: {str(e)}"
+            }, ensure_ascii=False),
         }
     
     except Exception as e:
@@ -85,9 +191,10 @@ def login(event, context):
             },
             "body": json.dumps({
                 "success": False,
-                "message": f"Login failed: {str(e)}"
-            }),
+                "message": f"ログインに失敗しました: {str(e)}"
+            }, ensure_ascii=False),
         }
+
 
 
 def refresh_token(event, context):
@@ -108,14 +215,36 @@ def refresh_token(event, context):
         body = json.loads(event.get("body", "{}"))
         refresh_request = TokenRefreshRequest(**body)
         
-        # TODO: Validate refresh token against database
-        # For now, just accept any refresh token and return new access token
+        # Verify the refresh token
+        is_valid, payload, error_msg = verify_jwt_token(refresh_request.refresh_token)
+        
+        if not is_valid:
+            logger.warning(f"Invalid refresh token: {error_msg}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Invalid or expired refresh token"
+                }),
+            }
+        
+        # Extract user info from payload
+        user_id = payload.get("user_id")
+        email = payload.get("email")
+        user_type = payload.get("user_type", "user")
+        
+        # Generate new access token
+        new_access_token = generate_access_token(user_id, email, user_type=user_type)
         
         response = TokenRefreshResponse(
             success=True,
             message="Token refreshed successfully",
             data={
-                "accessToken": "dummy_new_access_token_789",  # TODO: Generate new JWT token
+                "accessToken": new_access_token,
                 "expiresIn": 3600  # Token expires in 1 hour (seconds)
             }
         )
@@ -176,18 +305,38 @@ def verify_token(event, context):
         body = json.loads(event.get("body", "{}"))
         verify_request = VerifyTokenRequest(**body)
         
-        # TODO: Validate access token against database
-        # For now, just accept any access token and return dummy user data
+        # Verify the access token
+        is_valid, payload, error_msg = verify_jwt_token(verify_request.access_token)
         
+        if not is_valid:
+            logger.warning(f"Invalid access token: {error_msg}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Invalid or expired access token"
+                }),
+            }
+        
+        # Extract user info from JWT payload
+        user_id = payload.get("user_id")
+        email = payload.get("email")
+        
+        # TODO: Fetch user details from DynamoDB if needed
+        # For now, return user info from JWT payload
         response = VerifyTokenResponse(
             success=True,
             message="Token verified successfully",
             data={
-                "id": "user_001",
-                "email": "user@example.com",
-                "name": "山田太郎",
-                "phone": "090-1234-5678",
-                "address": "東京都渋谷区1-2-3"
+                "id": user_id,
+                "email": email,
+                "name": "山田太郎",  # TODO: Fetch from DynamoDB
+                "phone": "090-1234-5678",  # TODO: Fetch from DynamoDB
+                "address": "東京都渋谷区1-2-3"  # TODO: Fetch from DynamoDB
             }
         )
         

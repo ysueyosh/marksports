@@ -2,33 +2,34 @@
  * User Registration API
  */
 
-import { apiRequest } from './client';
+import { apiClient } from './client';
 
 export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
-  postalCode: string;
-  prefecture: string;
-  address: string;
-  building?: string;
+  confirmPassword: string;
+  phone?: string;
+  sex?: string;
+  registerAddress: boolean;
+  postalCode?: string;
+  prefecture?: string;
+  address?: string;
+  option?: string;
 }
 
 export interface RegisterResponse {
   success: boolean;
   message: string;
   data?: {
+    userId: string;
     email: string;
     name: string;
-    message: string;
   };
 }
 
 export async function register(
   registerData: RegisterRequest
 ): Promise<RegisterResponse> {
-  return apiRequest<RegisterResponse>('/register', {
-    method: 'POST',
-    body: JSON.stringify(registerData),
-  });
+  return apiClient.post<RegisterResponse>('/register', registerData);
 }

@@ -39,17 +39,17 @@ export default function RootLayout({
         <LoadingProvider>
           <GlobalLoadingSpinner />
           <SnackbarProvider>
-            <NotificationProvider>
-              <CartProvider>
-                <CategoryProvider>
-                  <SearchProvider>
-                    <SidebarProvider>
-                      <AuthProvider>{children}</AuthProvider>
-                    </SidebarProvider>
-                  </SearchProvider>
-                </CategoryProvider>
-              </CartProvider>
-            </NotificationProvider>
+            <AuthProvider>
+              <NotificationProvider>
+                <CartProvider>
+                  <CategoryProvider>
+                    <SearchProvider>
+                      <SidebarProvider>{children}</SidebarProvider>
+                    </SearchProvider>
+                  </CategoryProvider>
+                </CartProvider>
+              </NotificationProvider>
+            </AuthProvider>
           </SnackbarProvider>
         </LoadingProvider>
       </body>

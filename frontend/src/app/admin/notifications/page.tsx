@@ -6,84 +6,44 @@ import AdminModal from '@/components/Admin/AdminModal';
 import Pagination from '@/components/Pagination/Pagination';
 import sharedStyles from '../admin-shared.module.css';
 import pageStyles from './notifications.module.css';
+import adminNotificationAPI from '@/api/admin-notifications';
 
 const styles = { ...sharedStyles, ...pageStyles };
 
 interface Notification {
-  id: number;
+  notificationId: string;
+  type: 'info' | 'important' | 'sale';
+  target: 'all' | 'members';
   title: string;
   content: string;
-  createdDate: string;
-  published: boolean;
-  distributionMethod: 'email' | 'site'; // メール配信 or サイト内通知
-  targetAudience: 'all' | 'members'; // すべてのユーザー or 登録済みユーザーのみ
-  sentDate?: string;
-  recipientCount?: number;
-  tag?: 'important' | 'sale';
+  startDate: string;
+  endDate?: string;
+  createdAt: string;
 }
 
 export default function AdminNotificationsPage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      title: '新商品「バスケットボール」を追加しました',
-      content: 'Mark Sportsに新しいバスケットボールが入荷しました。',
-      createdDate: '2024-04-10',
-      published: true,
-      distributionMethod: 'email',
-      targetAudience: 'all',
-      sentDate: '2024-04-10',
-      recipientCount: 48,
-    },
-    {
-      id: 2,
-      title: 'GW セール開催のお知らせ',
-      content:
-        '4月27日（土）～5月6日（月）の期間、全商品20%OFFのセールを開催します。',
-      createdDate: '2024-04-05',
-      published: true,
-      distributionMethod: 'site',
-      targetAudience: 'members',
-      sentDate: '2024-04-05',
-      recipientCount: 48,
-    },
-    {
-      id: 3,
-      title: 'システムメンテナンスのお知らせ',
-      content:
-        '4月15日 23:00～4月16日 2:00 の間、システムメンテナンスのためサイトがご利用いただけません。',
-      createdDate: '2024-04-01',
-      published: true,
-      distributionMethod: 'email',
-      targetAudience: 'all',
-      sentDate: '2024-04-01',
-      recipientCount: 48,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newNotification, setNewNotification] = useState({
     title: '',
     content: '',
-    distributionMethod: 'email' as 'email' | 'site',
-    targetAudience: 'all' as 'all' | 'members',
-    tag: '' as '' | 'important' | 'sale',
+    type: 'info' as 'info' | 'important' | 'sale',
+    target: 'all' as 'all' | 'members',
+    startDate: '',
+    endDate: '',
   });
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published'>('all');
-  const [filterMethod, setFilterMethod] = useState<'all' | 'email' | 'site'>(
-    'all'
-  );
-  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title'>(
-    'date-desc'
-  );
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteInputValue, setDeleteInputValue] = useState('');
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const adminLogged = localStorage.getItem('adminLogged');
@@ -91,42 +51,80 @@ export default function AdminNotificationsPage() {
       router.push('/admin/login');
     } else {
       setIsLoggedIn(true);
+      loadNotifications();
     }
   }, [router]);
+
+  const loadNotifications = async (page = 1) => {
+    try {
+      setLoading(true);
+      const response = await adminNotificationAPI.getAllNotifications(
+        page,
+        itemsPerPage
+      );
+
+      if (response.success && response.data) {
+        setNotifications(response.data.notifications || []);
+        setTotalPages(response.data.totalPages || 1);
+        setCurrentPage(page);
+      } else {
+        setErrorMessage(response.message || 'データ取得に失敗しました');
+      }
+    } catch (error: any) {
+      console.error('Error loading notifications:', error);
+      setErrorMessage(error.message || 'お知らせ一覧の取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isLoggedIn) {
     return null;
   }
 
-  const handleAddNotification = () => {
-    if (newNotification.title && newNotification.content) {
-      const notification: Notification = {
-        id: Math.max(...notifications.map((n) => n.id), 0) + 1,
-        title: newNotification.title,
-        content: newNotification.content,
-        createdDate: new Date().toISOString().split('T')[0],
-        published: true,
-        distributionMethod: newNotification.distributionMethod,
-        targetAudience: newNotification.targetAudience,
-        sentDate: new Date().toISOString().split('T')[0],
-        recipientCount: newNotification.targetAudience === 'all' ? 48 : 48, // ダミーユーザー数
-        tag: newNotification.tag || undefined,
-      };
-      setNotifications([notification, ...notifications]);
-      setNewNotification({
-        title: '',
-        content: '',
-        distributionMethod: 'email',
-        targetAudience: 'all',
-        tag: '',
-      });
-      setIsModalOpen(false);
-      setSuccessMessage('お知らせを配信しました');
-      setTimeout(() => setSuccessMessage(''), 3000);
+  const handleAddNotification = async () => {
+    if (
+      newNotification.title &&
+      newNotification.content &&
+      newNotification.startDate
+    ) {
+      try {
+        setLoading(true);
+        const response = await adminNotificationAPI.createNotification({
+          type: newNotification.type,
+          target: newNotification.target,
+          title: newNotification.title,
+          content: newNotification.content,
+          startDate: newNotification.startDate,
+          endDate: newNotification.endDate || undefined,
+        });
+
+        if (response.success) {
+          setSuccessMessage('お知らせを配信しました');
+          setNewNotification({
+            title: '',
+            content: '',
+            type: 'info',
+            target: 'all',
+            startDate: '',
+            endDate: '',
+          });
+          setIsModalOpen(false);
+          setTimeout(() => setSuccessMessage(''), 3000);
+          loadNotifications();
+        } else {
+          setErrorMessage(response.message || '配信に失敗しました');
+        }
+      } catch (error: any) {
+        console.error('Error creating notification:', error);
+        setErrorMessage(error.message || 'お知らせの作成に失敗しました');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const handleStartDelete = (id: number) => {
+  const handleStartDelete = (id: string) => {
     setDeleteTargetId(id);
     setIsDeleteConfirming(true);
     setDeleteInputValue('');
@@ -138,22 +136,34 @@ export default function AdminNotificationsPage() {
     setDeleteInputValue('');
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteTargetId !== null) {
       const targetNotification = notifications.find(
-        (n) => n.id === deleteTargetId
+        (n) => n.notificationId === deleteTargetId
       );
       if (targetNotification && deleteInputValue === targetNotification.title) {
-        setNotifications(
-          notifications.filter(
-            (notification) => notification.id !== deleteTargetId
-          )
-        );
-        setIsDeleteConfirming(false);
-        setDeleteTargetId(null);
-        setDeleteInputValue('');
-        setSuccessMessage('お知らせを削除しました');
-        setTimeout(() => setSuccessMessage(''), 3000);
+        try {
+          setLoading(true);
+          const response = await adminNotificationAPI.deleteNotification(
+            deleteTargetId
+          );
+
+          if (response.success) {
+            setSuccessMessage('お知らせを削除しました');
+            setIsDeleteConfirming(false);
+            setDeleteTargetId(null);
+            setDeleteInputValue('');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            loadNotifications(currentPage);
+          } else {
+            setErrorMessage(response.message || '削除に失敗しました');
+          }
+        } catch (error: any) {
+          console.error('Error deleting notification:', error);
+          setErrorMessage(error.message || 'お知らせの削除に失敗しました');
+        } finally {
+          setLoading(false);
+        }
       }
     }
   };
@@ -163,47 +173,15 @@ export default function AdminNotificationsPage() {
     setNewNotification({
       title: '',
       content: '',
-      distributionMethod: 'email',
-      targetAudience: 'all',
-      tag: '',
+      type: 'info',
+      target: 'all',
+      startDate: '',
+      endDate: '',
     });
     setIsDeleteConfirming(false);
     setDeleteTargetId(null);
     setDeleteInputValue('');
   };
-
-  // フィルタリング、検索、ソート
-  const filteredNotifications = notifications
-    .filter((n) => {
-      const matchesSearch =
-        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        n.content.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesMethod =
-        filterMethod === 'all' || n.distributionMethod === filterMethod;
-      return matchesSearch && matchesMethod;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date-desc') {
-        return (
-          new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
-        );
-      } else if (sortBy === 'date-asc') {
-        return (
-          new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime()
-        );
-      } else if (sortBy === 'title') {
-        return a.title.localeCompare(b.title, 'ja');
-      }
-      return 0;
-    });
-
-  // ページング計算
-  const totalPages = Math.ceil(filteredNotifications.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedNotifications = filteredNotifications.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
 
   return (
     <div className={styles.container}>
@@ -212,6 +190,7 @@ export default function AdminNotificationsPage() {
         <button
           className={styles.primaryButton}
           onClick={() => setIsModalOpen(!isModalOpen)}
+          disabled={loading}
         >
           {isModalOpen ? 'キャンセル' : 'お知らせを配信'}
         </button>
@@ -232,6 +211,21 @@ export default function AdminNotificationsPage() {
         </div>
       )}
 
+      {errorMessage && (
+        <div
+          style={{
+            backgroundColor: '#fee',
+            border: '1px solid #f00',
+            color: '#c00',
+            padding: '12px',
+            borderRadius: '4px',
+            marginBottom: '20px',
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
+
       {isDeleteConfirming && deleteTargetId !== null && (
         <AdminModal
           isOpen={isDeleteConfirming}
@@ -249,6 +243,7 @@ export default function AdminNotificationsPage() {
               <button
                 className={styles.secondaryButton}
                 onClick={handleCancelDelete}
+                disabled={loading}
               >
                 キャンセル
               </button>
@@ -257,17 +252,23 @@ export default function AdminNotificationsPage() {
                 onClick={handleConfirmDelete}
                 disabled={
                   deleteInputValue !==
-                  notifications.find((n) => n.id === deleteTargetId)?.title
+                    notifications.find(
+                      (n) => n.notificationId === deleteTargetId
+                    )?.title || loading
                 }
                 style={{
                   opacity:
                     deleteInputValue !==
-                    notifications.find((n) => n.id === deleteTargetId)?.title
+                      notifications.find(
+                        (n) => n.notificationId === deleteTargetId
+                      )?.title || loading
                       ? 0.5
                       : 1,
                   cursor:
                     deleteInputValue !==
-                    notifications.find((n) => n.id === deleteTargetId)?.title
+                      notifications.find(
+                        (n) => n.notificationId === deleteTargetId
+                      )?.title || loading
                       ? 'not-allowed'
                       : 'pointer',
                 }}
@@ -277,7 +278,7 @@ export default function AdminNotificationsPage() {
             </div>
           }
         >
-          {notifications.find((n) => n.id === deleteTargetId) && (
+          {notifications.find((n) => n.notificationId === deleteTargetId) && (
             <div
               style={{
                 marginBottom: '20px',
@@ -305,7 +306,10 @@ export default function AdminNotificationsPage() {
                 }}
               >
                 <strong>タイトル:</strong>{' '}
-                {notifications.find((n) => n.id === deleteTargetId)?.title}
+                {
+                  notifications.find((n) => n.notificationId === deleteTargetId)
+                    ?.title
+                }
               </p>
               <label
                 style={{
@@ -321,7 +325,8 @@ export default function AdminNotificationsPage() {
                 value={deleteInputValue}
                 onChange={(e) => setDeleteInputValue(e.target.value)}
                 placeholder={`「${
-                  notifications.find((n) => n.id === deleteTargetId)?.title
+                  notifications.find((n) => n.notificationId === deleteTargetId)
+                    ?.title
                 }」と入力`}
                 style={{
                   width: '100%',
@@ -355,14 +360,16 @@ export default function AdminNotificationsPage() {
             <button
               className={styles.secondaryButton}
               onClick={handleCloseModal}
+              disabled={loading}
             >
               キャンセル
             </button>
             <button
               className={styles.primaryButton}
               onClick={handleAddNotification}
+              disabled={loading}
             >
-              配信実行
+              {loading ? '配信中...' : '配信実行'}
             </button>
           </div>
         }
@@ -417,19 +424,69 @@ export default function AdminNotificationsPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
+            gridTemplateColumns: '1fr 1fr',
             gap: '12px',
             marginBottom: '16px',
           }}
         >
           <div className={styles.formGroup}>
-            <label>配信方法</label>
-            <select
-              value={newNotification.distributionMethod}
+            <label>掲載開始日 *</label>
+            <input
+              type="date"
+              value={newNotification.startDate}
               onChange={(e) =>
                 setNewNotification({
                   ...newNotification,
-                  distributionMethod: e.target.value as 'email' | 'site',
+                  startDate: e.target.value,
+                })
+              }
+              required
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                fontSize: '14px',
+              }}
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label>掲載終了日</label>
+            <input
+              type="date"
+              value={newNotification.endDate}
+              onChange={(e) =>
+                setNewNotification({
+                  ...newNotification,
+                  endDate: e.target.value,
+                })
+              }
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                fontSize: '14px',
+              }}
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '12px',
+            marginBottom: '16px',
+          }}
+        >
+          <div className={styles.formGroup}>
+            <label>通知タイプ</label>
+            <select
+              value={newNotification.type}
+              onChange={(e) =>
+                setNewNotification({
+                  ...newNotification,
+                  type: e.target.value as 'info' | 'important' | 'sale',
                 })
               }
               style={{
@@ -440,18 +497,19 @@ export default function AdminNotificationsPage() {
                 fontSize: '14px',
               }}
             >
-              <option value="email">メール配信</option>
-              <option value="site">サイト内通知</option>
+              <option value="info">一般情報</option>
+              <option value="important">重要</option>
+              <option value="sale">セール</option>
             </select>
           </div>
           <div className={styles.formGroup}>
             <label>配信対象</label>
             <select
-              value={newNotification.targetAudience}
+              value={newNotification.target}
               onChange={(e) =>
                 setNewNotification({
                   ...newNotification,
-                  targetAudience: e.target.value as 'all' | 'members',
+                  target: e.target.value as 'all' | 'members',
                 })
               }
               style={{
@@ -466,139 +524,82 @@ export default function AdminNotificationsPage() {
               <option value="members">登録済みユーザーのみ</option>
             </select>
           </div>
-          <div className={styles.formGroup}>
-            <label>タグ</label>
-            <select
-              value={newNotification.tag}
-              onChange={(e) =>
-                setNewNotification({
-                  ...newNotification,
-                  tag: e.target.value as '' | 'important' | 'sale',
-                })
-              }
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-              }}
-            >
-              <option value="">なし</option>
-              <option value="important">重要</option>
-              <option value="sale">セール</option>
-            </select>
-          </div>
         </div>
       </AdminModal>
 
-      {/* 検索・フィルタリング・ソート */}
-      <div className={styles.searchBox}>
-        <input
-          type="text"
-          placeholder="タイトルや本文で検索..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(1);
-          }}
-          className={styles.searchInput}
-        />
-      </div>
-
-      <div className={styles.filterBox}>
-        <select
-          value={filterMethod}
-          onChange={(e) => {
-            setFilterMethod(e.target.value as any);
-            setCurrentPage(1);
-          }}
-          className={styles.filterSelect}
-        >
-          <option value="all">すべての配信方法</option>
-          <option value="email">メール配信</option>
-          <option value="site">サイト内通知</option>
-        </select>
-
-        <select
-          value={sortBy}
-          onChange={(e) => {
-            setSortBy(e.target.value as any);
-          }}
-          className={styles.filterSelect}
-        >
-          <option value="date-desc">日時：新しい順</option>
-          <option value="date-asc">日時：古い順</option>
-          <option value="title">タイトル：A-Z順</option>
-        </select>
-      </div>
-
+      {/* 通知一覧 */}
       <div className={styles.notificationsList}>
-        {paginatedNotifications.map((notification) => (
-          <div key={notification.id} className={styles.notificationCard}>
-            <div className={styles.notificationHeader}>
-              <div>
-                <h3>{notification.title}</h3>
-                <p className={styles.notificationDate}>
-                  配信日: {notification.sentDate || notification.createdDate}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span
-                  className={`${styles.badge} ${
-                    notification.distributionMethod === 'email'
-                      ? styles.active
-                      : styles.suspended
-                  }`}
-                >
-                  {notification.distributionMethod === 'email'
-                    ? '📧 メール'
-                    : '📢 サイト内'}
-                </span>
-                <span
-                  className={`${styles.badge} ${
-                    notification.published ? styles.active : styles.suspended
-                  }`}
-                >
-                  {notification.published ? '配信済み' : '下書き'}
-                </span>
-              </div>
-            </div>
-            <p className={styles.notificationContent}>{notification.content}</p>
-            <div
-              style={{
-                fontSize: '12px',
-                color: '#6b7280',
-                marginBottom: '12px',
-              }}
-            >
-              <p>
-                配信対象:{' '}
-                {notification.targetAudience === 'all'
-                  ? 'すべてのユーザー'
-                  : '登録済みユーザーのみ'}
-                {notification.recipientCount &&
-                  ` (${notification.recipientCount}件)`}
-              </p>
-            </div>
-            <div className={styles.notificationActions}>
-              <button
-                className={`${styles.secondaryButton} ${styles.danger}`}
-                onClick={() => handleStartDelete(notification.id)}
-              >
-                削除
-              </button>
-            </div>
+        {loading && notifications.length === 0 ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '40px',
+              color: '#999',
+            }}
+          >
+            読み込み中...
           </div>
-        ))}
+        ) : notifications.length === 0 ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '40px',
+              color: '#999',
+            }}
+          >
+            <p>お知らせはまだありません</p>
+          </div>
+        ) : (
+          notifications.map((notification) => (
+            <div
+              key={notification.notificationId}
+              className={styles.notificationCard}
+            >
+              <div className={styles.notificationHeader}>
+                <div>
+                  <h3>{notification.title}</h3>
+                  <p className={styles.notificationDate}>
+                    配信日: {notification.startDate}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className={styles.badge}>
+                    {notification.type === 'important'
+                      ? '🔴 重要'
+                      : notification.type === 'sale'
+                      ? '🎉 セール'
+                      : 'ℹ️ 情報'}
+                  </span>
+                  <span className={styles.badge}>
+                    {notification.target === 'all'
+                      ? '👥 全ユーザー'
+                      : '👤 会員のみ'}
+                  </span>
+                </div>
+              </div>
+              <p className={styles.notificationContent}>
+                {notification.content}
+              </p>
+              <div className={styles.notificationActions}>
+                <button
+                  className={`${styles.secondaryButton} ${styles.danger}`}
+                  onClick={() => handleStartDelete(notification.notificationId)}
+                  disabled={loading}
+                >
+                  削除
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ページネーション */}
-      {filteredNotifications.length > 0 && (
+      {notifications.length > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={(page) => loadNotifications(page)}
         />
       )}
     </div>

@@ -15,11 +15,13 @@ interface AddressFormData {
   email: string;
   password: string;
   confirm: string;
+  phone: string;
+  sex: string;
+  registerAddress: boolean; // チェックボックス
   postalCode: string;
   prefecture: string;
   address: string;
-  building: string;
-  gender: string;
+  option: string;
 }
 
 export default function RegisterPage() {
@@ -28,11 +30,13 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirm: '',
+    phone: '',
+    sex: '',
+    registerAddress: false,
     postalCode: '',
     prefecture: '',
     address: '',
-    building: '',
-    gender: '',
+    option: '',
   });
   const [isGenderDropdownOpen, setIsGenderDropdownOpen] = useState(false);
   const [isPrefectureDropdownOpen, setIsPrefectureDropdownOpen] =
@@ -197,9 +201,11 @@ export default function RegisterPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
 
     if (name === 'postalCode') {
       const digitsOnly = value.replace(/\D/g, '');
@@ -224,9 +230,15 @@ export default function RegisterPage() {
     if (!formData.password) errors.password = 'パスワードを入力してください';
     if (!formData.confirm)
       errors.confirm = 'パスワード（確認）を入力してください';
-    if (!formData.postalCode) errors.postalCode = '郵便番号を入力してください';
-    if (!formData.prefecture) errors.prefecture = '都道府県を選択してください';
-    if (!formData.address) errors.address = '住所を入力してください';
+
+    // Validate address fields only if address registration is checked
+    if (formData.registerAddress) {
+      if (!formData.postalCode)
+        errors.postalCode = '郵便番号を入力してください';
+      if (!formData.prefecture)
+        errors.prefecture = '都道府県を選択してください';
+      if (!formData.address) errors.address = '住所を入力してください';
+    }
 
     if (formData.password !== formData.confirm) {
       errors.confirm = 'パスワードが一致しません';
@@ -263,10 +275,14 @@ export default function RegisterPage() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        postalCode: formData.postalCode,
-        prefecture: formData.prefecture,
-        address: formData.address,
-        building: formData.building || undefined,
+        confirmPassword: formData.confirm,
+        phone: formData.phone || undefined,
+        sex: formData.sex || undefined,
+        registerAddress: formData.registerAddress,
+        postalCode: formData.registerAddress ? formData.postalCode : undefined,
+        prefecture: formData.registerAddress ? formData.prefecture : undefined,
+        address: formData.registerAddress ? formData.address : undefined,
+        option: formData.registerAddress ? formData.option : undefined,
       });
 
       if (response.success) {
@@ -357,6 +373,16 @@ export default function RegisterPage() {
                   </div>
                 )}
               </div>
+              <TextInput
+                label="電話番号"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="例：090-1234-5678"
+                inputType="text"
+                error={fieldErrors.phone}
+                containerStyle={{ marginBottom: '16px' }}
+              />
               <div className={styles.formGroup}>
                 <label className={styles.label}>性別</label>
                 <Dropdown
@@ -366,7 +392,7 @@ export default function RegisterPage() {
                   }
                   onClose={() => setIsGenderDropdownOpen(false)}
                   buttonText={
-                    genderOptions.find((opt) => opt.id === formData.gender)
+                    genderOptions.find((opt) => opt.id === formData.sex)
                       ?.label || '選択してください'
                   }
                 >
@@ -377,7 +403,7 @@ export default function RegisterPage() {
                       onClick={() => {
                         setFormData((prev) => ({
                           ...prev,
-                          gender: option.id,
+                          sex: option.id,
                         }));
                         setIsGenderDropdownOpen(false);
                       }}
@@ -389,163 +415,196 @@ export default function RegisterPage() {
               </div>
             </fieldset>
 
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>住所情報</legend>
-
-              <div
+            {/* 住所登録チェックボックス */}
+            <div
+              className={styles.checkboxContainer}
+              style={{ marginBottom: '16px' }}
+            >
+              <label
                 style={{
                   display: 'flex',
-                  gap: '12px',
-                  alignItems: 'flex-start',
-                  marginBottom: '16px',
+                  alignItems: 'center',
+                  cursor: 'pointer',
                 }}
               >
-                <div style={{ flex: 1 }}>
-                  <TextInput
-                    name="postalCode"
-                    value={formData.postalCode}
-                    onChange={handleInputChange}
-                    placeholder="1234567"
-                    label="郵便番号"
-                    inputType="number"
-                    maxLength={7}
-                    required
-                    error={fieldErrors.postalCode}
-                    containerStyle={{ marginBottom: '0px' }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSearchAddress}
-                  disabled={isSearchingAddress}
-                  onMouseEnter={(e) => {
-                    if (!isSearchingAddress) {
-                      e.currentTarget.style.backgroundColor = '#f0f0f0';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#fff';
-                  }}
-                  style={{
-                    padding: '10px 16px',
-                    backgroundColor: '#fff',
-                    color: '#333',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    cursor: isSearchingAddress ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap',
-                    opacity: isSearchingAddress ? 0.6 : 1,
-                    transition: 'background-color 0.2s',
-                    height: '38px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginTop: '28px',
-                  }}
-                >
-                  {isSearchingAddress ? '検索中...' : '住所検索'}
-                </button>
-              </div>
-              {addressSearchError && (
+                <input
+                  type="checkbox"
+                  name="registerAddress"
+                  checked={formData.registerAddress}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      registerAddress: e.target.checked,
+                    }))
+                  }
+                  style={{ marginRight: '8px', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '14px', color: '#333' }}>
+                  住所情報を登録する（任意）
+                </span>
+              </label>
+            </div>
+
+            {/* 住所情報フィールド - チェックボックスがONの時だけ表示 */}
+            {formData.registerAddress && (
+              <fieldset className={styles.fieldset}>
+                <legend className={styles.legend}>住所情報</legend>
+
                 <div
                   style={{
-                    color: '#c33',
-                    fontSize: '12px',
-                    marginTop: '4px',
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'flex-start',
                     marginBottom: '16px',
                   }}
                 >
-                  {addressSearchError}
+                  <div style={{ flex: 1 }}>
+                    <TextInput
+                      name="postalCode"
+                      value={formData.postalCode}
+                      onChange={handleInputChange}
+                      placeholder="1234567"
+                      label="郵便番号"
+                      inputType="number"
+                      maxLength={7}
+                      required={formData.registerAddress}
+                      error={fieldErrors.postalCode}
+                      containerStyle={{ marginBottom: '0px' }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSearchAddress}
+                    disabled={isSearchingAddress}
+                    onMouseEnter={(e) => {
+                      if (!isSearchingAddress) {
+                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#fff';
+                    }}
+                    style={{
+                      padding: '10px 16px',
+                      backgroundColor: '#fff',
+                      color: '#333',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      cursor: isSearchingAddress ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      whiteSpace: 'nowrap',
+                      opacity: isSearchingAddress ? 0.6 : 1,
+                      transition: 'background-color 0.2s',
+                      height: '38px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginTop: '28px',
+                    }}
+                  >
+                    {isSearchingAddress ? '検索中...' : '住所検索'}
+                  </button>
                 </div>
-              )}
+                {addressSearchError && (
+                  <div
+                    style={{
+                      color: '#c33',
+                      fontSize: '12px',
+                      marginTop: '4px',
+                      marginBottom: '16px',
+                    }}
+                  >
+                    {addressSearchError}
+                  </div>
+                )}
 
-              <div className={styles.formGroup}>
-                <label className={styles.label}>
-                  都道府県<span style={{ color: '#e74c3c' }}>*</span>
-                </label>
-                <Dropdown
-                  isOpen={isPrefectureDropdownOpen}
-                  onToggle={() =>
-                    setIsPrefectureDropdownOpen(!isPrefectureDropdownOpen)
-                  }
-                  onClose={() => setIsPrefectureDropdownOpen(false)}
-                  buttonText={
-                    prefectureOptions.find(
-                      (opt) => opt.id === formData.prefecture
-                    )?.label || '選択してください'
-                  }
-                >
-                  {prefectureOptions.map((option) => (
-                    <div
-                      key={option.id}
-                      style={{
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor =
-                          'var(--bg-secondary)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                      onClick={() => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          prefecture: option.id,
-                        }));
-                        setIsPrefectureDropdownOpen(false);
-                      }}
-                    >
-                      <span
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    都道府県<span style={{ color: '#e74c3c' }}>*</span>
+                  </label>
+                  <Dropdown
+                    isOpen={isPrefectureDropdownOpen}
+                    onToggle={() =>
+                      setIsPrefectureDropdownOpen(!isPrefectureDropdownOpen)
+                    }
+                    onClose={() => setIsPrefectureDropdownOpen(false)}
+                    buttonText={
+                      prefectureOptions.find(
+                        (opt) => opt.id === formData.prefecture
+                      )?.label || '選択してください'
+                    }
+                  >
+                    {prefectureOptions.map((option) => (
+                      <div
+                        key={option.id}
                         style={{
-                          fontSize: '14px',
-                          color: 'var(--text-primary)',
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor =
+                            'var(--bg-secondary)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            prefecture: option.id,
+                          }));
+                          setIsPrefectureDropdownOpen(false);
                         }}
                       >
-                        {option.label}
-                      </span>
-                    </div>
-                  ))}
-                </Dropdown>
-              </div>
-              {fieldErrors.prefecture && (
-                <div
-                  style={{
-                    color: '#e74c3c',
-                    fontSize: '12px',
-                    marginTop: '4px',
-                    marginBottom: '16px',
-                  }}
-                >
-                  {fieldErrors.prefecture}
+                        <span
+                          style={{
+                            fontSize: '14px',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {option.label}
+                        </span>
+                      </div>
+                    ))}
+                  </Dropdown>
                 </div>
-              )}
+                {fieldErrors.prefecture && (
+                  <div
+                    style={{
+                      color: '#e74c3c',
+                      fontSize: '12px',
+                      marginTop: '4px',
+                      marginBottom: '16px',
+                    }}
+                  >
+                    {fieldErrors.prefecture}
+                  </div>
+                )}
 
-              <TextInput
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="丸の内1-1-1"
-                label="住所"
-                inputType="text"
-                required
-                error={fieldErrors.address}
-                containerStyle={{ marginBottom: '16px' }}
-              />
+                <TextInput
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="丸の内1-1-1"
+                  label="住所"
+                  inputType="text"
+                  required
+                  error={fieldErrors.address}
+                  containerStyle={{ marginBottom: '16px' }}
+                />
 
-              <TextInput
-                name="building"
-                value={formData.building}
-                onChange={handleInputChange}
-                placeholder="◇◇ビル 4階"
-                label="建物名（オプション）"
-                inputType="text"
-                containerStyle={{ marginBottom: '16px' }}
-              />
-            </fieldset>
+                <TextInput
+                  name="option"
+                  value={formData.option}
+                  onChange={handleInputChange}
+                  placeholder="◇◇ビル 4階"
+                  label="建物名・その他（オプション）"
+                  inputType="text"
+                  containerStyle={{ marginBottom: '16px' }}
+                />
+              </fieldset>
+            )}
             {error && <div className={styles.error}>{error}</div>}
             <button className={styles.submitButton} type="submit">
               登録内容を確認
@@ -564,32 +623,41 @@ export default function RegisterPage() {
               <span>{formData.email}</span>
             </div>
             <div className={styles.confirmRow}>
+              <span>電話番号</span>
+              <span>{formData.phone || '-'}</span>
+            </div>
+            <div className={styles.confirmRow}>
               <span>性別</span>
               <span>
-                {genderOptions.find((opt) => opt.id === formData.gender)
-                  ?.label || '-'}
+                {genderOptions.find((opt) => opt.id === formData.sex)?.label ||
+                  '-'}
               </span>
             </div>
-            <div className={styles.confirmRow}>
-              <span>郵便番号</span>
-              <span>〒{formData.postalCode}</span>
-            </div>
-            <div className={styles.confirmRow}>
-              <span>都道府県</span>
-              <span>
-                {prefectureOptions.find((opt) => opt.id === formData.prefecture)
-                  ?.label || '-'}
-              </span>
-            </div>
-            <div className={styles.confirmRow}>
-              <span>住所</span>
-              <span>{formData.address}</span>
-            </div>
-            {formData.building && (
-              <div className={styles.confirmRow}>
-                <span>建物名</span>
-                <span>{formData.building}</span>
-              </div>
+            {formData.registerAddress && (
+              <>
+                <div className={styles.confirmRow}>
+                  <span>郵便番号</span>
+                  <span>〒{formData.postalCode}</span>
+                </div>
+                <div className={styles.confirmRow}>
+                  <span>都道府県</span>
+                  <span>
+                    {prefectureOptions.find(
+                      (opt) => opt.id === formData.prefecture
+                    )?.label || '-'}
+                  </span>
+                </div>
+                <div className={styles.confirmRow}>
+                  <span>住所</span>
+                  <span>{formData.address}</span>
+                </div>
+                {formData.option && (
+                  <div className={styles.confirmRow}>
+                    <span>建物名・その他</span>
+                    <span>{formData.option}</span>
+                  </div>
+                )}
+              </>
             )}
             <div className={styles.confirmActions}>
               <button className={styles.submitButton} onClick={handleConfirm}>

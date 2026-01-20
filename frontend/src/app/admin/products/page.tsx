@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import AdminModal from '@/components/Admin/AdminModal';
 import AdminTable, { TableColumn } from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
-import LoadingSpinner from '@/components/Admin/LoadingSpinner';
 import sharedStyles from '../admin-shared.module.css';
 import pageStyles from './products.module.css';
+import { adminProductAPI } from '@/api/admin-products';
+import { adminCategoryAPI, type Category } from '@/api/admin-categories';
+import { adminImageAPI } from '@/api/admin-images';
 
 const styles = { ...sharedStyles, ...pageStyles };
 import {
@@ -25,24 +27,30 @@ import {
 
 interface Product {
   id: number;
+  productId?: string;
   name: string;
-  category1: string; // 大カテゴリ
-  category2: string; // 中カテゴリ
-  category3: string; // 小カテゴリ
+  parentCategoryId: string;
+  categoryId: string;
   price: number;
   description: string;
   published: boolean;
+  status?: string;
+  isActive?: boolean;
   createdDate: string;
-  mainImage: string; // メイン画像（Base64またはURL）
-  subImages: string[]; // サブ画像（最大5枚、Base64またはURL）
+  mainImage: string;
+  image?: string;
+  imageUrls?: string[];
+  subImages: string[];
+  stock?: number;
+  redirectUrl?: string;
   accessStats?: {
-    date: string; // YYYY-MM-DD
+    date: string;
     count: number;
   }[];
 }
 
 // カテゴリー構造定義
-const categoryStructure: {
+let categoryStructure: {
   [key: string]: { [key: string]: string[] };
 } = {
   スポーツ用品: {
@@ -55,125 +63,10 @@ const categoryStructure: {
 export default function AdminProductsPage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: 1,
-      name: 'バレーボール',
-      category1: 'スポーツ用品',
-      category2: 'バレー',
-      category3: 'ボール',
-      price: 3500,
-      description: '高品質なバレーボール。練習試合に最適です。',
-      published: true,
-      createdDate: '2024-01-20',
-      mainImage: '',
-      subImages: [],
-      accessStats: [
-        { date: '2024-01-20', count: 5 },
-        { date: '2024-01-21', count: 12 },
-        { date: '2024-01-22', count: 8 },
-        { date: '2024-02-01', count: 15 },
-        { date: '2024-02-15', count: 22 },
-        { date: '2024-03-01', count: 18 },
-        { date: '2024-03-10', count: 25 },
-        { date: '2024-04-05', count: 30 },
-        { date: '2024-05-12', count: 28 },
-        { date: '2024-12-01', count: 45 },
-        { date: '2024-12-10', count: 52 },
-        { date: '2024-12-20', count: 38 },
-        { date: '2024-12-25', count: 65 },
-      ],
-    },
-    {
-      id: 2,
-      name: 'バスケットボール',
-      category1: 'スポーツ用品',
-      category2: 'バスケット',
-      category3: 'ボール',
-      price: 4200,
-      description: 'プロ仕様のバスケットボール。グリップが良く扱いやすい。',
-      published: true,
-      createdDate: '2024-02-10',
-      mainImage: '',
-      subImages: [],
-      accessStats: [
-        { date: '2024-02-10', count: 3 },
-        { date: '2024-02-15', count: 10 },
-        { date: '2024-03-05', count: 14 },
-        { date: '2024-04-10', count: 20 },
-        { date: '2024-05-05', count: 25 },
-        { date: '2024-12-15', count: 35 },
-        { date: '2024-12-20', count: 42 },
-        { date: '2024-12-25', count: 50 },
-      ],
-    },
-    {
-      id: 3,
-      name: '卓球ラケット',
-      category1: 'スポーツ用品',
-      category2: '卓球',
-      category3: 'ラケット',
-      price: 2800,
-      description:
-        '初心者から上級者まで使用できるラケット。バランスに優れています。',
-      published: true,
-      createdDate: '2024-02-15',
-      mainImage: '',
-      subImages: [],
-      accessStats: [
-        { date: '2024-02-15', count: 7 },
-        { date: '2024-03-01', count: 11 },
-        { date: '2024-04-05', count: 16 },
-        { date: '2024-05-10', count: 18 },
-        { date: '2024-12-10', count: 28 },
-        { date: '2024-12-20', count: 35 },
-      ],
-    },
-    {
-      id: 4,
-      name: 'ネット（バレー用）',
-      category1: 'スポーツ用品',
-      category2: 'バレー',
-      category3: 'ネット',
-      price: 8500,
-      description: '公式規格のバレーボールネット。耐久性に優れています。',
-      published: false,
-      createdDate: '2024-03-01',
-      mainImage: '',
-      subImages: [],
-      accessStats: [
-        { date: '2024-03-01', count: 4 },
-        { date: '2024-03-15', count: 9 },
-        { date: '2024-04-20', count: 13 },
-        { date: '2024-12-18', count: 22 },
-      ],
-    },
-    {
-      id: 5,
-      name: 'ボール（卓球）',
-      category1: 'スポーツ用品',
-      category2: '卓球',
-      category3: 'ボール',
-      price: 800,
-      description: '公式試合用の卓球ボール。セット販売です。',
-      published: true,
-      createdDate: '2024-03-05',
-      mainImage: '',
-      subImages: [],
-      accessStats: [
-        { date: '2024-03-05', count: 2 },
-        { date: '2024-03-20', count: 6 },
-        { date: '2024-04-15', count: 12 },
-        { date: '2024-05-20', count: 15 },
-        { date: '2024-12-12', count: 25 },
-        { date: '2024-12-22', count: 30 },
-      ],
-    },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory1, setSelectedCategory1] = useState('');
-  const [selectedCategory2, setSelectedCategory2] = useState('');
-  const [selectedCategory3, setSelectedCategory3] = useState('');
+  const [selectedParentCategoryId, setSelectedParentCategoryId] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [sortByPrice, setSortByPrice] = useState<'none' | 'asc' | 'desc'>(
     'none'
   );
@@ -186,25 +79,29 @@ export default function AdminProductsPage() {
   const [showAccessStatsModal, setShowAccessStatsModal] = useState(false);
   const [selectedProductForStats, setSelectedProductForStats] =
     useState<Product | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const modalContentRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     name: '',
-    category1: '',
-    category2: '',
-    category3: '',
+    parentCategoryId: '',
+    categoryId: '',
     price: '',
     description: '',
     mainImage: '',
     subImages: [] as string[],
     published: true,
+    status: 'active',
+    isSpecial: false,
+    redirectUrl: '',
   });
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
-    category1: '',
-    category2: '',
-    category3: '',
+    categoryName: '',
+    parentCategoryId: '',
   });
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [hierarchicalCategories, setHierarchicalCategories] = useState<
+    Category[]
+  >([]);
 
   const itemsPerPage = 5;
 
@@ -212,58 +109,107 @@ export default function AdminProductsPage() {
     const adminLogged = localStorage.getItem('adminLogged');
     if (!adminLogged) {
       router.push('/admin/login');
-      setIsLoading(false);
     } else {
       setIsLoggedIn(true);
-      // 1秒間スピナーを表示
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 1000);
-      return () => clearTimeout(timer);
+      loadCategories();
+      loadProducts();
     }
   }, [router]);
 
-  // ページ遷移時に1秒間スピナーを表示
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [router]);
+  // カテゴリを取得
+  const loadCategories = async () => {
+    try {
+      const response = await adminCategoryAPI.getAllCategories();
+      if (response.success && response.data?.categories) {
+        // 階層構造を保存
+        setHierarchicalCategories(response.data.categories);
+
+        // フラット化: 階層構造をフラットなリストに変換
+        const flatCategories: Category[] = [];
+        const flattenCategories = (cats: Category[]) => {
+          cats.forEach((cat) => {
+            flatCategories.push({
+              categoryId: cat.categoryId,
+              categoryName: cat.categoryName,
+              parentCategoryId: cat.parentCategoryId,
+              createdAt: cat.createdAt,
+            });
+            if (cat.children && cat.children.length > 0) {
+              flattenCategories(cat.children);
+            }
+          });
+        };
+        flattenCategories(response.data.categories);
+        setCategories(flatCategories);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
+
+  // API から商品データを取得
+  const loadProducts = async () => {
+    try {
+      const response = await adminProductAPI.getAllProducts(1, 100);
+      if (response.success && response.data) {
+        const data = response.data as any;
+        const loadedProducts = (data.products || []).map(
+          (p: any, idx: number) => {
+            // imageUrls から mainImage と subImages を分割
+            const imageUrls = p.imageUrls || [];
+            const mainImage = imageUrls.length > 0 ? imageUrls[0] : '';
+            const subImages = imageUrls.slice(1);
+
+            return {
+              id: idx + 1,
+              productId: p.productId,
+              name: p.name || '',
+              price: p.price || 0,
+              description: p.description || '',
+              parentCategoryId: p.parentCategoryId || '',
+              categoryId: p.categoryId || '',
+              published: p.isActive ?? true,
+              status: p.status || 'active',
+              createdDate: new Date(p.createdAt).toLocaleDateString('ja-JP'),
+              mainImage: mainImage,
+              imageUrls: imageUrls,
+              subImages: subImages,
+              stock: p.stock || 0,
+            };
+          }
+        );
+        setProducts(loadedProducts);
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+    }
+  };
 
   if (!isLoggedIn) {
     return null;
   }
 
-  // 大カテゴリ1一覧
-  const category1List = Object.keys(categoryStructure);
+  // 親カテゴリー一覧（hierarchicalCategories から取得）
+  const parentCategoryList = hierarchicalCategories;
 
-  // 中カテゴリ2一覧（大カテゴリ1が選択されている場合のみ）
-  const category2List = selectedCategory1
-    ? Object.keys(categoryStructure[selectedCategory1])
+  // 子カテゴリー一覧（選択された親カテゴリーの子のみ）
+  const childCategoryList = selectedParentCategoryId
+    ? categories.filter(
+        (cat) => cat.parentCategoryId === selectedParentCategoryId
+      )
     : [];
-
-  // 小カテゴリ3一覧（中カテゴリ2が選択されている場合のみ）
-  const category3List =
-    selectedCategory1 && selectedCategory2
-      ? categoryStructure[selectedCategory1][selectedCategory2]
-      : [];
 
   // フィルタリングロジック
   let filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory1 =
-      selectedCategory1 === '' || product.category1 === selectedCategory1;
-    const matchesCategory2 =
-      selectedCategory2 === '' || product.category2 === selectedCategory2;
-    const matchesCategory3 =
-      selectedCategory3 === '' || product.category3 === selectedCategory3;
-    return (
-      matchesSearch && matchesCategory1 && matchesCategory2 && matchesCategory3
-    );
+    const matchesParentCategory =
+      selectedParentCategoryId === '' ||
+      product.parentCategoryId === selectedParentCategoryId;
+    const matchesCategory =
+      selectedCategoryId === '' || product.categoryId === selectedCategoryId;
+    return matchesSearch && matchesParentCategory && matchesCategory;
   });
 
   // ソートロジック
@@ -278,7 +224,10 @@ export default function AdminProductsPage() {
   }
 
   // ページング
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const totalPages =
+    filteredProducts.length === 0
+      ? 1
+      : Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = filteredProducts.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -297,80 +246,138 @@ export default function AdminProductsPage() {
   const resetForm = () => {
     setFormData({
       name: '',
-      category1: '',
-      category2: '',
-      category3: '',
+      parentCategoryId: '',
+      categoryId: '',
       price: '',
       description: '',
       mainImage: '',
       subImages: [],
       published: true,
+      status: 'active',
+      isSpecial: false,
+      redirectUrl: '',
     });
     setEditingId(null);
   };
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
+    // デバッグ：フォームデータを確認
+    console.log('Form Data:', formData);
+    console.log('Validation:', {
+      name: !!formData.name,
+      parentCategoryId: !!formData.parentCategoryId,
+      categoryId: !!formData.categoryId,
+      price: !!formData.price,
+      description: !!formData.description,
+    });
+
     if (
       formData.name &&
-      formData.category1 &&
-      formData.category2 &&
-      formData.category3 &&
+      formData.parentCategoryId &&
+      formData.categoryId &&
       formData.price &&
       formData.description
     ) {
       if (editingId !== null) {
-        // 編集
-        setProducts(
-          products.map((product) =>
-            product.id === editingId
-              ? {
-                  ...product,
-                  name: formData.name,
-                  category1: formData.category1,
-                  category2: formData.category2,
-                  category3: formData.category3,
-                  price: parseInt(formData.price),
-                  description: formData.description,
-                  mainImage: formData.mainImage,
-                  subImages: formData.subImages,
-                  published: formData.published,
-                }
-              : product
-          )
-        );
-      } else {
-        // 新規追加
-        const product: Product = {
-          id: Math.max(...products.map((p) => p.id), 0) + 1,
+        // 編集 - Base64またはS3 URLの画像をそのまま送信
+        const updateRequest = {
           name: formData.name,
-          category1: formData.category1,
-          category2: formData.category2,
-          category3: formData.category3,
+          parentCategoryId: formData.parentCategoryId,
+          categoryId: formData.categoryId,
           price: parseInt(formData.price),
           description: formData.description,
           mainImage: formData.mainImage,
           subImages: formData.subImages,
-          published: true,
-          createdDate: new Date().toISOString().split('T')[0],
+          status: formData.status,
+          redirectUrl: formData.redirectUrl,
         };
-        setProducts([...products, product]);
+
+        if (editingProduct?.productId) {
+          try {
+            await adminProductAPI.updateProduct(
+              editingProduct.productId,
+              updateRequest
+            );
+
+            // 成功後、リストをリロード
+            loadProducts();
+            setShowNewProductForm(false);
+            resetForm();
+          } catch (error) {
+            console.error('Failed to update product:', error);
+            alert('商品の更新に失敗しました');
+          }
+        }
+      } else {
+        // 新規追加 - Base64画像をバックエンド側で処理
+        const createRequest = {
+          name: formData.name,
+          parentCategoryId: formData.parentCategoryId,
+          categoryId: formData.categoryId,
+          price: parseInt(formData.price),
+          description: formData.description,
+          mainImage: formData.mainImage,
+          subImages: formData.subImages,
+          status: formData.status,
+          isActive: formData.published,
+          redirectUrl: formData.redirectUrl,
+        };
+
+        console.log('Creating product with request:', createRequest);
+
+        try {
+          console.log('API呼び出し開始: createProduct');
+          const createResponse = await adminProductAPI.createProduct(
+            createRequest
+          );
+          console.log('API応答:', createResponse);
+
+          if (createResponse.success) {
+            console.log('商品作成成功、リストをリロード');
+            // 成功後、リストをリロード
+            loadProducts();
+            setShowNewProductForm(false);
+            resetForm();
+            alert('商品を登録しました');
+          } else {
+            console.error('APIはエラーレスポンスを返しました:', createResponse);
+            alert('商品の作成に失敗しました');
+          }
+        } catch (error) {
+          console.error('Failed to create product:', error);
+          alert(
+            `商品の作成に失敗しました: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+        }
       }
-      setShowNewProductForm(false);
-      resetForm();
+    } else {
+      // 検証失敗時のメッセージ
+      const missingFields = [];
+      if (!formData.name) missingFields.push('商品名');
+      if (!formData.parentCategoryId) missingFields.push('親カテゴリ');
+      if (!formData.categoryId) missingFields.push('カテゴリ');
+      if (!formData.price) missingFields.push('価格');
+      if (!formData.description) missingFields.push('説明');
+
+      alert(`以下のフィールドが必須です:\n${missingFields.join('\n')}`);
     }
   };
 
   const handleEditProduct = (product: Product) => {
     setFormData({
       name: product.name,
-      category1: product.category1,
-      category2: product.category2,
-      category3: product.category3,
+      parentCategoryId: product.parentCategoryId,
+      categoryId: product.categoryId,
       price: product.price.toString(),
       description: product.description,
       mainImage: product.mainImage,
       subImages: product.subImages,
       published: product.published,
+      status: product.status || 'active',
+      isSpecial: false,
+      redirectUrl: product.redirectUrl || '',
     });
     setEditingId(product.id);
     setEditingProduct(product);
@@ -393,12 +400,22 @@ export default function AdminProductsPage() {
 
   const handleConfirmDelete = () => {
     if (editingProduct && deleteInputValue === editingProduct.name) {
-      handleDeleteProduct(editingProduct.id);
-      setShowNewProductForm(false);
-      resetForm();
-      setEditingProduct(null);
-      setIsDeleteConfirming(false);
-      setDeleteInputValue('');
+      if (editingProduct.productId) {
+        adminProductAPI
+          .deleteProduct(editingProduct.productId)
+          .then(() => {
+            handleDeleteProduct(editingProduct.id);
+            setShowNewProductForm(false);
+            resetForm();
+            setEditingProduct(null);
+            setIsDeleteConfirming(false);
+            setDeleteInputValue('');
+          })
+          .catch((error) => {
+            console.error('Failed to delete product:', error);
+            alert('削除に失敗しました');
+          });
+      }
     } else {
       alert('商品名が正しくありません');
     }
@@ -410,6 +427,7 @@ export default function AdminProductsPage() {
   const handleMainImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // 常に Base64 で一時保存（後で商品登録時に S3 アップロード）
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({
@@ -449,54 +467,38 @@ export default function AdminProductsPage() {
     });
   };
 
-  const handleAddCategory = () => {
-    if (
-      categoryFormData.category1 &&
-      categoryFormData.category2 &&
-      categoryFormData.category3
-    ) {
-      // 既存の大カテゴリをチェック
-      if (!categoryStructure[categoryFormData.category1]) {
-        categoryStructure[categoryFormData.category1] = {};
-      }
-      // 既存の中カテゴリをチェック
-      if (
-        !categoryStructure[categoryFormData.category1][
-          categoryFormData.category2
-        ]
-      ) {
-        categoryStructure[categoryFormData.category1][
-          categoryFormData.category2
-        ] = [];
-      }
-      // 小カテゴリを追加（重複チェック）
-      if (
-        !categoryStructure[categoryFormData.category1][
-          categoryFormData.category2
-        ].includes(categoryFormData.category3)
-      ) {
-        categoryStructure[categoryFormData.category1][
-          categoryFormData.category2
-        ].push(categoryFormData.category3);
-        // 状態を更新してUIをリフレッシュ
-        setProducts([...products]);
+  const handleAddCategory = async () => {
+    if (!categoryFormData.categoryName.trim()) {
+      alert('カテゴリ名を入力してください。');
+      return;
+    }
+
+    try {
+      const response = await adminCategoryAPI.createCategory({
+        categoryName: categoryFormData.categoryName,
+        parentCategoryId: categoryFormData.parentCategoryId || null,
+      });
+
+      if (response.success) {
+        alert('カテゴリを追加しました。');
         setShowCategoryForm(false);
         setCategoryFormData({
-          category1: '',
-          category2: '',
-          category3: '',
+          categoryName: '',
+          parentCategoryId: '',
         });
+        // カテゴリを再読み込み
+        await loadCategories();
       } else {
-        alert('このカテゴリは既に存在します。');
+        alert(`カテゴリの追加に失敗しました: ${response.error}`);
       }
-    } else {
-      alert('すべてのカテゴリを入力してください。');
+    } catch (error) {
+      console.error('カテゴリ追加エラー:', error);
+      alert('カテゴリの追加に恐れ。');
     }
   };
 
   return (
     <>
-      {isLoading && <LoadingSpinner />}
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>商品管理</h1>
@@ -535,53 +537,34 @@ export default function AdminProductsPage() {
 
         <div className={styles.filterBox}>
           <select
-            value={selectedCategory1}
+            value={selectedParentCategoryId}
             onChange={(e) => {
-              setSelectedCategory1(e.target.value);
-              setSelectedCategory2('');
-              setSelectedCategory3('');
+              setSelectedParentCategoryId(e.target.value);
+              setSelectedCategoryId('');
               setCurrentPage(1);
             }}
             className={styles.filterSelect}
           >
             <option value="">すべての大カテゴリ</option>
-            {category1List.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            {parentCategoryList.map((cat) => (
+              <option key={cat.categoryId} value={cat.categoryId}>
+                {cat.categoryName}
               </option>
             ))}
           </select>
-          {selectedCategory1 && (
+          {selectedParentCategoryId && (
             <select
-              value={selectedCategory2}
+              value={selectedCategoryId}
               onChange={(e) => {
-                setSelectedCategory2(e.target.value);
-                setSelectedCategory3('');
-                setCurrentPage(1);
-              }}
-              className={styles.filterSelect}
-            >
-              <option value="">すべての中カテゴリ</option>
-              {category2List.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          )}
-          {selectedCategory2 && (
-            <select
-              value={selectedCategory3}
-              onChange={(e) => {
-                setSelectedCategory3(e.target.value);
+                setSelectedCategoryId(e.target.value);
                 setCurrentPage(1);
               }}
               className={styles.filterSelect}
             >
               <option value="">すべての小カテゴリ</option>
-              {category3List.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+              {childCategoryList.map((cat) => (
+                <option key={cat.categoryId} value={cat.categoryId}>
+                  {cat.categoryName}
                 </option>
               ))}
             </select>
@@ -602,9 +585,8 @@ export default function AdminProductsPage() {
           onClose={() => {
             setShowCategoryForm(false);
             setCategoryFormData({
-              category1: '',
-              category2: '',
-              category3: '',
+              categoryName: '',
+              parentCategoryId: '',
             });
           }}
           title="カテゴリを追加"
@@ -621,9 +603,8 @@ export default function AdminProductsPage() {
                 onClick={() => {
                   setShowCategoryForm(false);
                   setCategoryFormData({
-                    category1: '',
-                    category2: '',
-                    category3: '',
+                    categoryName: '',
+                    parentCategoryId: '',
                   });
                 }}
               >
@@ -640,46 +621,39 @@ export default function AdminProductsPage() {
         >
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label>大カテゴリ</label>
+              <label>カテゴリ名</label>
               <input
                 type="text"
-                value={categoryFormData.category1}
+                value={categoryFormData.categoryName}
                 onChange={(e) =>
                   setCategoryFormData({
                     ...categoryFormData,
-                    category1: e.target.value,
+                    categoryName: e.target.value,
                   })
                 }
                 placeholder="例：スポーツ用品"
               />
             </div>
             <div className={styles.formGroup}>
-              <label>中カテゴリ</label>
-              <input
-                type="text"
-                value={categoryFormData.category2}
+              <label>親カテゴリ（オプション）</label>
+              <select
+                value={categoryFormData.parentCategoryId}
                 onChange={(e) =>
                   setCategoryFormData({
                     ...categoryFormData,
-                    category2: e.target.value,
+                    parentCategoryId: e.target.value,
                   })
                 }
-                placeholder="例：バレー"
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>小カテゴリ</label>
-              <input
-                type="text"
-                value={categoryFormData.category3}
-                onChange={(e) =>
-                  setCategoryFormData({
-                    ...categoryFormData,
-                    category3: e.target.value,
-                  })
-                }
-                placeholder="例：ボール"
-              />
+              >
+                <option value="">なし（親カテゴリとして登録）</option>
+                {categories
+                  .filter((cat) => !cat.parentCategoryId)
+                  .map((cat) => (
+                    <option key={cat.categoryId} value={cat.categoryId}>
+                      {cat.categoryName}
+                    </option>
+                  ))}
+              </select>
             </div>
           </div>
         </AdminModal>
@@ -729,7 +703,10 @@ export default function AdminProductsPage() {
                 </button>
                 <button
                   className={styles.primaryButton}
-                  onClick={handleAddProduct}
+                  onClick={() => {
+                    console.log('登録ボタンがクリックされました');
+                    handleAddProduct();
+                  }}
                 >
                   {editingId !== null ? '更新' : '登録'}
                 </button>
@@ -854,71 +831,70 @@ export default function AdminProductsPage() {
             <div className={styles.formGroup}>
               <label>大カテゴリ</label>
               <select
-                value={formData.category1}
+                value={formData.parentCategoryId}
                 onChange={(e) => {
                   setFormData({
                     ...formData,
-                    category1: e.target.value,
-                    category2: '',
-                    category3: '',
+                    parentCategoryId: e.target.value,
+                    categoryId: '',
                   });
                 }}
               >
                 <option value="">選択してください</option>
-                {category1List.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {parentCategoryList.map((cat) => (
+                  <option key={cat.categoryId} value={cat.categoryId}>
+                    {cat.categoryName}
                   </option>
                 ))}
               </select>
             </div>
-            {formData.category1 && (
-              <div className={styles.formGroup}>
-                <label>中カテゴリ</label>
-                <select
-                  value={formData.category2}
-                  onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      category2: e.target.value,
-                      category3: '',
-                    });
-                  }}
-                >
-                  <option value="">選択してください</option>
-                  {Object.keys(categoryStructure[formData.category1]).map(
-                    (cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
+            <div className={styles.formGroup}>
+              <label>小カテゴリ</label>
+              <select
+                value={formData.categoryId}
+                onChange={(e) => {
+                  setFormData({
+                    ...formData,
+                    categoryId: e.target.value,
+                  });
+                }}
+                disabled={!formData.parentCategoryId}
+              >
+                <option value="">選択してください</option>
+                {formData.parentCategoryId &&
+                  parentCategoryList
+                    .find((cat) => cat.categoryId === formData.parentCategoryId)
+                    ?.children?.map((cat) => (
+                      <option key={cat.categoryId} value={cat.categoryId}>
+                        {cat.categoryName}
                       </option>
-                    )
-                  )}
-                </select>
-              </div>
-            )}
-            {formData.category2 && (
-              <div className={styles.formGroup}>
-                <label>小カテゴリ</label>
-                <select
-                  value={formData.category3}
-                  onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      category3: e.target.value,
-                    });
-                  }}
-                >
-                  <option value="">選択してください</option>
-                  {categoryStructure[formData.category1][
-                    formData.category2
-                  ].map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                    ))}
+              </select>
+            </div>
+          </div>
+          <div className={styles.formRow}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <input
+                type="checkbox"
+                id="isSpecial"
+                checked={formData.isSpecial}
+                onChange={(e) =>
+                  setFormData({ ...formData, isSpecial: e.target.checked })
+                }
+              />
+              <label
+                htmlFor="isSpecial"
+                style={{ fontSize: '14px', margin: 0 }}
+              >
+                特別商品
+              </label>
+            </div>
           </div>
           <div className={styles.formGroup}>
             <label>価格</label>
@@ -942,6 +918,19 @@ export default function AdminProductsPage() {
               rows={4}
             />
           </div>
+          {formData.isSpecial && (
+            <div className={styles.formGroup}>
+              <label>遷移先URL</label>
+              <input
+                type="text"
+                value={formData.redirectUrl}
+                onChange={(e) =>
+                  setFormData({ ...formData, redirectUrl: e.target.value })
+                }
+                placeholder="https://example.com/product/123"
+              />
+            </div>
+          )}
           <div className={styles.formGroup}>
             <label>公開状況</label>
             <select
@@ -1015,108 +1004,127 @@ export default function AdminProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedProducts.map((product, index) => (
-                <React.Fragment key={product.id}>
-                  <tr
-                    data-product-id={product.id}
-                    className={`${styles.productRow} ${
-                      index % 2 === 0 ? styles.oddProduct : styles.evenProduct
-                    }`}
-                    onMouseEnter={(e) => {
-                      const productId =
-                        e.currentTarget.getAttribute('data-product-id');
-                      document
-                        .querySelectorAll(`[data-product-id="${productId}"]`)
-                        .forEach((el) => {
-                          el.classList.add(styles.hovered);
-                        });
-                    }}
-                    onMouseLeave={(e) => {
-                      const productId =
-                        e.currentTarget.getAttribute('data-product-id');
-                      document
-                        .querySelectorAll(`[data-product-id="${productId}"]`)
-                        .forEach((el) => {
-                          el.classList.remove(styles.hovered);
-                        });
-                    }}
-                    style={
-                      {
-                        backgroundColor:
-                          editingId === product.id ? '#dbeafe' : null,
-                      } as any
-                    }
-                  >
-                    <td>{product.id}</td>
-                    <td>{product.name}</td>
-                    <td>¥{product.price.toLocaleString()}</td>
-                    <td className={styles.descriptionCell}>
-                      {product.description}
-                    </td>
-                    <td>
-                      <span
-                        className={`${styles.badge} ${
-                          product.published ? styles.active : styles.suspended
-                        }`}
-                      >
-                        {product.published ? '公開' : '非公開'}
-                      </span>
-                    </td>
-                    <td>{product.createdDate}</td>
-                    <td rowSpan={2}>
-                      <button
-                        className={styles.secondaryButton}
-                        onClick={() => {
-                          setIsLoading(true);
-                          // API通信をシミュレート
-                          setTimeout(() => {
-                            setSelectedProductForStats(product);
-                            setShowAccessStatsModal(true);
-                            setIsLoading(false);
-                          }, 1000);
-                        }}
-                      >
-                        統計
-                      </button>
-                      <button
-                        className={styles.secondaryButton}
-                        onClick={() => handleEditProduct(product)}
-                      >
-                        編集
-                      </button>
-                    </td>
-                  </tr>
-                  <tr
-                    data-product-id={product.id}
-                    className={`${styles.categoryRow} ${
-                      index % 2 === 0 ? styles.oddProduct : styles.evenProduct
-                    }`}
-                    onMouseEnter={(e) => {
-                      const productId =
-                        e.currentTarget.getAttribute('data-product-id');
-                      document
-                        .querySelectorAll(`[data-product-id="${productId}"]`)
-                        .forEach((el) => {
-                          el.classList.add(styles.hovered);
-                        });
-                    }}
-                    onMouseLeave={(e) => {
-                      const productId =
-                        e.currentTarget.getAttribute('data-product-id');
-                      document
-                        .querySelectorAll(`[data-product-id="${productId}"]`)
-                        .forEach((el) => {
-                          el.classList.remove(styles.hovered);
-                        });
+              {paginatedProducts.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    style={{
+                      textAlign: 'center',
+                      padding: '60px 20px',
+                      fontSize: '16px',
+                      color: '#999',
                     }}
                   >
-                    <td colSpan={6} className={styles.categoryCell}>
-                      {product.category1} &gt; {product.category2} &gt;{' '}
-                      {product.category3}
-                    </td>
-                  </tr>
-                </React.Fragment>
-              ))}
+                    商品が存在しません。
+                  </td>
+                </tr>
+              ) : (
+                paginatedProducts.map((product, index) => (
+                  <React.Fragment key={product.id}>
+                    <tr
+                      data-product-id={product.id}
+                      className={`${styles.productRow} ${
+                        index % 2 === 0 ? styles.oddProduct : styles.evenProduct
+                      }`}
+                      onMouseEnter={(e) => {
+                        const productId =
+                          e.currentTarget.getAttribute('data-product-id');
+                        document
+                          .querySelectorAll(`[data-product-id="${productId}"]`)
+                          .forEach((el) => {
+                            el.classList.add(styles.hovered);
+                          });
+                      }}
+                      onMouseLeave={(e) => {
+                        const productId =
+                          e.currentTarget.getAttribute('data-product-id');
+                        document
+                          .querySelectorAll(`[data-product-id="${productId}"]`)
+                          .forEach((el) => {
+                            el.classList.remove(styles.hovered);
+                          });
+                      }}
+                      style={
+                        {
+                          backgroundColor:
+                            editingId === product.id ? '#dbeafe' : null,
+                        } as any
+                      }
+                    >
+                      <td>{product.id}</td>
+                      <td>{product.name}</td>
+                      <td>¥{product.price.toLocaleString()}</td>
+                      <td className={styles.descriptionCell}>
+                        {product.description}
+                      </td>
+                      <td>
+                        <span
+                          className={`${styles.badge} ${
+                            product.published ? styles.active : styles.suspended
+                          }`}
+                        >
+                          {product.published ? '公開' : '非公開'}
+                        </span>
+                      </td>
+                      <td>{product.createdDate}</td>
+                      <td rowSpan={2}>
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={() => {
+                            // API通信をシミュレート
+                            setTimeout(() => {
+                              setSelectedProductForStats(product);
+                              setShowAccessStatsModal(true);
+                            }, 1000);
+                          }}
+                        >
+                          統計
+                        </button>
+                        <button
+                          className={styles.secondaryButton}
+                          onClick={() => handleEditProduct(product)}
+                        >
+                          編集
+                        </button>
+                      </td>
+                    </tr>
+                    <tr
+                      data-product-id={product.id}
+                      className={`${styles.categoryRow} ${
+                        index % 2 === 0 ? styles.oddProduct : styles.evenProduct
+                      }`}
+                      onMouseEnter={(e) => {
+                        const productId =
+                          e.currentTarget.getAttribute('data-product-id');
+                        document
+                          .querySelectorAll(`[data-product-id="${productId}"]`)
+                          .forEach((el) => {
+                            el.classList.add(styles.hovered);
+                          });
+                      }}
+                      onMouseLeave={(e) => {
+                        const productId =
+                          e.currentTarget.getAttribute('data-product-id');
+                        document
+                          .querySelectorAll(`[data-product-id="${productId}"]`)
+                          .forEach((el) => {
+                            el.classList.remove(styles.hovered);
+                          });
+                      }}
+                    >
+                      <td colSpan={6} className={styles.categoryCell}>
+                        {categories.find(
+                          (c) => c.categoryId === product.parentCategoryId
+                        )?.categoryName || '親'}{' '}
+                        &gt;{' '}
+                        {categories.find(
+                          (c) => c.categoryId === product.categoryId
+                        )?.categoryName || '子'}
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLoading } from '@/context/LoadingContext';
 import { login as apiLogin } from '@/api/auth';
+import { getAddresses } from '@/api/address';
 import Overlay from '@/components/Common/Overlay';
 import styles from './LoginModal.module.css';
 
@@ -33,7 +34,36 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
       if (response.success) {
         // APIから返されたユーザー情報をAuthContextに保存
-        loginWithUserData(response.data);
+        const userData = response.data;
+
+        // ログイン後、配送先情報を取得
+        try {
+          const addressResponse = await getAddresses();
+          if (
+            addressResponse.success &&
+            addressResponse.data &&
+            addressResponse.data.length > 0
+          ) {
+            // デフォルト住所またはリストの最初の住所を取得
+            const defaultAddress =
+              addressResponse.data.find((addr) => addr.isDefault) ||
+              addressResponse.data[0];
+            userData.shippingAddress = {
+              firstName: defaultAddress.firstName || '',
+              lastName: defaultAddress.lastName || '',
+              phone: defaultAddress.phone || '',
+              postalCode: defaultAddress.postalCode || '',
+              prefecture: defaultAddress.prefecture || '',
+              address: defaultAddress.address || '',
+              building: defaultAddress.building || '',
+            };
+          }
+        } catch (err) {
+          console.warn('Failed to fetch addresses:', err);
+          // アドレス取得失敗してもログイン処理は続行
+        }
+
+        loginWithUserData(userData);
         setEmail('');
         setPassword('');
         onClose();

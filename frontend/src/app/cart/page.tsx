@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
@@ -19,6 +19,7 @@ export default function CartPage() {
     updateQuantity,
     coupon,
     setCoupon,
+    fetchCart,
   } = useCart();
   const { show: showSnackbar } = useSnackbar();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -28,6 +29,11 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState('');
+
+  // Fetch cart on page load
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
   const handleRemoveItem = (id: number | string) => {
     removeItem(id);
@@ -111,16 +117,10 @@ export default function CartPage() {
       const appliedCouponData = {
         code: response.data!.coupon_code,
         description: response.data!.coupon_description,
-        discount_type: response.data!.discount_type as 'percentage' | 'fixed',
+        discount_type: response.data!.discount_type as 'percentage' | 'amount',
         discount_value: response.data!.discount_value,
-        max_discount_amount:
-          response.data!.discount_value === 10
-            ? 500
-            : response.data!.discount_value === 15
-            ? 1000
-            : undefined,
-        min_order_amount:
-          response.data!.discount_value === 500 ? 1000 : undefined,
+        max_discount_amount: response.data!.max_discount_amount,
+        min_order_amount: response.data!.min_order_amount,
       };
       setCoupon(appliedCouponData);
       setCouponError('');

@@ -32,9 +32,9 @@ export default function AddToCartButton({ id, name, price, image }: Props) {
         return;
       }
 
-      // 商品をカートに追加
-      addItem({ id, name, price, image }, qty);
-      showSnackbar(`${name}をカートに追加しました`, 'success');
+      // API経由でカートに商品を追加
+      await addItem(String(id), qty);
+      setQty(1); // Reset quantity
     } catch (err) {
       console.error('Failed to add to cart:', err);
       showSnackbar('カートに追加できませんでした', 'error');

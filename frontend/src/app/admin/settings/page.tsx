@@ -5,26 +5,23 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/Admin/LoadingSpinner';
 import InfoPopper from '@/components/Common/InfoPopper';
+import {
+  getAdminSettings,
+  updateAdminSettings,
+  AdminSettings,
+} from '@/api/admin';
 import sharedStyles from '../admin-shared.module.css';
 import pageStyles from './settings.module.css';
 
 const styles = { ...sharedStyles, ...pageStyles };
 
-interface AdminInfo {
-  id: number;
-  name: string;
-  email: string;
-  contactEmail: string;
-  autoEmail: string;
-  orderNotificationEmail: string;
-}
-
 export default function AdminSettingsPage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [adminInfo, setAdminInfo] = useState<AdminInfo | null>(null);
-  const [editingAdmin, setEditingAdmin] = useState<AdminInfo | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [adminInfo, setAdminInfo] = useState<AdminSettings | null>(null);
+  const [editingAdmin, setEditingAdmin] = useState<AdminSettings | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info');
   const [error, setError] = useState('');
@@ -35,7 +32,7 @@ export default function AdminSettingsPage() {
     confirmPassword: '',
   });
 
-  // 1秒間スピナーを表示
+  // ページロード時にスピナーを表示
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
@@ -43,33 +40,32 @@ export default function AdminSettingsPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // ページ遷移時にスピナーを表示
+  // 管理者情報を取得
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [router]);
+    const fetchAdminSettings = async () => {
+      try {
+        const adminLogged = localStorage.getItem('adminLogged');
+        if (!adminLogged) {
+          router.push('/admin/login');
+          setIsLoading(false);
+          return;
+        }
 
-  useEffect(() => {
-    const adminLogged = localStorage.getItem('adminLogged');
-    if (!adminLogged) {
-      router.push('/admin/login');
-      setIsLoading(false);
-    } else {
-      setIsLoggedIn(true);
-      // ダミー管理者情報
-      const dummyAdmin: AdminInfo = {
-        id: 1,
-        name: '山田太郎',
-        email: 'name@example.com',
-        contactEmail: 'contact@example.com',
-        autoEmail: 'info@example.com',
-        orderNotificationEmail: 'admin@example.com',
-      };
-      setAdminInfo(dummyAdmin);
-    }
+        setIsLoggedIn(true);
+        const response = await getAdminSettings();
+
+        if (response.success && response.data) {
+          setAdminInfo(response.data);
+        } else {
+          setError('管理者情報の取得に失敗しました');
+        }
+      } catch (error) {
+        console.error('Failed to fetch admin settings:', error);
+        setError('管理者情報の取得に失敗しました');
+      }
+    };
+
+    fetchAdminSettings();
   }, [router]);
 
   if (!isLoggedIn) {
@@ -83,7 +79,7 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleSaveAdmin = () => {
+  const handleSaveAdmin = async () => {
     if (editingAdmin) {
       if (
         !editingAdmin.name ||
@@ -106,12 +102,33 @@ export default function AdminSettingsPage() {
         );
         return;
       }
-      setAdminInfo(editingAdmin);
-      setShowEditForm(false);
-      setEditingAdmin(null);
-      setError('');
-      setSuccess('管理者情報を更新しました');
-      setTimeout(() => setSuccess(''), 3000);
+
+      try {
+        setIsSaving(true);
+        const response = await updateAdminSettings({
+          name: editingAdmin.name,
+          email: editingAdmin.email,
+          contactEmail: editingAdmin.contactEmail,
+          autoEmail: editingAdmin.autoEmail,
+          orderNotificationEmail: editingAdmin.orderNotificationEmail,
+        });
+
+        if (response.success && response.data) {
+          setAdminInfo(response.data);
+          setShowEditForm(false);
+          setEditingAdmin(null);
+          setError('');
+          setSuccess('管理者情報を更新しました');
+          setTimeout(() => setSuccess(''), 3000);
+        } else {
+          setError(response.message || '管理者情報の更新に失敗しました');
+        }
+      } catch (error) {
+        console.error('Failed to update admin settings:', error);
+        setError('管理者情報の更新に失敗しました');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -396,6 +413,7 @@ export default function AdminSettingsPage() {
                             boxSizing: 'border-box',
                           }}
                           required
+                          disabled={isSaving}
                         />
                       </div>
 
@@ -428,6 +446,7 @@ export default function AdminSettingsPage() {
                             boxSizing: 'border-box',
                           }}
                           required
+                          disabled={isSaving}
                         />
                       </div>
 
@@ -460,6 +479,7 @@ export default function AdminSettingsPage() {
                             boxSizing: 'border-box',
                           }}
                           required
+                          disabled={isSaving}
                         />
                       </div>
 
@@ -492,6 +512,7 @@ export default function AdminSettingsPage() {
                             boxSizing: 'border-box',
                           }}
                           required
+                          disabled={isSaving}
                         />
                       </div>
 
@@ -524,17 +545,23 @@ export default function AdminSettingsPage() {
                             boxSizing: 'border-box',
                           }}
                           required
+                          disabled={isSaving}
                         />
                       </div>
 
                       <div style={{ display: 'flex', gap: '10px' }}>
-                        <button type="submit" className={styles.primaryButton}>
-                          保存
+                        <button
+                          type="submit"
+                          className={styles.primaryButton}
+                          disabled={isSaving}
+                        >
+                          {isSaving ? '保存中...' : '保存'}
                         </button>
                         <button
                           type="button"
                           className={styles.secondaryButton}
                           onClick={handleCancelEdit}
+                          disabled={isSaving}
                         >
                           キャンセル
                         </button>

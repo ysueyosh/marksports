@@ -1,91 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Notification } from '@/api/notifications';
-
-// ダミー通知データ（重要な通知用）
-const DUMMY_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    title: 'システムメンテナンスのお知らせ',
-    message: '本日午後2時から3時まで、システムメンテナンスを実施いたします。',
-    timestamp: '2024-01-15T10:00:00Z',
-    type: 'warning',
-    important: true,
-  },
-  {
-    id: '2',
-    title: '新規キャンペーン開始',
-    message: '新しいセールキャンペーンが開始されました。',
-    timestamp: '2024-01-14T15:00:00Z',
-    type: 'info',
-    important: false,
-  },
-  {
-    id: '3',
-    title: 'ご注文確認',
-    message: 'ご注文ありがとうございます。',
-    timestamp: '2024-01-13T12:00:00Z',
-    type: 'success',
-    important: false,
-  },
-  {
-    id: '4',
-    title: 'セキュリティアラート',
-    message: '不審なアクセスがありました。',
-    timestamp: '2024-01-12T09:00:00Z',
-    type: 'error',
-    important: true,
-  },
-  {
-    id: '5',
-    title: 'お知らせ5',
-    message: 'これはお知らせ5です。',
-    timestamp: '2024-01-11T08:00:00Z',
-    type: 'info',
-    important: false,
-  },
-  {
-    id: '6',
-    title: 'お知らせ6',
-    message: 'これはお知らせ6です。',
-    timestamp: '2024-01-10T07:00:00Z',
-    type: 'info',
-    important: false,
-  },
-  {
-    id: '7',
-    title: 'お知らせ7',
-    message: 'これはお知らせ7です。',
-    timestamp: '2024-01-09T06:00:00Z',
-    type: 'info',
-    important: false,
-  },
-  {
-    id: '8',
-    title: 'お知らせ8',
-    message: 'これはお知らせ8です。',
-    timestamp: '2024-01-08T05:00:00Z',
-    type: 'info',
-    important: false,
-  },
-  {
-    id: '9',
-    title: 'お知らせ9',
-    message: 'これはお知らせ9です。',
-    timestamp: '2024-01-07T04:00:00Z',
-    type: 'info',
-    important: false,
-  },
-  {
-    id: '10',
-    title: 'お知らせ10',
-    message: 'これはお知らせ10です。',
-    timestamp: '2024-01-06T03:00:00Z',
-    type: 'info',
-    important: false,
-  },
-];
+import { Notification, getNotifications } from '@/api/notifications';
 
 interface NotificationContextType {
   unreadCount: number;
@@ -107,18 +23,71 @@ export function NotificationProvider({
   const [importantNotifications, setImportantNotifications] = useState<
     Notification[]
   >([]);
+  const [loading, setLoading] = useState(true);
 
-  // localStorage から初期未読件数を読み込み、重要な通知を取得
+  // DB からお知らせを取得して重要な通知を抽出
   useEffect(() => {
-    const readNotifications = localStorage.getItem('readNotifications');
-    const readIds = readNotifications ? JSON.parse(readNotifications) : [];
-    // 全通知件数は 10 件、未読件数 = 10 - 既読件数
-    const initialUnreadCount = 10 - readIds.length;
-    setUnreadCount(initialUnreadCount);
+    const fetchImportantNotifications = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching notifications...');
+        const response = await getNotifications();
+        console.log('Notifications response:', response);
 
-    // 重要な通知を取得
-    const important = DUMMY_NOTIFICATIONS.filter((n) => n.important);
-    setImportantNotifications(important);
+        if (response && response.success && response.data?.notifications) {
+          console.log('Got notifications:', response.data.notifications.length);
+          // 重要な通知（important === true）のみを抽出
+          const important = response.data.notifications.filter(
+            (n) => n.important === true
+          );
+          setImportantNotifications(important);
+
+          // localStorage から既読状態を取得
+          const readNotifications = localStorage.getItem('readNotifications');
+          let readIds: string[] = [];
+          try {
+            if (readNotifications) {
+              const parsed = JSON.parse(readNotifications);
+              readIds = Array.isArray(parsed) ? parsed : [];
+            }
+          } catch (e) {
+            console.warn(
+              'Failed to parse readNotifications from localStorage:',
+              e
+            );
+            readIds = [];
+          }
+
+          // 通知ごとに既読状態をチェックして未読件数を計算
+          const unreadNotifications = response.data.notifications.filter(
+            (n) => !readIds.includes(n.id)
+          );
+          const initialUnreadCount = unreadNotifications.length;
+          console.log(
+            'Total notifications:',
+            response.data.notifications.length,
+            'Read IDs:',
+            readIds.length,
+            'Unread count:',
+            initialUnreadCount
+          );
+          setUnreadCount(initialUnreadCount);
+        } else {
+          console.warn('Invalid response or no notifications:', response);
+          setImportantNotifications([]);
+          setUnreadCount(0);
+        }
+      } catch (err) {
+        console.error('Failed to fetch important notifications:', err);
+        // エラー時はデフォルト値を設定
+        setImportantNotifications([]);
+        setUnreadCount(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchImportantNotifications();
   }, []);
 
   const decrementUnreadCount = () => {

@@ -16,8 +16,10 @@ interface Address {
   postalCode: string;
   prefecture: string;
   address: string;
-  building?: string;
-  isDefault: boolean;
+  option?: string;
+  isMain: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export default function AddressPage() {
@@ -68,9 +70,9 @@ export default function AddressPage() {
           const remaining = addresses.filter((addr) => addr.id !== id);
           if (
             remaining.length > 0 &&
-            addresses.find((a) => a.id === id)?.isDefault
+            addresses.find((a) => a.id === id)?.isMain
           ) {
-            remaining[0].isDefault = true;
+            remaining[0].isMain = true;
           }
           setAddresses(remaining);
           setCurrentPage(1);
@@ -93,7 +95,7 @@ export default function AddressPage() {
         setAddresses(
           addresses.map((addr) => ({
             ...addr,
-            isDefault: addr.id === id,
+            isMain: addr.id === id,
           }))
         );
         showSnackbar('メイン住所を変更しました', 'success');
@@ -145,19 +147,19 @@ export default function AddressPage() {
                           <h3>
                             {addr.postalCode} {addr.prefecture}
                           </h3>
-                          {addr.isDefault && (
+                          {addr.isMain && (
                             <span className={styles.defaultBadge}>メイン</span>
                           )}
                         </div>
                         <div className={styles.addressContent}>
                           <p>
                             {addr.address}
-                            {addr.building && <br />}
-                            {addr.building && <span>{addr.building}</span>}
+                            {addr.option && <br />}
+                            {addr.option && <span>{addr.option}</span>}
                           </p>
                         </div>
                         <div className={styles.addressActions}>
-                          {!addr.isDefault && (
+                          {!addr.isMain && (
                             <button
                               className={styles.setDefaultButton}
                               onClick={() => handleSetDefault(addr.id)}

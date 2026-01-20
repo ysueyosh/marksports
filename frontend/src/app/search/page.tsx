@@ -503,13 +503,14 @@ export default function SearchPage() {
 
         {/* 商品グリッド */}
         <div className={styles.productGrid}>
-          {displayProducts.map((p) => (
+          {displayProducts.map((p, index) => (
             <ProductCard
-              key={p.id}
+              key={`search-${p.id}-${index}`}
               id={p.id}
               name={p.name}
               price={p.price}
               showDetails={true}
+              image={p.image}
             />
           ))}
         </div>

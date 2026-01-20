@@ -1,7 +1,22 @@
 import json
 import re
 import requests
-from src.utils.auth import require_auth_handler
+import logging
+from datetime import datetime
+from decimal import Decimal
+from src.utils.dynamodb import get_users_table
+from src.utils.jwt import verify_token
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
+class DecimalEncoder(json.JSONEncoder):
+    """JSON encoder that converts Decimal to float"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 
 class AddressSearchResponse:
@@ -37,14 +52,9 @@ def search_address_by_postal_code(postal_code: str) -> AddressSearchResponse:
         )
 
     try:
-        # ハイフンを挿入（XXX-XXXX形式）
-        formatted_postal_code = f'{postal_code[:3]}-{postal_code[3:]}'
-        
         # zipcloud APIに問い合わせ
         url = 'https://zipcloud.ibsnet.co.jp/api/search'
         params = {'zipcode': postal_code}
-
-        response = requests.get(url, params=params, timeout=5)
 
         response = requests.get(url, params=params, timeout=5)
 
@@ -64,6 +74,7 @@ def search_address_by_postal_code(postal_code: str) -> AddressSearchResponse:
         result = data['results'][0]
 
         # 住所データを整形
+        formatted_postal_code = f'{postal_code[:3]}-{postal_code[3:]}'
         address_data = {
             'postalCode': formatted_postal_code,
             'prefecture': result.get('address1', ''),
@@ -86,8 +97,46 @@ def search_address_by_postal_code(postal_code: str) -> AddressSearchResponse:
         )
 
 
-def handler(event, context):
-    """AWS Lambda ハンドラ"""
+def get_user_id_from_token(event):
+    """
+    Extract user_id from JWT token in Authorization header
+    
+    Returns: user_id or None if not authenticated
+    """
+    headers = event.get('headers', {})
+    
+    # Try multiple header name variations (case-insensitive)
+    auth_header = (
+        headers.get('Authorization', '') or 
+        headers.get('authorization', '') or
+        headers.get('AUTHORIZATION', '')
+    )
+    
+    logger.info(f"Authorization header: {auth_header[:50] if auth_header else 'None'}...")
+    
+    if not auth_header or not auth_header.startswith('Bearer '):
+        logger.warning(f"No Bearer token found. Header: {auth_header[:50] if auth_header else 'None'}")
+        return None
+    
+    token = auth_header[7:]  # Remove "Bearer " prefix
+    logger.info(f"Verifying token: {token[:20]}...")
+    is_valid, payload, error = verify_token(token)
+    
+    if not is_valid or not payload:
+        logger.warning(f"Token verification failed: {error}")
+        return None
+    
+    user_id = payload.get('user_id')
+    if not user_id:
+        logger.warning("No user_id in JWT payload")
+        return None
+    
+    logger.info(f"Extracted user_id from JWT: {user_id}")
+    return user_id
+
+
+def search_address_handler(event, context):
+    """Search address by postal code"""
     try:
         body = json.loads(event.get('body', '{}'))
         postal_code = body.get('postalCode', '').strip()
@@ -95,104 +144,104 @@ def handler(event, context):
         if not postal_code:
             return {
                 'statusCode': 400,
-                'body': json.dumps(
-                    {
-                        'success': False,
-                        'message': '郵便番号が必要です',
-                    }
-                ),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                },
+                'body': json.dumps({
+                    'success': False,
+                    'message': '郵便番号が必要です',
+                }, ensure_ascii=False),
             }
 
         result = search_address_by_postal_code(postal_code)
 
         return {
             'statusCode': 200 if result.success else 404,
-            'body': json.dumps(result.to_dict()),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            },
+            'body': json.dumps(result.to_dict(), ensure_ascii=False),
         }
 
     except Exception as e:
-        print(f'Error: {str(e)}')
+        logger.error(f'Error: {str(e)}')
         return {
             'statusCode': 500,
-            'body': json.dumps(
-                {'success': False, 'message': 'サーバーエラーが発生しました'}
-            ),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            },
+            'body': json.dumps({
+                'success': False,
+                'message': 'サーバーエラーが発生しました'
+            }, ensure_ascii=False),
         }
 
 
-# Mock database - in production, use actual database
-addresses_db = {}
-
-
-@require_auth_handler
 def get_addresses(event, context):
     """
-    Get user addresses handler - Requires authentication
+    Get user addresses handler
     """
-    import logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    
     try:
         logger.info(f"Get addresses event: {event}")
         
-        # TODO: Get user ID from JWT token
-        user_id = "user_001"
-        
-        # Dummy data - sample addresses
-        dummy_addresses = [
-            {
-                "id": "addr_001",
-                "postalCode": "1000001",
-                "prefecture": "東京都",
-                "address": "千代田区丸の内1-1",
-                "building": "丸ビル 10階",
-                "isDefault": True
-            },
-            {
-                "id": "addr_002",
-                "postalCode": "1500001",
-                "prefecture": "東京都",
-                "address": "渋谷区道玄坂2-1",
-                "building": "渋谷スクランブルスクエア",
-                "isDefault": False
-            },
-            {
-                "id": "addr_003",
-                "postalCode": "5300001",
-                "prefecture": "大阪府",
-                "address": "大阪市北区中之島2-3",
-                "building": None,
-                "isDefault": False
+        # Get user ID from JWT token
+        user_id = get_user_id_from_token(event)
+        if not user_id:
+            return {
+                'statusCode': 401,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                },
+                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
             }
-        ]
-        
-        # If mock database has data, use it; otherwise return dummy data
-        user_addresses = addresses_db.get(user_id, dummy_addresses)
-        
-        # Convert AddressItem objects to dict
+
+        users_table = get_users_table()
+
+        # Query ADDRESS items for this user (PK=USER#{userId}, SK starts with ADDRESS)
+        response = users_table.query(
+            KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
+            ExpressionAttributeValues={
+                ':pk': f'USER#{user_id}',
+                ':sk_prefix': 'ADDRESS'
+            }
+        )
+
+        items = response.get('Items', [])
+
+        # Convert to address format
         addresses_list = []
-        for addr in user_addresses:
-            if hasattr(addr, 'dict'):
-                addresses_list.append(addr.dict())
-            else:
-                addresses_list.append(addr)
-        
-        response = {
+        for item in items:
+            address_obj = {
+                "id": item.get('addressId', ''),
+                "postalCode": item.get('postalCode', ''),
+                "prefecture": item.get('prefecture', ''),
+                "address": item.get('address', ''),
+                "option": item.get('option', ''),
+                "isMain": item.get('isMain', False),
+                "createdAt": item.get('createdAt', ''),
+                "updatedAt": item.get('updatedAt', ''),
+            }
+            addresses_list.append(address_obj)
+
+        response_data = {
             "success": True,
             "message": "Success",
             "data": addresses_list
         }
-        
+
         return {
             "statusCode": 200,
             "headers": {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": json.dumps(response, ensure_ascii=False),
+            "body": json.dumps(response_data, cls=DecimalEncoder, ensure_ascii=False),
         }
-    
+
     except Exception as e:
         logger.error(f"Error during get addresses: {str(e)}")
         return {
@@ -208,19 +257,21 @@ def get_addresses(event, context):
         }
 
 
-@require_auth_handler
 def add_address(event, context):
     """
-    Add new address handler - Requires authentication
+    Add new address handler
     """
-    import logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    
     try:
         logger.info(f"Add address event: {event}")
         
-        user_id = "user_001"
+        user_id = get_user_id_from_token(event)
+        if not user_id:
+            return {
+                'statusCode': 401,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+            }
+
         body = json.loads(event.get('body', '{}'))
         
         # Validate required fields
@@ -228,252 +279,255 @@ def add_address(event, context):
         for field in required_fields:
             if not body.get(field):
                 return {
-                    "statusCode": 400,
-                    "body": json.dumps({
-                        "success": False,
-                        "message": f"{field} is required"
-                    }, ensure_ascii=False),
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'success': False, 'message': f'{field} is required'}, ensure_ascii=False),
                 }
         
-        # Initialize user addresses if not exists
-        if user_id not in addresses_db:
-            addresses_db[user_id] = []
-        
-        # Create new address
-        new_address = {
-            "id": f"addr_{len(addresses_db[user_id]) + 1}",
+        import uuid
+        address_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + 'Z'
+
+        users_table = get_users_table()
+
+        # Check if this is the first address (should be isMain=True)
+        response = users_table.query(
+            KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
+            ExpressionAttributeValues={
+                ':pk': f'USER#{user_id}',
+                ':sk_prefix': 'ADDRESS'
+            }
+        )
+        is_first = len(response.get('Items', [])) == 0
+
+        # Add new address to User table
+        users_table.put_item(
+            Item={
+                'PK': f'USER#{user_id}',
+                'SK': f'ADDRESS#{address_id}',
+                'addressId': address_id,
+                'postalCode': body.get('postalCode'),
+                'prefecture': body.get('prefecture'),
+                'address': body.get('address'),
+                'option': body.get('option', ''),
+                'isMain': is_first,
+                'createdAt': now,
+                'updatedAt': now,
+            }
+        )
+
+        address_obj = {
+            "id": address_id,
             "postalCode": body.get('postalCode'),
             "prefecture": body.get('prefecture'),
             "address": body.get('address'),
-            "building": body.get('building', None),
-            "isDefault": len(addresses_db[user_id]) == 0  # First address is default
+            "option": body.get('option', ''),
+            "isMain": is_first,
+            "createdAt": now,
+            "updatedAt": now,
         }
-        
-        addresses_db[user_id].append(new_address)
-        
-        response = {
-            "success": True,
-            "message": "Address added successfully",
-            "data": new_address
-        }
-        
+
         return {
             "statusCode": 201,
-            "body": json.dumps(response, ensure_ascii=False),
-        }
-    
-    except Exception as e:
-        logger.error(f"Error during add address: {str(e)}")
-        return {
-            "statusCode": 500,
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
             "body": json.dumps({
-                "success": False,
-                "message": f"Failed to add address: {str(e)}"
+                "success": True,
+                "message": "Address added successfully",
+                "data": address_obj
             }, ensure_ascii=False),
         }
 
+    except Exception as e:
+        logger.error(f"Error adding address: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"success": False, "message": f"Failed to add address: {str(e)}"}, ensure_ascii=False),
+        }
 
-@require_auth_handler
+
 def update_address(event, context):
     """
-    Update address handler - Requires authentication
+    Update address handler
     """
-    import logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    
     try:
         logger.info(f"Update address event: {event}")
         
-        user_id = "user_001"
-        body = json.loads(event.get('body', '{}'))
+        user_id = get_user_id_from_token(event)
         address_id = event.get('pathParameters', {}).get('id')
+        
+        if not user_id:
+            return {
+                'statusCode': 401,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+            }
         
         if not address_id:
             return {
-                "statusCode": 400,
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Address ID is required"
-                }, ensure_ascii=False),
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message': 'Address ID is required'}, ensure_ascii=False),
             }
-        
-        if user_id not in addresses_db:
-            return {
-                "statusCode": 404,
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Address not found"
-                }, ensure_ascii=False),
-            }
-        
-        # Find and update address
-        for addr in addresses_db[user_id]:
-            if addr['id'] == address_id:
-                addr.update({
-                    'postalCode': body.get('postalCode', addr['postalCode']),
-                    'prefecture': body.get('prefecture', addr['prefecture']),
-                    'address': body.get('address', addr['address']),
-                    'building': body.get('building', addr.get('building')),
-                })
-                
-                response = {
-                    "success": True,
-                    "message": "Address updated successfully",
-                    "data": addr
-                }
-                
-                return {
-                    "statusCode": 200,
-                    "body": json.dumps(response, ensure_ascii=False),
-                }
-        
+
+        body = json.loads(event.get('body', '{}'))
+        now = datetime.utcnow().isoformat() + 'Z'
+
+        users_table = get_users_table()
+
+        # Build update expression
+        update_expr_parts = ['updatedAt = :updatedAt']
+        expr_values = {':updatedAt': now}
+        attr_names = {}
+
+        if body.get('postalCode'):
+            update_expr_parts.append('postalCode = :postalCode')
+            expr_values[':postalCode'] = body.get('postalCode')
+        if body.get('prefecture'):
+            update_expr_parts.append('prefecture = :prefecture')
+            expr_values[':prefecture'] = body.get('prefecture')
+        if body.get('address'):
+            update_expr_parts.append('#addr = :address')
+            expr_values[':address'] = body.get('address')
+            attr_names['#addr'] = 'address'
+        if 'option' in body:
+            update_expr_parts.append('#opt = :option')
+            expr_values[':option'] = body.get('option', '')
+            attr_names['#opt'] = 'option'
+
+        users_table.update_item(
+            Key={'PK': f'USER#{user_id}', 'SK': f'ADDRESS#{address_id}'},
+            UpdateExpression='SET ' + ', '.join(update_expr_parts),
+            ExpressionAttributeValues=expr_values,
+            ExpressionAttributeNames=attr_names if attr_names else None
+        )
+
         return {
-            "statusCode": 404,
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
             "body": json.dumps({
-                "success": False,
-                "message": "Address not found"
+                "success": True,
+                "message": "Address updated successfully"
             }, ensure_ascii=False),
         }
-    
+
     except Exception as e:
-        logger.error(f"Error during update address: {str(e)}")
+        logger.error(f"Error updating address: {str(e)}")
         return {
             "statusCode": 500,
-            "body": json.dumps({
-                "success": False,
-                "message": f"Failed to update address: {str(e)}"
-            }, ensure_ascii=False),
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"success": False, "message": f"Failed to update address: {str(e)}"}, ensure_ascii=False),
         }
 
 
-@require_auth_handler
 def delete_address(event, context):
     """
-    Delete address handler - Requires authentication
+    Delete address handler
     """
-    import logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    
     try:
         logger.info(f"Delete address event: {event}")
         
-        user_id = "user_001"
+        user_id = get_user_id_from_token(event)
         address_id = event.get('pathParameters', {}).get('id')
+        
+        if not user_id:
+            return {
+                'statusCode': 401,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+            }
         
         if not address_id:
             return {
-                "statusCode": 400,
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Address ID is required"
-                }, ensure_ascii=False),
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message': 'Address ID is required'}, ensure_ascii=False),
             }
-        
-        if user_id not in addresses_db:
-            return {
-                "statusCode": 404,
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Address not found"
-                }, ensure_ascii=False),
-            }
-        
-        # Find and delete address
-        original_length = len(addresses_db[user_id])
-        addresses_db[user_id] = [addr for addr in addresses_db[user_id] if addr['id'] != address_id]
-        
-        if len(addresses_db[user_id]) == original_length:
-            return {
-                "statusCode": 404,
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Address not found"
-                }, ensure_ascii=False),
-            }
-        
-        # If deleted address was default, set first remaining as default
-        if len(addresses_db[user_id]) > 0:
-            has_default = any(addr['isDefault'] for addr in addresses_db[user_id])
-            if not has_default:
-                addresses_db[user_id][0]['isDefault'] = True
-        
-        response = {
-            "success": True,
-            "message": "Address deleted successfully"
-        }
-        
+
+        users_table = get_users_table()
+
+        # Delete address
+        users_table.delete_item(
+            Key={'PK': f'USER#{user_id}', 'SK': f'ADDRESS#{address_id}'}
+        )
+
         return {
             "statusCode": 200,
-            "body": json.dumps(response, ensure_ascii=False),
-        }
-    
-    except Exception as e:
-        logger.error(f"Error during delete address: {str(e)}")
-        return {
-            "statusCode": 500,
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
             "body": json.dumps({
-                "success": False,
-                "message": f"Failed to delete address: {str(e)}"
+                "success": True,
+                "message": "Address deleted successfully"
             }, ensure_ascii=False),
         }
 
+    except Exception as e:
+        logger.error(f"Error deleting address: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"success": False, "message": f"Failed to delete address: {str(e)}"}, ensure_ascii=False),
+        }
 
-@require_auth_handler
-def set_default_address(event, context):
+
+def set_main_address(event, context):
     """
-    Set address as default handler - Requires authentication
+    Set address as main/default handler
     """
-    import logging
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    
     try:
-        logger.info(f"Set default address event: {event}")
+        logger.info(f"Set main address event: {event}")
         
-        user_id = "user_001"
+        user_id = get_user_id_from_token(event)
         address_id = event.get('pathParameters', {}).get('id')
+        
+        if not user_id:
+            return {
+                'statusCode': 401,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+            }
         
         if not address_id:
             return {
-                "statusCode": 400,
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Address ID is required"
-                }, ensure_ascii=False),
+                'statusCode': 400,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message': 'Address ID is required'}, ensure_ascii=False),
             }
-        
-        if user_id not in addresses_db:
-            return {
-                "statusCode": 404,
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Address not found"
-                }, ensure_ascii=False),
+
+        users_table = get_users_table()
+
+        # Get all addresses for this user
+        response = users_table.query(
+            KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
+            ExpressionAttributeValues={
+                ':pk': f'USER#{user_id}',
+                ':sk_prefix': 'ADDRESS'
             }
-        
-        # Find and update default status
-        for addr in addresses_db[user_id]:
-            addr['isDefault'] = addr['id'] == address_id
-        
-        response = {
-            "success": True,
-            "message": "Default address updated successfully",
-            "data": next((addr for addr in addresses_db[user_id] if addr['id'] == address_id), None)
-        }
-        
+        )
+
+        items = response.get('Items', [])
+
+        # Update all addresses: set isMain=False, then set target to True
+        for item in items:
+            is_target = item.get('addressId') == address_id
+            users_table.update_item(
+                Key={'PK': item.get('PK'), 'SK': item.get('SK')},
+                UpdateExpression='SET isMain = :isMain',
+                ExpressionAttributeValues={':isMain': is_target}
+            )
+
         return {
             "statusCode": 200,
-            "body": json.dumps(response, ensure_ascii=False),
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({
+                "success": True,
+                "message": "Main address updated successfully"
+            }, ensure_ascii=False),
         }
-    
+
     except Exception as e:
-        logger.error(f"Error during set default address: {str(e)}")
+        logger.error(f"Error setting main address: {str(e)}")
         return {
             "statusCode": 500,
-            "body": json.dumps({
-                "success": False,
-                "message": f"Failed to set default address: {str(e)}"
-            }, ensure_ascii=False),
+            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"success": False, "message": f"Failed to set main address: {str(e)}"}, ensure_ascii=False),
         }
