@@ -318,17 +318,16 @@ def admin_verify_token(event, context):
         
         # Get admin info from database (if available)
         try:
-            response = table.query(
-                KeyConditionExpression='adminId = :admin_id',
-                ExpressionAttributeValues={
-                    ':admin_id': payload['user_id']
+            response = table.get_item(
+                Key={
+                    'userId': payload['user_id']
                 }
             )
             
-            if response.get('Items'):
-                admin = response['Items'][0]
+            if response.get('Item'):
+                admin = response['Item']
                 admin_data = {
-                    "adminId": admin.get('adminId', payload['user_id']),
+                    "adminId": admin.get('userId', payload['user_id']),
                     "email": admin.get('email', payload.get('email', '')),
                     "name": admin.get('name', '')
                 }

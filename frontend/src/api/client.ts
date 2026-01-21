@@ -200,32 +200,25 @@ export async function apiRequest<T>(
             }
           } else {
             console.warn(
-              '[TOKEN_REFRESH] Token refresh failed, redirecting to login'
+              '[TOKEN_REFRESH] Token refresh failed, keeping user on the current page'
             );
-            // リフレッシュ失敗 → ログイン画面へ
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('authTokens');
-              window.location.href = '/login';
-            }
+            // リフレッシュ失敗時の処理をここに追加可能
+            localStorage.removeItem('authTokens');
           }
         } catch (refreshError) {
           console.error(
             '[TOKEN_REFRESH] Error during token refresh:',
             refreshError
           );
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('authTokens');
-            window.location.href = '/login';
-          }
+          // リフレッシュ失敗時の処理をここに追加可能
+          localStorage.removeItem('authTokens');
         }
       } else {
         console.warn(
-          '[TOKEN_REFRESH] No refresh token available, redirecting to login'
+          '[TOKEN_REFRESH] No refresh token available, keeping user on the current page'
         );
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('authTokens');
-          window.location.href = '/login';
-        }
+        // リフレッシュ失敗時の処理をここに追加可能
+        localStorage.removeItem('authTokens');
       }
 
       // リフレッシュに失敗した場合のエラーレスポンス

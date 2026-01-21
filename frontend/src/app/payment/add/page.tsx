@@ -9,13 +9,6 @@ import Link from 'next/link';
 import { addCard } from '@/api/payment';
 import styles from './add.module.css';
 
-// Square Web Payments SDK の型定義
-declare global {
-  interface Window {
-    Square: any;
-  }
-}
-
 export default function AddPaymentPage() {
   const router = useRouter();
   const { isLoggedIn, user } = useAuth();
@@ -183,7 +176,9 @@ export default function AddPaymentPage() {
           verificationToken = verifyResult.token;
           console.log(
             '[DIAGNOSTIC] Verification token obtained:',
-            verificationToken.substring(0, 30) + '...'
+            verificationToken
+              ? verificationToken.substring(0, 30) + '...'
+              : 'undefined'
           );
         } else {
           console.warn('[DIAGNOSTIC] No verification token from verifyBuyer');
@@ -207,7 +202,7 @@ export default function AddPaymentPage() {
       const response = await addCard({
         sourceId,
         cardholderName, // ⭐ 必須：カード所有者名
-        verificationToken, // ⭐ オプション：SCA用認証トークン
+        ...(verificationToken && { verificationToken }), // ⭐ オプション：SCA用認証トークン
         billingAddress,
       });
 

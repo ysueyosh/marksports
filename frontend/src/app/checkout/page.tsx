@@ -13,6 +13,7 @@ import { submitPayment } from '@/app/actions/actions';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { usePaymentMethod } from '@/context/PaymentMethodContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { getPriceWithTax } from '@/utils/price';
 import {
   searchAddressByPostalCode,
@@ -20,9 +21,11 @@ import {
   addAddress,
   AddressItem,
 } from '@/api/address';
-import { getSavedCards, SavedCard } from '@/api/payment';
+import { getSavedCards, SavedCard, addCard } from '@/api/payment';
+import { saveOrder } from '@/api/orders';
 import TextInput from '@/components/Input/TextInput';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
+import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
 import styles from './checkout.module.css';
 
 export default function CheckoutPage() {
@@ -30,6 +33,7 @@ export default function CheckoutPage() {
   const { isLoggedIn, user } = useAuth();
   const { items: cartItems, clear: clearCart, coupon } = useCart();
   const { paymentMethods, addPaymentMethod } = usePaymentMethod();
+  const { show: showSnackbar } = useSnackbar();
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -399,7 +403,9 @@ export default function CheckoutPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value } = e.target;
 
@@ -542,6 +548,7 @@ export default function CheckoutPage() {
 
     try {
       let paymentSourceId: string;
+      let orderStatus: 'unpaid' | 'awaiting_shipment' | null = null;
 
       console.log('handlePayment called with sourceId:', sourceId);
 
@@ -560,9 +567,10 @@ export default function CheckoutPage() {
           if (isLoggedIn && savePaymentMethod) {
             try {
               console.log('Saving card with sourceId:', sourceId);
-              // ⭐ sourceId のみを送信 - 他のデータを含めない
+              // ⭐ sourceId と cardholderName を送信
               await addCard({
                 sourceId: sourceId,
+                cardholderName: formData.name || '名無し',
               });
               setSavePaymentMethod(false);
               console.log('Card saved successfully');
@@ -571,23 +579,27 @@ export default function CheckoutPage() {
               // カード保存失敗は決済を続行
             }
           }
+          orderStatus = 'awaiting_shipment';
           break;
 
         case 'bank_transfer':
           // 口座振込は即座に完了
           paymentSourceId = `bank_${Date.now()}`;
+          orderStatus = 'unpaid';
           break;
 
         case 'apple_pay':
           // Apple Pay のトークン取得処理
           paymentSourceId = sourceId || `apple_pay_${Date.now()}`;
           console.log('Apple Pay sourceId:', paymentSourceId);
+          orderStatus = 'awaiting_shipment';
           break;
 
         case 'google_pay':
           // Google Pay のトークン取得処理
           paymentSourceId = sourceId || `google_pay_${Date.now()}`;
           console.log('Google Pay sourceId:', paymentSourceId);
+          orderStatus = 'awaiting_shipment';
           break;
 
         default:
@@ -630,6 +642,102 @@ export default function CheckoutPage() {
       console.log('Payment result:', result);
 
       if (result && result.id) {
+        // ⭐ Save order to database
+        try {
+          console.log('Saving order...');
+
+          // Build order items from cart (with tax included)
+          // 消費税率 10%
+          const TAX_RATE = 0.1;
+          const orderItems = cartItems.map((item) => {
+            // 商品の税抜き価格
+            const priceExcludingTax = item.price;
+            // 商品の税額（1商品あたり）
+            const taxPerItem = Math.floor(priceExcludingTax * TAX_RATE);
+            // 商品の税込み価格（1商品あたり）
+            const priceIncludingTax = priceExcludingTax + taxPerItem;
+
+            return {
+              productId: item.productId,
+              productName: item.name,
+              quantity: item.quantity,
+              amount: priceIncludingTax, // ⭐ 税込み価格を格納
+              totalAmount: priceIncludingTax * item.quantity, // ⭐ 税込み合計を格納
+            };
+          });
+
+          // Prepare payment details from selected method
+          const paymentDetails: Record<string, any> = {
+            paymentMethod: paymentMode,
+          };
+
+          if (
+            paymentMode === 'credit_card' &&
+            selectedPaymentMethodId &&
+            selectedPaymentMethodId !== 'new_card'
+          ) {
+            // Get selected card from saved cards
+            const selectedCardData = savedCards.find(
+              (card) => card.id === selectedPaymentMethodId
+            );
+            if (selectedCardData) {
+              paymentDetails.paymentBrand = selectedCardData.cardType;
+              paymentDetails.last4 = selectedCardData.lastFourDigits;
+              paymentDetails.expMonth = selectedCardData.expiryMonth;
+              paymentDetails.expYear = selectedCardData.expiryYear;
+            }
+          }
+
+          // Save order
+          // Get selected address data
+          const addressData = userAddresses.find(
+            (addr) => addr.id === selectedAddressId
+          );
+
+          const orderSaveResult = await saveOrder({
+            orderId: result.id,
+            orderNumber: String(Date.now()),
+            totalAmount: priceInfo.total,
+            tax: priceInfo.tax,
+            shippingCost: priceInfo.shippingFee,
+            discount: priceInfo.discountAmount,
+            couponCode: coupon?.code,
+            couponDiscount: priceInfo.discountAmount,
+            shippingAddress: addressData || {
+              givenName: formData.name.split(' ')[0] || '',
+              familyName: formData.name.split(' ')[1] || '',
+              addressLine1: formData.address,
+              addressLine2: formData.building,
+              administrativeDistrictLevel1: formData.prefecture,
+              postalCode: formData.postalCode,
+              country: 'JP',
+            },
+            billingAddress: {
+              givenName: formData.name.split(' ')[0] || '',
+              familyName: formData.name.split(' ')[1] || '',
+              addressLine1: formData.address,
+              addressLine2: formData.building,
+              administrativeDistrictLevel1: formData.prefecture,
+              postalCode: formData.postalCode,
+              country: 'JP',
+            },
+            squareTransactionId: result.id,
+            items: orderItems,
+            paymentMethod: paymentMode || 'credit_card', // Explicitly set paymentMethod
+            paymentBrand: paymentDetails.paymentBrand,
+            last4: paymentDetails.last4,
+            expMonth: paymentDetails.expMonth,
+            expYear: paymentDetails.expYear,
+            status: orderStatus, // Set order status after paymentMethod
+          });
+
+          console.log('Order saved:', orderSaveResult);
+        } catch (orderError) {
+          console.error('Failed to save order:', orderError);
+          // Order save failure should not block checkout flow
+          showSnackbar('注文情報の保存に失敗しました', 'warning');
+        }
+
         clearCart();
         setCurrentStep(4);
       } else {
@@ -2187,42 +2295,7 @@ export default function CheckoutPage() {
                     )}
 
                     {/* Bank Transfer Payment */}
-                    {paymentMode === 'bank_transfer' && (
-                      <div
-                        style={{
-                          backgroundColor: '#f9fafb',
-                          padding: '15px',
-                          borderRadius: '4px',
-                          border: '1px solid #e5e7eb',
-                        }}
-                      >
-                        <h4 style={{ marginBottom: '10px' }}>口座振込情報</h4>
-                        <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-                          <strong>銀行:</strong> 〇〇銀行
-                        </p>
-                        <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-                          <strong>支店:</strong> 〇〇支店
-                        </p>
-                        <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-                          <strong>口座種別:</strong> 普通
-                        </p>
-                        <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-                          <strong>口座番号:</strong> 1234567
-                        </p>
-                        <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-                          <strong>名義人:</strong> マークスポーツ
-                        </p>
-                        <p
-                          style={{
-                            marginTop: '15px',
-                            fontSize: '12px',
-                            color: '#6b7280',
-                          }}
-                        >
-                          ご注文完了後、上記の口座にお振込みください。口座情報はメールでも送信いたします。振込確認後、商品の発送手配をいたします。
-                        </p>
-                      </div>
-                    )}
+                    {paymentMode === 'bank_transfer' && <BankTransferDetails />}
 
                     {/* Apple Pay */}
                     {paymentMode === 'apple_pay' && (

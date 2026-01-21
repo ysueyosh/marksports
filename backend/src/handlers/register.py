@@ -123,7 +123,7 @@ def register(event, context):
         if register_request.registerAddress and register_request.prefecture:
             address_id = f"addr_{uuid.uuid4().hex[:12]}"
             address_item = {
-                'PK': f'ADDRESS#{user_id}',
+                'PK': f'USER#{user_id}',
                 'SK': f'ADDRESS#{address_id}',
                 'addressId': address_id,
                 'userId': user_id,

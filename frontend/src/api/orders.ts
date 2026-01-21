@@ -9,19 +9,43 @@ export interface OrderItem {
   productName: string;
   quantity: number;
   price: number;
-  image: string;
 }
 
 export interface Order {
   id: string;
   orderNumber: string;
   orderDate: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  statusLabel: string;
+  status: string;
   totalAmount: number;
   itemCount: number;
-  items: OrderItem[];
+  tax: number;
+  shippingCost: number;
+  items?: OrderItem[];
   cancelRequestSent?: boolean;
+}
+
+export interface OrderItemData {
+  orderItemId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface Address {
+  lastName?: string;
+  firstName?: string;
+  postalCode?: string;
+  prefecture?: string;
+  address?: string;
+  building?: string;
+  phone?: string;
+}
+
+export interface PaymentMethod {
+  cardType?: string;
+  lastFourDigits?: string;
 }
 
 export interface OrderDetail {
@@ -29,46 +53,22 @@ export interface OrderDetail {
   orderNumber: string;
   orderDate: string;
   status: string;
-  statusLabel: string;
-  deliveryDate?: string;
   totalAmount: number;
-  subtotal: number;
   tax: number;
   shippingCost: number;
   discount: number;
-  items: Array<{
-    id: string;
-    productId: string;
-    productName: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    image: string;
-  }>;
-  shippingAddress: {
-    firstName: string;
-    lastName: string;
-    phone: string;
-    postalCode: string;
-    prefecture: string;
-    address: string;
-    building?: string;
-  };
-  billingAddress: {
-    firstName: string;
-    lastName: string;
-    phone: string;
-    postalCode: string;
-    prefecture: string;
-    address: string;
-    building?: string;
-  };
-  paymentMethod: {
-    type: string;
-    lastFourDigits: string;
-    cardType: string;
-  };
+  couponCode?: string;
+  paymentMethod: PaymentMethod; // 修正: string から PaymentMethod に変更
+  paymentBrand?: string;
+  last4?: string;
+  shippingAddress?: Address;
+  billingAddress?: Address;
+  items: OrderItemData[];
+  paymentAt?: string;
+  deliveryAt?: string;
   cancelRequestSent?: boolean;
+  statusLabel?: string;
+  subtotal?: number;
 }
 
 export interface GetOrdersResponse {
@@ -134,4 +134,58 @@ export async function cancelOrder(
   );
 
   return response;
+}
+
+/**
+ * Save order after payment completion
+ */
+export interface SaveOrderRequest {
+  orderId?: string;
+  orderNumber?: string;
+  totalAmount: number;
+  tax: number;
+  shippingCost: number;
+  discount: number;
+  couponCode?: string;
+  couponDiscount?: number;
+  shippingAddress?: Record<string, any>;
+  billingAddress?: Record<string, any>;
+  paymentMethod: string;
+  paymentBrand?: string;
+  last4?: string;
+  expMonth?: number;
+  expYear?: number;
+  squareTransactionId?: string;
+  status?: string;
+  items: Array<{
+    productId: string;
+    quantity: number;
+    amount: number;
+    totalAmount: number;
+  }>;
+}
+
+export interface SaveOrderResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    orderId: string;
+    orderNumber: string;
+    itemCount: number;
+  };
+}
+
+export async function saveOrder(
+  request: SaveOrderRequest
+): Promise<SaveOrderResponse> {
+  try {
+    const response = await apiClient.post<SaveOrderResponse>(
+      '/orders',
+      request
+    );
+    return response;
+  } catch (error) {
+    console.error('Error saving order:', error);
+    throw error;
+  }
 }

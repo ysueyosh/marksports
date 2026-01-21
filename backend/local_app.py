@@ -26,7 +26,7 @@ from src.handlers.product import get_featured_products, get_product_detail, get_
 from src.handlers.search import search_products
 from src.handlers.coupon import apply_coupon
 from src.handlers.notification import get_notifications, get_notification_detail, get_notification_count
-from src.handlers.order import get_orders, get_order_detail, cancel_order
+from src.handlers.order import get_orders, get_order_detail, cancel_order, save_order, get_all_orders, update_order_status
 from src.handlers.admin import admin_login, admin_refresh_token, admin_verify_token, create_admin, get_admin_settings, update_admin_settings
 from src.handlers.admin_product import create_product, update_product, delete_product, get_all_products
 from src.handlers.admin_category import admin_create_category_route, admin_get_all_categories_route, admin_update_category_route, admin_delete_category_route
@@ -781,6 +781,18 @@ def get_orders_route():
     return jsonify(body), result['statusCode']
 
 
+@app.route('/orders', methods=['POST'])
+def save_order_route():
+    """Save order endpoint - Requires authentication"""
+    event = {
+        'headers': dict(request.headers),
+        'body': request.data.decode()
+    }
+    result = save_order(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
 @app.route('/orders/<order_id>', methods=['GET'])
 def get_order_detail_route(order_id):
     """Get order detail endpoint - Requires authentication"""
@@ -799,6 +811,28 @@ def cancel_order_route(order_id):
         'body': request.data.decode()
     }
     result = cancel_order(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+@app.route('/admin/orders', methods=['GET'])
+def get_all_orders_route():
+    """Get all orders for admin - Requires authentication"""
+    event = {
+        'headers': dict(request.headers),
+        'queryStringParameters': dict(request.args)
+    }
+    result = get_all_orders(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+@app.route('/admin/orders/status', methods=['POST'])
+def update_order_status_route():
+    """Update order status - Requires authentication"""
+    event = {
+        'headers': dict(request.headers),
+        'body': request.data.decode()
+    }
+    result = update_order_status(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 

@@ -238,14 +238,34 @@ def refresh_token(event, context):
         email = payload.get("email")
         user_type = payload.get("user_type", "user")
         
-        # Generate new access token
+        # Get user details from database for consistent response
+        # Query by email using GSI to get user data with all attributes
+        table = get_users_table()
+        user_response = table.query(
+            IndexName='GSI_MAIL',
+            KeyConditionExpression='email = :email',
+            ExpressionAttributeValues={':email': email}
+        )
+        
+        logger.info(f"User response query: {user_response}")
+        user_data = user_response.get("Items", [{}])[0] if user_response.get("Items") else {}
+        logger.info(f"User data retrieved: {user_data}")
+        logger.info(f"User name from DB: {user_data.get('name', 'NOT FOUND')}")
+        
+        # Generate new access token and refresh token
         new_access_token = generate_access_token(user_id, email, user_type=user_type)
+        new_refresh_token = generate_refresh_token(user_id, email, user_type=user_type)
         
         response = TokenRefreshResponse(
             success=True,
             message="Token refreshed successfully",
             data={
+                "userId": user_id,
+                "email": email,
+                "name": user_data.get("name", ""),
+                "phone": user_data.get("phone", ""),
                 "accessToken": new_access_token,
+                "refreshToken": new_refresh_token,
                 "expiresIn": 3600  # Token expires in 1 hour (seconds)
             }
         )
@@ -306,6 +326,7 @@ def verify_token(event, context):
         # Parse request body
         body = json.loads(event.get("body", "{}"))
         verify_request = VerifyTokenRequest(**body)
+        refresh_token = body.get('refreshToken')  # リクエストボディから直接取得
         
         # Verify the access token
         is_valid, payload, error_msg = verify_jwt_token(verify_request.access_token)
@@ -314,15 +335,26 @@ def verify_token(event, context):
             logger.warning(f"Invalid access token: {error_msg}")
             
             # ⭐ トークン期限切れの場合、リフレッシュトークンで再発行を試みる
-            if "expired" in error_msg.lower() and verify_request.refresh_token:
+            if "expired" in error_msg.lower() and refresh_token:
                 logger.info("Access token expired, attempting to refresh...")
                 
                 # リフレッシュトークンを検証
-                refresh_is_valid, refresh_payload, refresh_error = verify_jwt_token(verify_request.refresh_token)
+                refresh_is_valid, refresh_payload, refresh_error = verify_jwt_token(refresh_token)
                 
                 if refresh_is_valid:
                     user_id = refresh_payload.get("user_id")
                     email = refresh_payload.get("email")
+                    
+                    # Get user details from database using PK/SK
+                    # user_id はトークンから取得済みなのでGSIは不要
+                    table = get_users_table()
+                    user_response = table.get_item(
+                        Key={
+                            'PK': f'USER#{user_id}',
+                            'SK': f'PROFILE#{user_id}'
+                        }
+                    )
+                    user_data = user_response.get("Item", {})
                     
                     # 新しいアクセストークンを生成
                     new_access_token = generate_access_token(user_id, email)
@@ -338,9 +370,18 @@ def verify_token(event, context):
                         "body": json.dumps({
                             "success": True,
                             "message": "Token refreshed successfully",
-                            "accessToken": new_access_token,
-                            "expiresIn": 3600
-                        }),
+                            "data": {
+                                "userId": user_id,
+                                "email": email,
+                                "name": user_data.get("name", ""),
+                                "phone": user_data.get("phone"),
+                                "sex": user_data.get("sex"),
+                                "address": user_data.get("address", ""),
+                                "accessToken": new_access_token,
+                                "refreshToken": refresh_token,
+                                "expiresIn": 3600
+                            }
+                        }, ensure_ascii=False),
                     }
                 else:
                     logger.warning(f"Refresh token also invalid: {refresh_error}")
@@ -373,34 +414,29 @@ def verify_token(event, context):
         user_id = payload.get("user_id")
         email = payload.get("email")
         
-        # Fetch user details from DynamoDB
+        # Fetch user details from DynamoDB using PK and SK for profile info
+        # user_id はトークンから取得済みなのでGSIは不要
+        table = get_users_table()
+        user_response = table.get_item(
+            Key={
+                'PK': f'USER#{user_id}',
+                'SK': f'PROFILE#{user_id}'
+            }
+        )
+        user_data = user_response.get("Item", {})
+        
+        # Fetch user profile details
         user_info = {
             "id": user_id,
             "email": email,
+            "name": user_data.get("name", ""),
+            "phone": user_data.get("phone"),
+            "sex": user_data.get("sex"),
+            "address": user_data.get("address", ""),
             "accessToken": verify_request.access_token,
+            "refreshToken": refresh_token,
             "expiresIn": 3600
         }
-        
-        # Query DynamoDB for user profile
-        from src.utils.dynamodb import dynamodb
-        user_table = dynamodb.Table(os.environ.get('USER_TABLE_NAME', 'User'))
-        
-        try:
-            user_response = user_table.get_item(
-                Key={
-                    'PK': f'USER#{user_id}',
-                    'SK': f'PROFILE#{user_id}'
-                }
-            )
-            
-            if 'Item' in user_response:
-                item = user_response['Item']
-                user_info['name'] = item.get('name', '')
-                user_info['phone'] = item.get('phone')
-                user_info['sex'] = item.get('sex')
-                user_info['address'] = item.get('address')
-        except Exception as db_error:
-            logger.warning(f"Failed to fetch user profile from DynamoDB: {str(db_error)}")
 
         response = VerifyTokenResponse(
             success=True,
@@ -506,15 +542,16 @@ def update_profile(event, context):
         # Get DynamoDB table
         table = get_users_table()
         
-        # Get current user data
-        user_response = table.get_item(
-            Key={
-                "PK": f"USER#{user_id}",
-                "SK": f"PROFILE#{user_id}"
-            }
+        # Query current user data using PK
+        user_response = table.query(
+            KeyConditionExpression="PK = :pk",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{user_id}"
+            },
+            Limit=1
         )
         
-        if "Item" not in user_response:
+        if not user_response.get("Items"):
             return {
                 "statusCode": 404,
                 "headers": {
@@ -526,6 +563,10 @@ def update_profile(event, context):
                     "message": "User not found"
                 }),
             }
+        
+        user_item = user_response["Items"][0]
+        user_pk = user_item.get("PK")
+        user_sk = user_item.get("SK")
         
         # Build update expression
         update_expression = "SET #upd = :val"
@@ -550,8 +591,8 @@ def update_profile(event, context):
         # Update user profile
         update_response = table.update_item(
             Key={
-                "PK": f"USER#{user_id}",
-                "SK": f"PROFILE#{user_id}"
+                "PK": user_pk,
+                "SK": user_sk
             },
             UpdateExpression=update_expression,
             ExpressionAttributeNames=expression_names,
@@ -840,15 +881,16 @@ def get_profile(event, context):
         # Get DynamoDB table
         table = get_users_table()
         
-        # Get user profile
-        user_response = table.get_item(
-            Key={
-                "PK": f"USER#{user_id}",
-                "SK": f"PROFILE#{user_id}"
-            }
+        # Query user profile using PK (same as payment methods)
+        user_response = table.query(
+            KeyConditionExpression="PK = :pk",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{user_id}"
+            },
+            Limit=1
         )
         
-        if "Item" not in user_response:
+        if not user_response.get("Items"):
             return {
                 "statusCode": 404,
                 "headers": {
@@ -861,7 +903,7 @@ def get_profile(event, context):
                 }),
             }
         
-        user_data = user_response["Item"]
+        user_data = user_response["Items"][0]
         
         return {
             "statusCode": 200,

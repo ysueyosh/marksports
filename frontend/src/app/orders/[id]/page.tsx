@@ -6,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import MainLayout from '@/components/Layout/MainLayout';
 import CancelOrderModal from '@/components/CancelOrderModal/CancelOrderModal';
 import { getOrderDetail, OrderDetail } from '@/api/orders';
+import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
+import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
 import styles from '../orders.module.css';
 
 export default function OrderDetailPage() {
@@ -76,11 +78,24 @@ export default function OrderDetailPage() {
   }) => {
     // キャンセルリクエスト送信フラグを更新
     if (order) {
-      setOrder({
-        ...order,
-        cancelRequestSent: response.cancelRequestSent,
-      });
+      setOrder((prevOrder) =>
+        prevOrder
+          ? {
+              ...prevOrder,
+              cancelRequestSent: response.cancelRequestSent,
+            }
+          : null
+      );
     }
+  };
+
+  const safeGet = (obj: any, path: string, defaultValue: any) => {
+    return path
+      .split('.')
+      .reduce(
+        (acc, key) => (acc && acc[key] !== undefined ? acc[key] : defaultValue),
+        obj
+      );
   };
 
   return (
@@ -123,28 +138,15 @@ export default function OrderDetailPage() {
               <div className={styles.detailRow}>
                 <span className={styles.detailLabel}>ステータス</span>
                 <span className={styles.detailValue}>
-                  {order.cancelRequestSent && (
-                    <span
-                      style={{
-                        backgroundColor: '#ef4444',
-                        color: 'white',
-                        padding: '4px 12px',
-                        borderRadius: '4px',
-                        marginRight: '8px',
-                        display: 'inline-block',
-                        fontSize: '14px',
-                      }}
-                    >
-                      キャンセル申請中
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      display: 'inline-block',
-                    }}
-                  >
-                    {order.statusLabel}
-                  </span>
+                  <OrderStatusChip
+                    status={
+                      order.status as
+                        | 'unpaid'
+                        | 'awaiting_shipment'
+                        | 'in_transit'
+                        | 'delivered'
+                    }
+                  />
                 </span>
               </div>
             </div>
@@ -160,15 +162,19 @@ export default function OrderDetailPage() {
                 <div className={styles.itemPrice}>単価</div>
                 <div className={styles.itemSubtotal}>小計</div>
               </div>
-              {order.items.map((item) => (
-                <div key={item.id} className={styles.itemsRow}>
-                  <div className={styles.itemName}>{item.productName}</div>
-                  <div className={styles.itemQuantity}>{item.quantity}</div>
+              {(order.items || []).map((item) => (
+                <div key={item.orderItemId} className={styles.itemsRow}>
+                  <div className={styles.itemName}>
+                    {item.productName || '不明な商品'}
+                  </div>
+                  <div className={styles.itemQuantity}>
+                    {item.quantity || 0}
+                  </div>
                   <div className={styles.itemPrice}>
-                    ¥{item.unitPrice.toLocaleString()}
+                    ¥{item.unitPrice ? item.unitPrice.toLocaleString() : '0'}
                   </div>
                   <div className={styles.itemSubtotal}>
-                    ¥{item.totalPrice.toLocaleString()}
+                    ¥{item.totalPrice ? item.totalPrice.toLocaleString() : '0'}
                   </div>
                 </div>
               ))}
@@ -181,7 +187,9 @@ export default function OrderDetailPage() {
             <div className={styles.summaryContainer}>
               <div className={styles.summaryRow}>
                 <span>小計</span>
-                <span>¥{order.subtotal.toLocaleString()}</span>
+                <span>
+                  ¥{order.subtotal ? order.subtotal.toLocaleString() : '0'}
+                </span>
               </div>
               <div
                 style={{
@@ -191,11 +199,16 @@ export default function OrderDetailPage() {
                   textAlign: 'right',
                 }}
               >
-                （内消費税 ¥{order.tax.toLocaleString()}）
+                （内消費税 ¥{order.tax ? order.tax.toLocaleString() : '0'}）
               </div>
               <div className={styles.summaryRow}>
                 <span>送料</span>
-                <span>¥{order.shippingCost.toLocaleString()}</span>
+                <span>
+                  ¥
+                  {order.shippingCost
+                    ? order.shippingCost.toLocaleString()
+                    : '0'}
+                </span>
               </div>
               {order.discount > 0 && (
                 <div className={styles.summaryRow}>
@@ -203,72 +216,63 @@ export default function OrderDetailPage() {
                   <span>-¥{order.discount.toLocaleString()}</span>
                 </div>
               )}
-              <div
-                className={styles.summaryRow}
-                style={{
-                  borderTop: '2px solid #e5e7eb',
-                  paddingTop: '12px',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                }}
-              >
-                <span>合計金額</span>
-                <span>¥{order.totalAmount.toLocaleString()}</span>
-              </div>
+            </div>
+            <div className={styles.summaryRow}>
+              <span style={{ fontWeight: 'bold' }}>合計</span>
+              <span>
+                ¥{order.totalAmount ? order.totalAmount.toLocaleString() : '0'}
+              </span>
             </div>
           </div>
 
-          {/* 配送先・支払い情報 */}
+          {/* 配送先情報 */}
           <div className={styles.detailSection}>
-            <h2 className={styles.sectionTitle}>配送・支払い情報</h2>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '20px',
-              }}
-            >
+            <h2 className={styles.sectionTitle}>配送先情報</h2>
+            <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
               <div>
-                <h3
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '10px',
-                  }}
-                >
-                  配送先
-                </h3>
-                <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                  <div>
-                    {order.shippingAddress.lastName}{' '}
-                    {order.shippingAddress.firstName}
-                  </div>
-                  <div>〒{order.shippingAddress.postalCode}</div>
-                  <div>
-                    {order.shippingAddress.prefecture}
-                    {order.shippingAddress.address}
-                  </div>
-                  {order.shippingAddress.building && (
-                    <div>{order.shippingAddress.building}</div>
+                {order.shippingAddress?.lastName || ''}{' '}
+                {order.shippingAddress?.firstName || ''}
+              </div>
+              <div>〒{order.shippingAddress?.postalCode || ''}</div>
+              {order.shippingAddress?.prefecture || ''}
+              {order.shippingAddress?.address || ''}
+              {order.shippingAddress?.building && (
+                <div>{order.shippingAddress.building}</div>
+              )}
+            </div>
+          </div>
+
+          {/* 支払い情報 */}
+          <div className={styles.detailSection}>
+            <h2 className={styles.sectionTitle}>支払い情報</h2>
+            <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
+              {typeof order.paymentMethod === 'string' ? (
+                <>
+                  {order.paymentMethod === 'credit_card' && (
+                    <>
+                      <div>クレジットカード</div>
+                      <div>****{order.paymentMethod}</div>
+                    </>
                   )}
-                  <div>TEL: {order.shippingAddress.phone}</div>
-                </div>
-              </div>
-              <div>
-                <h3
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '10px',
-                  }}
-                >
-                  支払い方法
-                </h3>
-                <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                  <div>{order.paymentMethod.cardType}</div>
+                  {order.paymentMethod === 'bank_transfer' && (
+                    <>
+                      <div>銀行振込</div>
+                      <BankTransferDetails />
+                    </>
+                  )}
+                  {order.paymentMethod === 'apple_pay' && <div>Apple Pay</div>}
+                  {order.paymentMethod === 'google_pay' && (
+                    <div>Google Pay</div>
+                  )}
+                </>
+              ) : order.paymentMethod?.cardType === 'credit_card' ? (
+                <>
+                  <div>クレジットカード</div>
                   <div>****{order.paymentMethod.lastFourDigits}</div>
-                </div>
-              </div>
+                </>
+              ) : (
+                <div>不明な支払い方法</div>
+              )}
             </div>
           </div>
 

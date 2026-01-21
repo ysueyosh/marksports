@@ -159,6 +159,27 @@ functions:
           path: /payments
           method: post
 
+  saveOrder:
+    handler: src.handlers.order.save_order
+    events:
+      - httpApi:
+          path: /orders
+          method: post
+
+  getAllOrders:
+    handler: src.handlers.order.get_all_orders
+    events:
+      - httpApi:
+          path: /admin/orders
+          method: get
+
+  updateOrderStatus:
+    handler: src.handlers.order.update_order_status
+    events:
+      - httpApi:
+          path: /admin/orders/status
+          method: post
+
   health:
     handler: src.app.health_check
     events:

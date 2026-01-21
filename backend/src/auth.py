@@ -1141,18 +1141,17 @@ def admin_verify_token(event, context):
             logger.error("Admin table not initialized")
             return create_api_response(500, False, "Database not available")
 
-        response = admin_table.query(
-            KeyConditionExpression='adminId = :admin_id',
-            ExpressionAttributeValues={
-                ':admin_id': payload['user_id']
+        response = admin_table.get_item(
+            Key={
+                'userId': payload['user_id']
             }
         )
 
-        if not response.get('Items'):
+        if not response.get('Item'):
             logger.warning(f"Admin not found: {payload['user_id']}")
             return create_api_response(404, False, "Admin not found")
 
-        admin = response['Items'][0]
+        admin = response['Item']
 
         verify_response = AdminVerifyTokenResponse(
             success=True,
