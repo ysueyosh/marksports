@@ -25,8 +25,8 @@ export interface LoginResponse {
 
 export interface UpdateProfileRequest {
   name: string;
-  email?: string;
-  gender?: string;
+  phone?: string;
+  sex?: string;
 }
 
 export interface UpdateProfileResponse {
@@ -34,8 +34,8 @@ export interface UpdateProfileResponse {
   message: string;
   data?: {
     name: string;
-    email: string;
-    gender: string;
+    phone?: string;
+    sex?: string;
   };
 }
 
@@ -51,18 +51,6 @@ export interface ChangePasswordResponse {
   data?: object;
 }
 
-export interface UpdateNotificationSettingsRequest {
-  emailNotifications: boolean;
-}
-
-export interface UpdateNotificationSettingsResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    emailNotifications: boolean;
-  };
-}
-
 export interface DeleteAccountResponse {
   success: boolean;
   message: string;
@@ -75,8 +63,8 @@ export interface GetProfileResponse {
   data?: {
     name: string;
     email: string;
-    gender?: string;
-    emailNotifications?: boolean;
+    phone?: string;
+    sex?: string;
   };
 }
 
@@ -149,20 +137,6 @@ export async function changePassword(
 ): Promise<ChangePasswordResponse> {
   const response = await apiClient.post<ChangePasswordResponse>(
     '/change-password',
-    data
-  );
-
-  return response;
-}
-
-/**
- * Update notification settings
- */
-export async function updateNotificationSettings(
-  data: UpdateNotificationSettingsRequest
-): Promise<UpdateNotificationSettingsResponse> {
-  const response = await apiClient.post<UpdateNotificationSettingsResponse>(
-    '/update-notification-settings',
     data
   );
 

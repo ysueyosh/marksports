@@ -16,6 +16,7 @@ from src.models.auth import (
 )
 from src.utils.auth import require_auth_handler
 from src.utils.jwt import generate_access_token, generate_refresh_token, verify_token as verify_jwt_token
+from src.utils.dynamodb import get_users_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -290,6 +291,7 @@ def refresh_token(event, context):
 def verify_token(event, context):
     """
     Verify token handler - validates access token and returns user info
+    If access token is expired, attempts to refresh it using refresh token
     
     Args:
         event: Lambda event
@@ -310,6 +312,51 @@ def verify_token(event, context):
         
         if not is_valid:
             logger.warning(f"Invalid access token: {error_msg}")
+            
+            # ⭐ トークン期限切れの場合、リフレッシュトークンで再発行を試みる
+            if "expired" in error_msg.lower() and verify_request.refresh_token:
+                logger.info("Access token expired, attempting to refresh...")
+                
+                # リフレッシュトークンを検証
+                refresh_is_valid, refresh_payload, refresh_error = verify_jwt_token(verify_request.refresh_token)
+                
+                if refresh_is_valid:
+                    user_id = refresh_payload.get("user_id")
+                    email = refresh_payload.get("email")
+                    
+                    # 新しいアクセストークンを生成
+                    new_access_token = generate_access_token(user_id, email)
+                    
+                    logger.info(f"New access token generated for user: {user_id}")
+                    
+                    return {
+                        "statusCode": 200,
+                        "headers": {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                        "body": json.dumps({
+                            "success": True,
+                            "message": "Token refreshed successfully",
+                            "accessToken": new_access_token,
+                            "expiresIn": 3600
+                        }),
+                    }
+                else:
+                    logger.warning(f"Refresh token also invalid: {refresh_error}")
+                    return {
+                        "statusCode": 401,
+                        "headers": {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                        "body": json.dumps({
+                            "success": False,
+                            "message": "Session expired. Please log in again."
+                        }),
+                    }
+            
+            # リフレッシュトークンがない、または無効
             return {
                 "statusCode": 401,
                 "headers": {
@@ -326,18 +373,39 @@ def verify_token(event, context):
         user_id = payload.get("user_id")
         email = payload.get("email")
         
-        # TODO: Fetch user details from DynamoDB if needed
-        # For now, return user info from JWT payload
+        # Fetch user details from DynamoDB
+        user_info = {
+            "id": user_id,
+            "email": email,
+            "accessToken": verify_request.access_token,
+            "expiresIn": 3600
+        }
+        
+        # Query DynamoDB for user profile
+        from src.utils.dynamodb import dynamodb
+        user_table = dynamodb.Table(os.environ.get('USER_TABLE_NAME', 'User'))
+        
+        try:
+            user_response = user_table.get_item(
+                Key={
+                    'PK': f'USER#{user_id}',
+                    'SK': f'PROFILE#{user_id}'
+                }
+            )
+            
+            if 'Item' in user_response:
+                item = user_response['Item']
+                user_info['name'] = item.get('name', '')
+                user_info['phone'] = item.get('phone')
+                user_info['sex'] = item.get('sex')
+                user_info['address'] = item.get('address')
+        except Exception as db_error:
+            logger.warning(f"Failed to fetch user profile from DynamoDB: {str(db_error)}")
+
         response = VerifyTokenResponse(
             success=True,
             message="Token verified successfully",
-            data={
-                "id": user_id,
-                "email": email,
-                "name": "山田太郎",  # TODO: Fetch from DynamoDB
-                "phone": "090-1234-5678",  # TODO: Fetch from DynamoDB
-                "address": "東京都渋谷区1-2-3"  # TODO: Fetch from DynamoDB
-            }
+            data=user_info
         )
         
         return {
@@ -383,34 +451,125 @@ def update_profile(event, context):
     """
     Update user profile handler - Requires authentication
     
-    Args:
-        event: Lambda event
-        context: Lambda context
-    
-    Returns:
-        API response
+    Request body:
+    {
+        "name": "新しい名前",
+        "phone": "09012345678",
+        "sex": "male"
+    }
     """
     try:
         logger.info(f"Update profile event: {event}")
         
+        # Get user ID from token
+        headers = event.get('headers', {})
+        auth_header = (
+            headers.get('Authorization', '') or 
+            headers.get('authorization', '') or
+            headers.get('AUTHORIZATION', '')
+        )
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Unauthorized"
+                }),
+            }
+        
+        token = auth_header[7:]
+        is_valid, payload, error = verify_jwt_token(token)
+        
+        if not is_valid or not payload:
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Invalid or expired token"
+                }),
+            }
+        
+        user_id = payload.get('user_id')
+        
         # Parse request body
         body = json.loads(event.get("body", "{}"))
-        update_request = UpdateProfileRequest(**body)
         
-        logger.info(f"Updating profile for: {update_request.name}")
+        # Get DynamoDB table
+        table = get_users_table()
         
-        # TODO: Update user profile in database
-        # For now, just return success
-        
-        response = UpdateProfileResponse(
-            success=True,
-            message="プロフィールを更新しました",
-            data={
-                "name": update_request.name,
-                "email": update_request.email,
-                "gender": update_request.gender
+        # Get current user data
+        user_response = table.get_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": f"PROFILE#{user_id}"
             }
         )
+        
+        if "Item" not in user_response:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "User not found"
+                }),
+            }
+        
+        # Build update expression
+        update_expression = "SET #upd = :val"
+        expression_values = {":val": int(datetime.utcnow().timestamp() * 1000)}
+        expression_names = {"#upd": "updatedAt"}
+        
+        if "name" in body and body["name"]:
+            update_expression += ", #name = :name"
+            expression_names["#name"] = "name"
+            expression_values[":name"] = body["name"]
+        
+        if "phone" in body:
+            update_expression += ", #phone = :phone"
+            expression_names["#phone"] = "phone"
+            expression_values[":phone"] = body.get("phone", "")
+        
+        if "sex" in body:
+            update_expression += ", #sex = :sex"
+            expression_names["#sex"] = "sex"
+            expression_values[":sex"] = body.get("sex", "")
+        
+        # Update user profile
+        update_response = table.update_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": f"PROFILE#{user_id}"
+            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeNames=expression_names,
+            ExpressionAttributeValues=expression_values,
+            ReturnValues="ALL_NEW"
+        )
+        
+        updated_item = update_response.get("Attributes", {})
+        
+        response = {
+            "success": True,
+            "message": "プロフィールを更新しました",
+            "data": {
+                "name": updated_item.get("name"),
+                "phone": updated_item.get("phone"),
+                "sex": updated_item.get("sex")
+            }
+        }
         
         return {
             "statusCode": 200,
@@ -418,21 +577,7 @@ def update_profile(event, context):
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": json.dumps(response.dict()),
-        }
-    
-    except ValueError as e:
-        logger.error(f"Validation error: {str(e)}")
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": False,
-                "message": f"Invalid input: {str(e)}"
-            }),
+            "body": json.dumps(response, ensure_ascii=False),
         }
     
     except Exception as e:
@@ -446,7 +591,7 @@ def update_profile(event, context):
             "body": json.dumps({
                 "success": False,
                 "message": f"Profile update failed: {str(e)}"
-            }),
+            }, ensure_ascii=False),
         }
 
 
@@ -649,19 +794,74 @@ def delete_account(event, context):
 def get_profile(event, context):
     """
     Get user profile - Requires authentication
-    
-    Args:
-        event: Lambda event
-        context: Lambda context
-    
-    Returns:
-        API response
     """
     try:
         logger.info(f"Get profile event: {event}")
         
-        # TODO: Get user ID from JWT token
-        # For now, return dummy user data
+        # Get user ID from token
+        headers = event.get('headers', {})
+        auth_header = (
+            headers.get('Authorization', '') or 
+            headers.get('authorization', '') or
+            headers.get('AUTHORIZATION', '')
+        )
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Unauthorized"
+                }),
+            }
+        
+        token = auth_header[7:]
+        is_valid, payload, error = verify_jwt_token(token)
+        
+        if not is_valid or not payload:
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Invalid or expired token"
+                }),
+            }
+        
+        user_id = payload.get('user_id')
+        
+        # Get DynamoDB table
+        table = get_users_table()
+        
+        # Get user profile
+        user_response = table.get_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": f"PROFILE#{user_id}"
+            }
+        )
+        
+        if "Item" not in user_response:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "User not found"
+                }),
+            }
+        
+        user_data = user_response["Item"]
         
         return {
             "statusCode": 200,
@@ -673,12 +873,12 @@ def get_profile(event, context):
                 "success": True,
                 "message": "Profile retrieved successfully",
                 "data": {
-                    "name": "山田太郎",
-                    "email": "yamada@example.com",
-                    "gender": "male",
-                    "emailNotifications": True
+                    "name": user_data.get("name", ""),
+                    "email": user_data.get("email", ""),
+                    "phone": user_data.get("phone", ""),
+                    "sex": user_data.get("sex", "")
                 }
-            }),
+            }, ensure_ascii=False),
         }
     
     except Exception as e:

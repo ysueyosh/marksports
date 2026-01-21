@@ -123,6 +123,42 @@ functions:
           path: /search-address
           method: post
 
+  # Payment Method Management
+  getPaymentMethods:
+    handler: src.handlers.payment.get_payment_methods
+    events:
+      - httpApi:
+          path: /payment-methods
+          method: get
+
+  addPaymentMethod:
+    handler: src.handlers.payment.add_payment_method
+    events:
+      - httpApi:
+          path: /payment-methods
+          method: post
+
+  deletePaymentMethod:
+    handler: src.handlers.payment.delete_payment_method
+    events:
+      - httpApi:
+          path: /payment-methods/{id}
+          method: delete
+
+  setDefaultPaymentMethod:
+    handler: src.handlers.payment.set_default_payment_method
+    events:
+      - httpApi:
+          path: /payment-methods/{id}/default
+          method: put
+
+  createPayment:
+    handler: src.handlers.payment.create_payment
+    events:
+      - httpApi:
+          path: /payments
+          method: post
+
   health:
     handler: src.app.health_check
     events:

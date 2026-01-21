@@ -34,6 +34,11 @@ export default function RootLayout({
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
         <title>Mark Sports</title>
+        {/* Square Web Payments SDK */}
+        <script
+          async
+          src="https://sandbox.web.squarecdn.com/v1/square.js"
+        ></script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <LoadingProvider>

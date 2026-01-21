@@ -1,14 +1,19 @@
 import { apiClient } from './client';
 
+/**
+ * SavedCard represents a card stored with Square
+ *
+ * id = card_id from Square API (format: "card_xxx")
+ * Never use the nonce (cnon_xxx) for saved cards
+ */
 export interface SavedCard {
-  id: string;
+  id: string; // card_id from Square (card_xxx), NOT sourceId (cnon_xxx)
   lastFourDigits: string;
   cardType: string; // "VISA", "MASTERCARD", "AMEX"
   expiryMonth: number;
   expiryYear: number;
-  cardholderName: string;
   isDefault: boolean;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface GetSavedCardsResponse {
@@ -18,8 +23,18 @@ export interface GetSavedCardsResponse {
 }
 
 export interface AddCardRequest {
-  sourceId: string; // Square Payment Form token
-  cardholderName: string;
+  sourceId: string; // Payment nonce from Square Web Payments SDK (cnon_xxx)
+  cardholderName: string; // ⭐ Cardholder name for card storage
+  verificationToken?: string; // ⭐ From verifyBuyer() for SCA
+  billingAddress?: {
+    givenName?: string;
+    familyName?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    administrativeDistrictLevel1?: string;
+    postalCode?: string;
+    country?: string;
+  };
 }
 
 export interface AddCardResponse {
@@ -52,7 +67,26 @@ export async function getSavedCards(): Promise<GetSavedCardsResponse> {
 export async function addCard(
   cardData: AddCardRequest
 ): Promise<AddCardResponse> {
-  return apiClient.post<AddCardResponse>('/payment-methods', cardData);
+  // ⭐ 診断: cardData の内容をログ出力
+  console.log('[DIAGNOSTIC] addCard called with:', cardData);
+  console.log('[DIAGNOSTIC] sourceId:', cardData.sourceId);
+  console.log('[DIAGNOSTIC] sourceId type:', typeof cardData.sourceId);
+  console.log('[DIAGNOSTIC] sourceId length:', cardData.sourceId?.length);
+  console.log('[DIAGNOSTIC] Full cardData keys:', Object.keys(cardData));
+
+  // ⭐ 重要: sourceId、cardholderName、verificationToken のみをサーバーに送信
+  // brand, last4, expMonth, expYear は一切送らない
+  const cleanData: AddCardRequest = {
+    sourceId: cardData.sourceId,
+    cardholderName: cardData.cardholderName,
+    verificationToken: cardData.verificationToken,
+    billingAddress: cardData.billingAddress,
+  };
+
+  console.log('[DIAGNOSTIC] Cleaned cardData for sending:', cleanData);
+  console.log('[DIAGNOSTIC] Cleaned keys:', Object.keys(cleanData));
+
+  return apiClient.post<AddCardResponse>('/payment-methods', cleanData);
 }
 
 /**

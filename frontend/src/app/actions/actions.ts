@@ -1,6 +1,6 @@
-"use server";
+'use server';
 
-import { randomUUID } from "crypto";
+import { randomUUID } from 'crypto';
 
 export interface PaymentRequest {
   sourceId: string;
@@ -18,60 +18,73 @@ export interface PaymentResponse {
 }
 
 /**
- * テスト用の mock 支払い処理
- * 実装例：https://developer.squareup.com/blog/accept-payments-with-square-using-next-js-app-router/
- * 本番環境では Square Node.js SDK を使用して実装してください
+ * Submit payment to backend API
+ * Backend processes payment with Square API
+ * This function makes a server-to-server call to the backend API
  */
 export async function submitPayment(
-  paymentRequest: PaymentRequest
+  paymentRequest: PaymentRequest,
+  authToken?: string
 ): Promise<PaymentResponse> {
   try {
-    const { sourceId, amount, currency = "JPY", orderId } = paymentRequest;
+    const { sourceId, amount, currency = 'JPY', orderId } = paymentRequest;
 
-    console.log("Mock payment processing:", {
+    console.log('=== submitPayment called ===');
+    console.log('sourceId:', sourceId, '| Type:', typeof sourceId);
+    console.log('amount:', amount);
+    console.log('currency:', currency);
+    console.log('orderId:', orderId);
+    console.log('authToken provided:', !!authToken);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add authorization token if provided
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const apiUrl = `${
+      process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
+    }/payments`;
+
+    const requestBody = JSON.stringify({
       sourceId,
-      amount,
+      amount: Math.round(amount),
       currency,
       orderId,
     });
 
-    // テスト用: 実際の API 呼び出しをシミュレート
-    // 本番環境では以下のように Square SDK で実装
-    /*
-    const { paymentsApi } = new Client({
-      accessToken: process.env.SQUARE_ACCESS_TOKEN,
-      environment: "sandbox",
+    console.log('Request URL:', apiUrl);
+    console.log('Request body:', requestBody);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: requestBody,
     });
 
-    const { result } = await paymentsApi.createPayment({
-      idempotencyKey: randomUUID(),
-      sourceId,
-      amountMoney: {
-        currency,
-        amount: Math.round(amount),
-      },
-      orderId,
-    });
+    console.log('Response status:', response.status);
 
-    return result;
-    */
+    const responseData = await response.json();
+    console.log('Response data:', responseData);
 
-    // Mock レスポンス
-    const mockPaymentId = `SQ_${randomUUID().toUpperCase()}`;
+    if (!response.ok) {
+      const errorData = responseData;
+      throw new Error(
+        errorData.message || errorData.error || 'Payment processing failed'
+      );
+    }
 
-    return {
-      id: mockPaymentId,
-      status: "COMPLETED",
-      receipt_number: `RCP_${Date.now()}`,
-      receipt_url: `/receipt/${mockPaymentId}`,
-      amount_money: {
-        amount,
-        currency,
-      },
-      order_id: orderId,
-    };
+    if (!responseData.success) {
+      throw new Error(responseData.message || 'Payment processing failed');
+    }
+
+    console.log('Payment successful:', responseData.data);
+    return responseData.data;
   } catch (error) {
-    console.error("Payment error:", error);
+    console.error('=== Payment error ===', error);
     throw error;
   }
 }

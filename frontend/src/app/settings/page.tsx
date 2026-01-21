@@ -11,7 +11,6 @@ import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import {
   updateProfile,
   changePassword,
-  updateNotificationSettings,
   deleteAccount,
   getUserProfile,
 } from '@/api/auth';
@@ -19,11 +18,8 @@ import styles from './settings.module.css';
 
 interface ProfileFormData {
   name: string;
-  gender: string;
-}
-
-interface NotificationSettings {
-  emailNotifications: boolean;
+  phone?: string;
+  sex?: string;
 }
 
 type TabType = 'profile' | 'password' | 'other';
@@ -36,30 +32,24 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
-    gender: '',
+    phone: '',
+    sex: '',
   });
-  const [isGenderDropdownOpen, setIsGenderDropdownOpen] = useState(false);
-  const [isEmailEditable, setIsEmailEditable] = useState(false);
-  const [email, setEmail] = useState(user?.email || '');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [notificationSettings, setNotificationSettings] =
-    useState<NotificationSettings>({
-      emailNotifications: true,
-    });
-  const [notificationSwitchChanged, setNotificationSwitchChanged] =
-    useState(false);
+  const [isSexDropdownOpen, setIsSexDropdownOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>(
     {}
   );
 
-  const genderOptions = [
+  const sexOptions = [
     { id: 'male', label: '男性' },
     { id: 'female', label: '女性' },
     { id: 'other', label: 'その他' },
   ];
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // ページ読み込み時にユーザープロフィールを取得
   useEffect(() => {
@@ -70,14 +60,9 @@ export default function SettingsPage() {
           setFormData((prev) => ({
             ...prev,
             name: response.data?.name || prev.name,
-            gender: response.data?.gender || prev.gender,
+            phone: response.data?.phone || prev.phone,
+            sex: response.data?.sex || prev.sex,
           }));
-          setEmail(response.data.email || '');
-          if (response.data.emailNotifications !== undefined) {
-            setNotificationSettings({
-              emailNotifications: response.data.emailNotifications,
-            });
-          }
         }
       } catch (err) {
         console.error('Failed to load profile:', err);
@@ -165,8 +150,8 @@ export default function SettingsPage() {
     try {
       const response = await updateProfile({
         name: formData.name,
-        email: email,
-        gender: formData.gender,
+        phone: formData.phone,
+        sex: formData.sex,
       });
 
       if (response.success) {
@@ -315,54 +300,36 @@ export default function SettingsPage() {
             </div>
 
             <div className={styles.formGroup}>
-              <div className={styles.formLabelWithCheckbox}>
-                <label>メールアドレス</label>
-                <div className={styles.checkboxWrapper}>
-                  <input
-                    type="checkbox"
-                    id="emailEditable"
-                    checked={isEmailEditable}
-                    onChange={(e) => setIsEmailEditable(e.target.checked)}
-                    className={styles.checkbox}
-                  />
-                  <label
-                    htmlFor="emailEditable"
-                    className={styles.checkboxLabel}
-                  >
-                    編集する
-                  </label>
-                </div>
-              </div>
               <TextInput
-                name="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={!isEmailEditable}
-                placeholder="example@example.com"
+                label="電話番号"
+                name="phone"
+                value={formData.phone || ''}
+                onChange={handleInputChange}
+                placeholder="例：09012345678"
               />
             </div>
 
             <div className={styles.formGroup}>
               <label className={styles.label}>性別</label>
               <Dropdown
-                isOpen={isGenderDropdownOpen}
-                onToggle={() => setIsGenderDropdownOpen(!isGenderDropdownOpen)}
-                onClose={() => setIsGenderDropdownOpen(false)}
+                isOpen={isSexDropdownOpen}
+                onToggle={() => setIsSexDropdownOpen(!isSexDropdownOpen)}
+                onClose={() => setIsSexDropdownOpen(false)}
                 buttonText={
-                  genderOptions.find((opt) => opt.id === formData.gender)
-                    ?.label || '選択してください'
+                  sexOptions.find((opt) => opt.id === formData.sex)?.label ||
+                  '選択してください'
                 }
               >
-                {genderOptions.map((option) => (
+                {sexOptions.map((option) => (
                   <div
                     key={option.id}
                     className={styles.dropdownOption}
                     onClick={() => {
                       setFormData((prev) => ({
                         ...prev,
-                        gender: option.id,
+                        sex: option.id,
                       }));
-                      setIsGenderDropdownOpen(false);
+                      setIsSexDropdownOpen(false);
                     }}
                   >
                     <span>{option.label}</span>
@@ -423,41 +390,6 @@ export default function SettingsPage() {
 
         {activeTab === 'other' && (
           <div className={styles.otherSection}>
-            <div className={styles.settingsCard}>
-              <h2 className={styles.cardTitle}>通知設定</h2>
-
-              <div className={styles.settingItem}>
-                <div className={styles.settingInfo}>
-                  <label className={styles.settingLabel}>メール通知</label>
-                  <p className={styles.settingDescription}>
-                    注文やお知らせのメール通知を受け取る
-                  </p>
-                </div>
-                <div className={styles.toggleSwitch}>
-                  <input
-                    type="checkbox"
-                    id="emailNotifications"
-                    checked={notificationSettings.emailNotifications}
-                    onChange={handleNotificationToggle}
-                    className={styles.toggleInput}
-                  />
-                  <label
-                    htmlFor="emailNotifications"
-                    className={styles.toggleLabel}
-                  />
-                </div>
-              </div>
-
-              <button
-                className={styles.submitButton}
-                style={{ marginTop: '16px' }}
-                onClick={handleNotificationUpdate}
-                disabled={!notificationSwitchChanged}
-              >
-                更新する
-              </button>
-            </div>
-
             <div className={styles.settingsCard}>
               <h2 className={styles.cardTitle}>アカウント</h2>
 

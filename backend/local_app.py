@@ -3,6 +3,10 @@ Local Flask app for testing
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Set environment variables for local testing
 os.environ['ADMIN_TABLE_NAME'] = 'Admin'
@@ -17,7 +21,7 @@ from src.handlers.register import register
 from src.handlers.cart import get_cart, add_to_cart, update_cart_item, delete_from_cart, clear_cart
 from src.handlers.address import get_addresses, add_address, update_address, delete_address, set_main_address
 from src.handlers.category import get_categories
-from src.handlers.payment import get_saved_cards, add_card, delete_card, set_default_card
+from src.handlers.payment import get_payment_methods, add_payment_method, delete_payment_method, set_default_payment_method, create_payment
 from src.handlers.product import get_featured_products, get_product_detail, get_related_products, check_product_exists, check_products_exist
 from src.handlers.search import search_products
 from src.handlers.coupon import apply_coupon
@@ -580,7 +584,7 @@ def set_main_address_route(address_id):
 def get_saved_cards_route():
     """Get saved cards endpoint"""
     event = {'headers': dict(request.headers)}
-    result = get_saved_cards(event, None)
+    result = get_payment_methods(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
@@ -589,7 +593,7 @@ def get_saved_cards_route():
 def add_card_route():
     """Add new card endpoint"""
     event = {'body': request.data.decode(), 'headers': dict(request.headers)}
-    result = add_card(event, None)
+    result = add_payment_method(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
@@ -598,7 +602,7 @@ def add_card_route():
 def delete_card_route(card_id):
     """Delete card endpoint"""
     event = {'pathParameters': {'id': card_id}, 'headers': dict(request.headers)}
-    result = delete_card(event, None)
+    result = delete_payment_method(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
@@ -607,7 +611,16 @@ def delete_card_route(card_id):
 def set_default_card_route(card_id):
     """Set card as default endpoint"""
     event = {'pathParameters': {'id': card_id}, 'headers': dict(request.headers)}
-    result = set_default_card(event, None)
+    result = set_default_payment_method(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/payments', methods=['POST'])
+def create_payment_route():
+    """Create payment endpoint"""
+    event = {'body': request.data.decode(), 'headers': dict(request.headers)}
+    result = create_payment(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
@@ -859,6 +872,8 @@ if __name__ == '__main__':
     print("    POST   /payment-methods")
     print("    DELETE /payment-methods/<card_id>")
     print("    PUT    /payment-methods/<card_id>/default")
+    print("    POST   /payments")
+
     
     # Category endpoints
     print("\n  🏷️  CATEGORIES")

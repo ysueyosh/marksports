@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
@@ -9,12 +8,7 @@ import styles from './account.module.css';
 
 export default function AccountPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const { isLoggedIn, user, logout } = useAuth();
-
-  useEffect(() => {
-    // ページ遷移時の処理
-  }, [pathname]);
 
   const handleLogout = () => {
     logout();
@@ -49,26 +43,6 @@ export default function AccountPage() {
         <h1 className={styles.title}>アカウント</h1>
 
         <div className={styles.profileSection}>
-          <div className={styles.profileCard}>
-            <div className={styles.profileHeader}>
-              <h2>プロフィール</h2>
-            </div>
-            <div className={styles.profileInfo}>
-              <div className={styles.infoRow}>
-                <span className={styles.label}>お名前</span>
-                <span className={styles.value}>{user.name}</span>
-              </div>
-              <div className={styles.infoRow}>
-                <span className={styles.label}>メール</span>
-                <span className={styles.value}>{user.email}</span>
-              </div>
-              <div className={styles.infoRow}>
-                <span className={styles.label}>住所</span>
-                <span className={styles.value}>{user.address || '未登録'}</span>
-              </div>
-            </div>
-          </div>
-
           <div className={styles.menuCard}>
             <h2>メニュー</h2>
             <ul className={styles.menuList}>

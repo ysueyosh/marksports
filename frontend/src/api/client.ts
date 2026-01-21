@@ -108,6 +108,138 @@ export async function apiRequest<T>(
       headers,
     });
 
+    // ⭐ 401 Unauthorized の場合、リフレッシュトークンで再試行
+    if (response.status === 401) {
+      console.warn(
+        '[TOKEN_REFRESH] Access token expired, attempting to refresh...'
+      );
+
+      // リフレッシュトークンを取得
+      let refreshToken: string | null = null;
+
+      if (typeof window !== 'undefined') {
+        const authTokensStr = localStorage.getItem('authTokens');
+        if (authTokensStr) {
+          try {
+            const authTokens = JSON.parse(authTokensStr);
+            refreshToken = authTokens.refreshToken;
+          } catch (e) {
+            console.error('Failed to parse authTokens:', e);
+          }
+        }
+      }
+
+      // リフレッシュトークンで新しいアクセストークンを取得
+      if (refreshToken) {
+        try {
+          const refreshResponse = await fetch(
+            `${API_CONFIG.baseURL}/verify-token`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                access_token: headers['Authorization']?.replace('Bearer ', ''),
+                refresh_token: refreshToken,
+              }),
+            }
+          );
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+
+            if (refreshData.accessToken) {
+              console.log(
+                '[TOKEN_REFRESH] New access token obtained, retrying request...'
+              );
+
+              // localStorage に新しいアクセストークンを保存
+              if (typeof window !== 'undefined') {
+                const authTokensStr = localStorage.getItem('authTokens');
+                if (authTokensStr) {
+                  try {
+                    const authTokens = JSON.parse(authTokensStr);
+                    authTokens.accessToken = refreshData.accessToken;
+                    localStorage.setItem(
+                      'authTokens',
+                      JSON.stringify(authTokens)
+                    );
+                  } catch (e) {
+                    console.error('Failed to update authTokens:', e);
+                  }
+                }
+              }
+
+              // 元のリクエストを再試行（新しいアクセストークンで）
+              headers['Authorization'] = `Bearer ${refreshData.accessToken}`;
+
+              const retryResponse = await fetch(url, {
+                ...options,
+                headers,
+              });
+
+              if (!retryResponse.ok) {
+                console.error(
+                  `API Response Error (after refresh): ${retryResponse.status} ${retryResponse.statusText}`,
+                  retryResponse
+                );
+                try {
+                  const errorData: T = await retryResponse.json();
+                  return errorData;
+                } catch (e) {
+                  return {
+                    success: false,
+                    message: `API Error: ${retryResponse.status} ${retryResponse.statusText}`,
+                  } as T;
+                }
+              }
+
+              const data: T = await retryResponse.json();
+              return data;
+            }
+          } else {
+            console.warn(
+              '[TOKEN_REFRESH] Token refresh failed, redirecting to login'
+            );
+            // リフレッシュ失敗 → ログイン画面へ
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('authTokens');
+              window.location.href = '/login';
+            }
+          }
+        } catch (refreshError) {
+          console.error(
+            '[TOKEN_REFRESH] Error during token refresh:',
+            refreshError
+          );
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('authTokens');
+            window.location.href = '/login';
+          }
+        }
+      } else {
+        console.warn(
+          '[TOKEN_REFRESH] No refresh token available, redirecting to login'
+        );
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('authTokens');
+          window.location.href = '/login';
+        }
+      }
+
+      // リフレッシュに失敗した場合のエラーレスポンス
+      try {
+        const errorData: T = await response.json();
+        return errorData;
+      } catch (e) {
+        return {
+          success: false,
+          message: 'Session expired. Please log in again.',
+        } as T;
+      }
+    }
+
     if (!response.ok) {
       console.error(
         `API Response Error: ${response.status} ${response.statusText}`,

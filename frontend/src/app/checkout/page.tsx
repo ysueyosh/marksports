@@ -20,6 +20,7 @@ import {
   addAddress,
   AddressItem,
 } from '@/api/address';
+import { getSavedCards, SavedCard } from '@/api/payment';
 import TextInput from '@/components/Input/TextInput';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import styles from './checkout.module.css';
@@ -59,10 +60,12 @@ export default function CheckoutPage() {
   });
   const [isPrefectureDropdownOpenInModal, setIsPrefectureDropdownOpenInModal] =
     useState(false);
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [isLoadingCards, setIsLoadingCards] = useState(false);
+  const [cardsLoadError, setCardsLoadError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    name: '',
     email: '',
     phone: '',
     postalCode: '',
@@ -120,18 +123,12 @@ export default function CheckoutPage() {
   // ログイン状態で情報を自動入力
   useEffect(() => {
     if (isLoggedIn && user) {
-      // 名前のフルネームを分割（簡易版：スペースで分割、またはデータがあればそれを使用）
-      const firstName =
-        user.shippingAddress?.firstName ||
-        (user.name ? user.name.split(' ')[0] : '');
-      const lastName =
-        user.shippingAddress?.lastName ||
-        (user.name ? user.name.split(' ').slice(1).join(' ') : '');
+      // 統一された名前フィールドを使用
+      const name = user.shippingAddress?.name || user.name || '';
 
       setFormData((prev) => ({
         ...prev,
-        firstName: firstName,
-        lastName: lastName,
+        name: name,
         email: user.email || '',
         phone: user.shippingAddress?.phone || user.phone || '',
         postalCode: user.shippingAddress?.postalCode || '',
@@ -174,6 +171,37 @@ export default function CheckoutPage() {
       setSelectedPaymentMethodId('new_card');
     }
   }, [isLoggedIn]);
+
+  // クレジットカード選択時にAPIで保存済みカードを取得
+  useEffect(() => {
+    const loadSavedCards = async () => {
+      if (paymentMode === 'credit_card' && isLoggedIn) {
+        setIsLoadingCards(true);
+        setCardsLoadError(null);
+        try {
+          const response = await getSavedCards();
+          if (response.success && response.data) {
+            setSavedCards(response.data);
+            // デフォルトカード（isDefault: true）を探す
+            const defaultCard = response.data.find((card) => card.isDefault);
+            if (defaultCard) {
+              setSelectedPaymentMethodId(defaultCard.id);
+            } else if (response.data.length > 0) {
+              // デフォルトカードがない場合は最初のカードを選択
+              setSelectedPaymentMethodId(response.data[0].id);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load saved cards:', error);
+          setCardsLoadError('保存済みカードの読み込みに失敗しました');
+        } finally {
+          setIsLoadingCards(false);
+        }
+      }
+    };
+
+    loadSavedCards();
+  }, [paymentMode, isLoggedIn]);
 
   // 日本語都道府県名から英語キーへのマッピング
   const prefectureMap: { [key: string]: string } = {
@@ -462,8 +490,7 @@ export default function CheckoutPage() {
     const errors: Record<string, string> = {};
 
     // Always validate basic contact info
-    if (!formData.firstName) errors.firstName = '姓を入力してください';
-    if (!formData.lastName) errors.lastName = '名を入力してください';
+    if (!formData.name) errors.name = 'お名前を入力してください';
     if (!formData.email) errors.email = 'メールアドレスを入力してください';
     if (!formData.phone) errors.phone = '電話番号を入力してください';
 
@@ -516,6 +543,8 @@ export default function CheckoutPage() {
     try {
       let paymentSourceId: string;
 
+      console.log('handlePayment called with sourceId:', sourceId);
+
       // 支払い方法ごとの処理
       switch (paymentMode) {
         case 'credit_card':
@@ -525,6 +554,23 @@ export default function CheckoutPage() {
             return;
           }
           paymentSourceId = sourceId;
+          console.log('Credit card sourceId:', paymentSourceId);
+
+          // ⭐ カード保存処理（ログイン済みかつ checkbox がオンの場合）
+          if (isLoggedIn && savePaymentMethod) {
+            try {
+              console.log('Saving card with sourceId:', sourceId);
+              // ⭐ sourceId のみを送信 - 他のデータを含めない
+              await addCard({
+                sourceId: sourceId,
+              });
+              setSavePaymentMethod(false);
+              console.log('Card saved successfully');
+            } catch (error) {
+              console.error('Failed to save card:', error);
+              // カード保存失敗は決済を続行
+            }
+          }
           break;
 
         case 'bank_transfer':
@@ -534,12 +580,14 @@ export default function CheckoutPage() {
 
         case 'apple_pay':
           // Apple Pay のトークン取得処理
-          paymentSourceId = `apple_pay_${Date.now()}`;
+          paymentSourceId = sourceId || `apple_pay_${Date.now()}`;
+          console.log('Apple Pay sourceId:', paymentSourceId);
           break;
 
         case 'google_pay':
           // Google Pay のトークン取得処理
-          paymentSourceId = `google_pay_${Date.now()}`;
+          paymentSourceId = sourceId || `google_pay_${Date.now()}`;
+          console.log('Google Pay sourceId:', paymentSourceId);
           break;
 
         default:
@@ -548,12 +596,38 @@ export default function CheckoutPage() {
           return;
       }
 
-      const result = await submitPayment({
+      // Get auth token from localStorage
+      let authToken: string | undefined;
+      if (typeof window !== 'undefined') {
+        const authTokensStr = localStorage.getItem('authTokens');
+        if (authTokensStr) {
+          try {
+            const authTokens = JSON.parse(authTokensStr);
+            authToken = authTokens.accessToken;
+          } catch (e) {
+            console.warn('Failed to parse authTokens from localStorage');
+          }
+        }
+      }
+
+      console.log('Submitting payment with:', {
         sourceId: paymentSourceId,
         amount: priceInfo.total,
         currency: 'JPY',
         orderId: `ORDER_${Date.now()}`,
       });
+
+      const result = await submitPayment(
+        {
+          sourceId: paymentSourceId,
+          amount: priceInfo.total,
+          currency: 'JPY',
+          orderId: `ORDER_${Date.now()}`,
+        },
+        authToken
+      );
+
+      console.log('Payment result:', result);
 
       if (result && result.id) {
         clearCart();
@@ -654,30 +728,17 @@ export default function CheckoutPage() {
                     <legend className={styles.legend}>配送先情報</legend>
 
                     {/* Always show: Name, Email, Phone */}
-                    <div className={styles.formRow}>
-                      <TextInput
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        placeholder="山田"
-                        label="姓"
-                        inputType="text"
-                        required
-                        error={fieldErrors.firstName}
-                        containerStyle={{ marginBottom: '16px' }}
-                      />
-                      <TextInput
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        placeholder="太郎"
-                        label="名"
-                        inputType="text"
-                        required
-                        error={fieldErrors.lastName}
-                        containerStyle={{ marginBottom: '16px' }}
-                      />
-                    </div>
+                    <TextInput
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="例：山田 太郎"
+                      label="お名前"
+                      inputType="text"
+                      required
+                      error={fieldErrors.name}
+                      containerStyle={{ marginBottom: '16px' }}
+                    />
 
                     <TextInput
                       name="email"
@@ -1425,9 +1486,7 @@ export default function CheckoutPage() {
                           lineHeight: '1.8',
                         }}
                       >
-                        <p>
-                          {formData.firstName} {formData.lastName}
-                        </p>
+                        <p>{formData.name}</p>
                         {/* Display selected saved address for logged-in users */}
                         {isLoggedIn &&
                         selectedAddressId &&
@@ -1770,9 +1829,63 @@ export default function CheckoutPage() {
                         applicationId="sandbox-sq0idb-dJ_V4eIHsIfJGNqmHjQvMA"
                         locationId="LP30F7K9QGGXC"
                         cardTokenizeResponseReceived={async (token: any) => {
+                          console.log(
+                            '[DEBUG] Full token object:',
+                            JSON.stringify(token, null, 2)
+                          );
+                          console.log('[DEBUG] token.token:', token.token);
+                          console.log(
+                            '[DEBUG] token.token type:',
+                            typeof token.token
+                          );
+                          console.log('[DEBUG] token.status:', token.status);
+
+                          // ⭐ token の全キーを確認
+                          console.log(
+                            '[DEBUG] All token keys:',
+                            Object.keys(token)
+                          );
+
+                          // token.token が本当に nonce か確認
+                          if (token.token) {
+                            console.log(
+                              '[DEBUG] token.token length:',
+                              token.token.length
+                            );
+                            console.log(
+                              '[DEBUG] token.token starts with cnon:',
+                              token.token.toString().startsWith('cnon')
+                            );
+                          }
+
                           if (token.status === 'OK') {
-                            await handlePayment(token.token);
+                            // ⭐ 重要: sourceId のみを抽出
+                            const sourceId = token.token;
+                            console.log(
+                              '[DEBUG] Extracted sourceId:',
+                              sourceId
+                            );
+
+                            if (
+                              !sourceId ||
+                              !sourceId.toString().startsWith('cnon')
+                            ) {
+                              console.error(
+                                '[ERROR] Invalid sourceId format:',
+                                sourceId
+                              );
+                              console.error(
+                                '[ERROR] sourceId is:',
+                                typeof sourceId,
+                                sourceId
+                              );
+                              setPaymentError('Invalid card token format');
+                              return;
+                            }
+
+                            await handlePayment(sourceId);
                           } else {
+                            console.error('Token Error:', token.errors);
                             setPaymentError(
                               token.errors?.[0]?.message ||
                                 'トークン生成中にエラーが発生しました'
@@ -1788,66 +1901,147 @@ export default function CheckoutPage() {
                           {/* Saved Cards Section - Only for logged in users */}
                           {isLoggedIn && (
                             <div style={{ marginBottom: '20px' }}>
-                              <h5
-                                style={{
-                                  marginBottom: '10px',
-                                  fontSize: '14px',
-                                }}
-                              >
-                                保存済みカードから選択
-                              </h5>
-                              <div
+                              {/* Loading State */}
+                              {isLoadingCards && (
+                                <div
+                                  style={{ padding: '10px', color: '#6b7280' }}
+                                >
+                                  カードを読み込み中...
+                                </div>
+                              )}
+
+                              {/* Error State */}
+                              {cardsLoadError && (
+                                <div
+                                  style={{
+                                    padding: '10px',
+                                    color: '#dc2626',
+                                    fontSize: '14px',
+                                  }}
+                                >
+                                  {cardsLoadError}
+                                </div>
+                              )}
+
+                              {/* Saved Cards List */}
+                              {!isLoadingCards && savedCards.length > 0 && (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '10px',
+                                    marginBottom: '15px',
+                                  }}
+                                >
+                                  {savedCards.map((card) => (
+                                    <label
+                                      key={card.id}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        padding: '8px',
+                                        backgroundColor:
+                                          selectedPaymentMethodId === card.id
+                                            ? '#f0f9ff'
+                                            : 'transparent',
+                                        borderRadius: '4px',
+                                        border:
+                                          selectedPaymentMethodId === card.id
+                                            ? '1px solid #0284c7'
+                                            : '1px solid #e5e7eb',
+                                      }}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name="saved_card"
+                                        value={card.id}
+                                        checked={
+                                          selectedPaymentMethodId === card.id
+                                        }
+                                        onChange={(e) =>
+                                          setSelectedPaymentMethodId(
+                                            e.target.value
+                                          )
+                                        }
+                                        style={{ marginRight: '10px' }}
+                                      />
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '12px',
+                                        }}
+                                      >
+                                        <span>
+                                          •••• •••• •••• {card.lastFourDigits} (
+                                          {card.cardType})
+                                        </span>
+                                        <span
+                                          style={{
+                                            fontSize: '13px',
+                                            color: '#9ca3af',
+                                          }}
+                                        >
+                                          有効期限:{' '}
+                                          {String(card.expiryMonth).padStart(
+                                            2,
+                                            '0'
+                                          )}
+                                          /{String(card.expiryYear).slice(-2)}
+                                        </span>
+                                        {card.isDefault && (
+                                          <span
+                                            style={{
+                                              fontSize: '11px',
+                                              padding: '2px 6px',
+                                              backgroundColor: '#dbeafe',
+                                              color: '#0284c7',
+                                              borderRadius: '3px',
+                                              fontWeight: '500',
+                                            }}
+                                          >
+                                            メインカード
+                                          </span>
+                                        )}
+                                      </div>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* "New Card" Option */}
+                              <label
                                 style={{
                                   display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '10px',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  padding: '8px',
+                                  backgroundColor:
+                                    selectedPaymentMethodId === 'new_card'
+                                      ? '#f0f9ff'
+                                      : 'transparent',
+                                  borderRadius: '4px',
+                                  border:
+                                    selectedPaymentMethodId === 'new_card'
+                                      ? '1px solid #0284c7'
+                                      : '1px solid #e5e7eb',
                                 }}
                               >
-                                <label
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="saved_card"
-                                    value="sandbox_4111"
-                                    checked={
-                                      selectedPaymentMethodId === 'sandbox_4111'
-                                    }
-                                    onChange={(e) =>
-                                      setSelectedPaymentMethodId(e.target.value)
-                                    }
-                                    style={{ marginRight: '10px' }}
-                                  />
-                                  <span>
-                                    •••• •••• •••• 1111 (Sandbox Test Card)
-                                  </span>
-                                </label>
-                                <label
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    cursor: 'pointer',
-                                  }}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="saved_card"
-                                    value="new_card"
-                                    checked={
-                                      selectedPaymentMethodId === 'new_card'
-                                    }
-                                    onChange={(e) =>
-                                      setSelectedPaymentMethodId(e.target.value)
-                                    }
-                                    style={{ marginRight: '10px' }}
-                                  />
-                                  <span>新しいカードを追加</span>
-                                </label>
-                              </div>
+                                <input
+                                  type="radio"
+                                  name="saved_card"
+                                  value="new_card"
+                                  checked={
+                                    selectedPaymentMethodId === 'new_card'
+                                  }
+                                  onChange={(e) =>
+                                    setSelectedPaymentMethodId(e.target.value)
+                                  }
+                                  style={{ marginRight: '10px' }}
+                                />
+                                <span>新しいカードを追加</span>
+                              </label>
                             </div>
                           )}
 
@@ -1912,28 +2106,82 @@ export default function CheckoutPage() {
 
                           {/* Saved Card Info - Only for logged in users */}
                           {isLoggedIn &&
-                            selectedPaymentMethodId === 'sandbox_4111' && (
-                              <div
-                                style={{
-                                  padding: '15px',
-                                  backgroundColor: '#f3f4f6',
-                                  borderRadius: '4px',
-                                  marginBottom: '20px',
-                                  fontSize: '14px',
-                                }}
-                              >
-                                <p style={{ marginBottom: '8px' }}>
-                                  <strong>カード番号:</strong> •••• •••• ••••
-                                  1111
-                                </p>
-                                <p style={{ marginBottom: '8px' }}>
-                                  <strong>カード所有者:</strong> Test User
-                                </p>
-                                <p>
-                                  <strong>有効期限:</strong> 12/25
-                                </p>
-                              </div>
-                            )}
+                            selectedPaymentMethodId &&
+                            selectedPaymentMethodId !== 'new_card' &&
+                            savedCards.find(
+                              (card) => card.id === selectedPaymentMethodId
+                            ) &&
+                            (() => {
+                              const selectedCard = savedCards.find(
+                                (card) => card.id === selectedPaymentMethodId
+                              );
+                              if (!selectedCard) return null;
+
+                              return (
+                                <div
+                                  style={{
+                                    padding: '15px',
+                                    backgroundColor: '#f3f4f6',
+                                    borderRadius: '4px',
+                                    marginBottom: '20px',
+                                    fontSize: '14px',
+                                  }}
+                                >
+                                  <p style={{ marginBottom: '8px' }}>
+                                    <strong>カード番号:</strong> •••• •••• ••••{' '}
+                                    {selectedCard.lastFourDigits}
+                                  </p>
+                                  <p style={{ marginBottom: '8px' }}>
+                                    <strong>カードタイプ:</strong>{' '}
+                                    {selectedCard.cardType}
+                                  </p>
+                                  <p>
+                                    <strong>有効期限:</strong>{' '}
+                                    {String(selectedCard.expiryMonth).padStart(
+                                      2,
+                                      '0'
+                                    )}
+                                    /{String(selectedCard.expiryYear).slice(-2)}
+                                  </p>
+                                  {selectedCard.isDefault && (
+                                    <p
+                                      style={{
+                                        marginTop: '8px',
+                                        color: '#0284c7',
+                                        fontWeight: 'bold',
+                                      }}
+                                    >
+                                      ★ メインカード
+                                    </p>
+                                  )}
+                                  {/* Payment Button for Saved Card */}
+                                  <button
+                                    onClick={() =>
+                                      handlePayment(selectedCard.id)
+                                    }
+                                    disabled={isProcessing}
+                                    style={{
+                                      marginTop: '15px',
+                                      width: '100%',
+                                      padding: '12px',
+                                      backgroundColor: isProcessing
+                                        ? '#9ca3af'
+                                        : '#2563eb',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      cursor: isProcessing
+                                        ? 'not-allowed'
+                                        : 'pointer',
+                                      fontSize: '16px',
+                                      fontWeight: '600',
+                                    }}
+                                  >
+                                    {isProcessing ? '処理中...' : '購入する'}
+                                  </button>
+                                </div>
+                              );
+                            })()}
                         </div>
                       </PaymentForm>
                     )}
@@ -2021,9 +2269,15 @@ export default function CheckoutPage() {
                             },
                           })}
                           cardTokenizeResponseReceived={async (token: any) => {
+                            console.log('Apple Pay Token Response:', token);
+                            console.log('Apple Pay Token Value:', token.token);
                             if (token.status === 'OK') {
                               await handlePayment(token.token);
                             } else {
+                              console.error(
+                                'Apple Pay Token Error:',
+                                token.errors
+                              );
                               setPaymentError(
                                 token.errors?.[0]?.message ||
                                   'トークン生成中にエラーが発生しました'
@@ -2081,9 +2335,15 @@ export default function CheckoutPage() {
                             },
                           })}
                           cardTokenizeResponseReceived={async (token: any) => {
+                            console.log('Google Pay Token Response:', token);
+                            console.log('Google Pay Token Value:', token.token);
                             if (token.status === 'OK') {
                               await handlePayment(token.token);
                             } else {
+                              console.error(
+                                'Google Pay Token Error:',
+                                token.errors
+                              );
                               setPaymentError(
                                 token.errors?.[0]?.message ||
                                   'トークン生成中にエラーが発生しました'

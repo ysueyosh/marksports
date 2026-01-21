@@ -110,6 +110,7 @@ def register(event, context):
             'phone': register_request.phone or '',
             'sex': register_request.sex or '',
             'status': 'active',
+            'squareCustomerId': None,  # Will be populated when user adds first card
             'createdAt': now,
             'updatedAt': now,
         }

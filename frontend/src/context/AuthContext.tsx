@@ -6,8 +6,7 @@ import { useSnackbar } from '@/context/SnackbarContext';
 import { verifyToken, refreshToken } from '@/api/token';
 
 interface ShippingAddress {
-  firstName: string;
-  lastName: string;
+  name: string;
   phone: string;
   postalCode: string;
   prefecture: string;
@@ -51,26 +50,15 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     if (email && password) {
       const userData: User = {
         id: '1',
-        name: 'ユーザー太郎',
+        name: email,
         email: email,
-        // ダミーの配送先情報
-        shippingAddress: {
-          firstName: '太郎',
-          lastName: '山田',
-          phone: '090-1234-5678',
-          postalCode: '100-0005',
-          prefecture: 'tokyo',
-          address: '丸の内1-1-1',
-          building: 'マークスポーツビル 4階',
-        },
       };
       set({
         isLoggedIn: true,
         user: userData,
       });
-      // ローカルストレージに保存
+      // トークンなしでログイン（authTokens のみ保存）
       if (typeof window !== 'undefined') {
-        localStorage.setItem('authUser', JSON.stringify(userData));
         localStorage.setItem('isLoggedIn', 'true');
       }
     }
@@ -99,9 +87,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       tokens: tokens,
     });
 
-    // ローカルストレージに保存
+    // ローカルストレージには authTokens のみ保存（authUser は保存しない）
     if (typeof window !== 'undefined') {
-      localStorage.setItem('authUser', JSON.stringify(user));
       localStorage.setItem('authTokens', JSON.stringify(tokens));
       localStorage.setItem('isLoggedIn', 'true');
     }
@@ -110,31 +97,26 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     set({ isLoggedIn: false, user: null, tokens: null });
     // ローカルストレージから削除
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('authUser');
       localStorage.removeItem('authTokens');
       localStorage.removeItem('isLoggedIn');
     }
   },
   restoreFromLocalStorage: () => {
     if (typeof window !== 'undefined') {
-      const savedUser = localStorage.getItem('authUser');
       const savedTokens = localStorage.getItem('authTokens');
-      const isLoggedIn = localStorage.getItem('isLoggedIn');
-      if (savedUser && isLoggedIn === 'true') {
+      // authTokens のみを復元（authUser は復元しない）
+      if (savedTokens) {
         try {
-          const userData = JSON.parse(savedUser);
-          let tokens = null;
-          if (savedTokens) {
-            tokens = JSON.parse(savedTokens);
-          }
+          const tokens = JSON.parse(savedTokens);
+          // トークンのみをストアに保存（ユーザー情報はバックエンドから取得）
           set({
-            isLoggedIn: true,
-            user: userData,
             tokens: tokens,
           });
         } catch (error) {
-          console.error('Failed to restore auth from localStorage:', error);
-          localStorage.removeItem('authUser');
+          console.error(
+            'Failed to restore authTokens from localStorage:',
+            error
+          );
           localStorage.removeItem('authTokens');
           localStorage.removeItem('isLoggedIn');
         }
@@ -166,9 +148,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       tokens: tokens,
     });
 
-    // ローカルストレージに保存
+    // ローカルストレージには authTokens のみ保存（authUser は保存しない）
     if (typeof window !== 'undefined') {
-      localStorage.setItem('authUser', JSON.stringify(userData));
       localStorage.setItem('authTokens', JSON.stringify(tokens));
       localStorage.setItem('isLoggedIn', 'true');
     }
@@ -206,14 +187,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
               if (response.success && response.data) {
                 // ユーザー情報を取得してログイン状態を復元
+                // setUserWithTokens で自動ログイン後の処理を統一
+                const updatedTokens: AuthTokens = {
+                  ...parsedTokens,
+                  accessToken:
+                    response.data.accessToken || parsedTokens.accessToken,
+                  expiresIn:
+                    response.data.expiresIn || ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                  expiresAt:
+                    Date.now() +
+                    (response.data.expiresIn ||
+                      ACCESS_TOKEN_EXPIRE_MINUTES * 60) *
+                      1000,
+                };
+
                 const userData = {
                   id: response.data.id,
-                  name: response.data.name,
                   email: response.data.email,
+                  name: response.data.name || '',
                   phone: response.data.phone,
                   address: response.data.address,
                 };
-                setUserWithTokens(userData, parsedTokens);
+                setUserWithTokens(userData, updatedTokens);
               } else {
                 // トークン検証失敗 → ログアウト
                 console.warn('Token verification failed:', response.message);
@@ -239,10 +234,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 if (verifyResponse.success && verifyResponse.data) {
                   // ユーザー情報を取得してログイン状態を復元
+                  // setUserWithTokens で自動ログイン後の処理を統一
                   const userData = {
                     id: verifyResponse.data.id,
-                    name: verifyResponse.data.name,
                     email: verifyResponse.data.email,
+                    name: verifyResponse.data.name || '',
                     phone: verifyResponse.data.phone,
                     address: verifyResponse.data.address,
                   };

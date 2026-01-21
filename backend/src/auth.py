@@ -496,9 +496,6 @@ def login(event, context):
             data={
                 "id": user_id,
                 "email": login_request.email,
-                "name": "山田太郎",
-                "phone": "090-1234-5678",
-                "address": "東京都渋谷区1-2-3",
                 "accessToken": access_token,
                 "refreshToken": refresh_token,
                 "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -640,16 +637,39 @@ def verify_access_token(event, context):
             logger.warning(f"Invalid access token: {error_msg}")
             return create_api_response(401, False, "Invalid or expired token")
 
+        user_id = payload['user_id']
+        email = payload['email']
+
+        # Fetch user profile from DynamoDB
+        user_info = {
+            "id": user_id,
+            "email": email,
+            "accessToken": verify_request.access_token,
+            "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+
+        if user_table:
+            try:
+                user_response = user_table.get_item(
+                    Key={
+                        'PK': f'USER#{user_id}',
+                        'SK': f'PROFILE#{user_id}'
+                    }
+                )
+                
+                if 'Item' in user_response:
+                    item = user_response['Item']
+                    user_info['name'] = item.get('name', '')
+                    user_info['phone'] = item.get('phone')
+                    user_info['sex'] = item.get('sex')
+                    user_info['address'] = item.get('address')
+            except Exception as db_error:
+                logger.warning(f"Failed to fetch user profile from DynamoDB: {str(db_error)}")
+
         response = VerifyTokenResponse(
             success=True,
             message="Token verified successfully",
-            data={
-                "id": payload['user_id'],
-                "email": payload['email'],
-                "name": "山田太郎",
-                "phone": "090-1234-5678",
-                "address": "東京都渋谷区1-2-3"
-            }
+            data=user_info
         )
 
         return create_api_response(200, response.success, response.message, response.data)
@@ -838,10 +858,10 @@ def get_profile(event, context):
             200, True,
             "Profile retrieved successfully",
             {
-                "name": "山田太郎",
-                "email": "yamada@example.com",
-                "gender": "male",
-                "emailNotifications": True
+                "name": None,
+                "email": None,
+                "phone": None,
+                "sex": None
             }
         )
 
