@@ -100,6 +100,7 @@ def search_address_by_postal_code(postal_code: str) -> AddressSearchResponse:
 def get_user_id_from_token(event):
     """
     Extract user_id from JWT token in Authorization header
+    Validates that the token is for a regular user (not admin)
     
     Returns: user_id or None if not authenticated
     """
@@ -124,6 +125,12 @@ def get_user_id_from_token(event):
     
     if not is_valid or not payload:
         logger.warning(f"Token verification failed: {error}")
+        return None
+    
+    # Check user_type - must be 'user' not 'admin'
+    user_type = payload.get('user_type', 'user')
+    if user_type != 'user':
+        logger.warning(f"Invalid user_type: {user_type}. Expected 'user' but got '{user_type}'")
         return None
     
     user_id = payload.get('user_id')

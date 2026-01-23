@@ -70,33 +70,44 @@ export async function apiRequest<T>(
     // Only add Authorization header if not already present
     if (typeof window !== 'undefined' && !headers['Authorization']) {
       try {
-        // Try to get admin tokens first (for admin pages)
-        const adminTokensStr = localStorage.getItem('adminTokens');
-        if (adminTokensStr) {
-          try {
-            const adminTokens = JSON.parse(adminTokensStr);
-            if (adminTokens.accessToken) {
-              headers['Authorization'] = `Bearer ${adminTokens.accessToken}`;
-            }
-          } catch {
-            // adminTokens is not valid JSON, try regular auth tokens
-            const authTokensStr = localStorage.getItem('authTokens');
-            if (authTokensStr) {
-              const authTokens = JSON.parse(authTokensStr);
-              if (authTokens.accessToken) {
-                headers['Authorization'] = `Bearer ${authTokens.accessToken}`;
+        // Determine which token to use based on endpoint
+        // Admin endpoints should use adminTokens
+        // User endpoints should use authTokens only
+        const isAdminEndpoint = endpoint.includes('/admin');
+
+        let selectedToken: string | null = null;
+
+        if (isAdminEndpoint) {
+          // For admin endpoints, try admin tokens first
+          const adminTokensStr = localStorage.getItem('adminTokens');
+          if (adminTokensStr) {
+            try {
+              const adminTokens = JSON.parse(adminTokensStr);
+              if (adminTokens.accessToken) {
+                selectedToken = adminTokens.accessToken;
               }
+            } catch {
+              // adminTokens is not valid JSON
             }
           }
         } else {
-          // No admin tokens, try regular auth tokens
+          // For user endpoints, ONLY use authTokens (regular user tokens)
+          // This prevents admin tokens from being used for user APIs
           const authTokensStr = localStorage.getItem('authTokens');
           if (authTokensStr) {
-            const authTokens = JSON.parse(authTokensStr);
-            if (authTokens.accessToken) {
-              headers['Authorization'] = `Bearer ${authTokens.accessToken}`;
+            try {
+              const authTokens = JSON.parse(authTokensStr);
+              if (authTokens.accessToken) {
+                selectedToken = authTokens.accessToken;
+              }
+            } catch {
+              // authTokens is not valid JSON
             }
           }
+        }
+
+        if (selectedToken) {
+          headers['Authorization'] = `Bearer ${selectedToken}`;
         }
       } catch (error) {
         console.error('Failed to read auth tokens:', error);

@@ -240,7 +240,7 @@ export default function AdminOrderDetailPage() {
                   ¥{item.unitPrice ? item.unitPrice.toLocaleString() : '0'}
                 </div>
                 <div className={styles.itemSubtotal}>
-                  ¥{item.totalPrice ? item.totalPrice.toLocaleString() : '0'}
+                  ¥{item.totalAmount ? item.totalAmount.toLocaleString() : '0'}
                 </div>
               </div>
             ))}

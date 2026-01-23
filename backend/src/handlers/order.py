@@ -52,9 +52,10 @@ def safe_amount_conversion(value, default=0):
 def extract_user_id_from_token(event):
     """
     Extract user_id from JWT token in Authorization header
+    Validates that the token is for a regular user (not admin)
 
     Returns:
-        user_id if valid token found, None otherwise
+        user_id if valid user token found, None otherwise
     """
     headers = event.get('headers', {})
 
@@ -79,6 +80,12 @@ def extract_user_id_from_token(event):
         return None
 
     logger.info(f"JWT payload: {payload}")  # Added logging for debugging
+
+    # Check user_type - must be 'user' not 'admin'
+    user_type = payload.get('user_type', 'user')
+    if user_type != 'user':
+        logger.warning(f"Invalid user_type: {user_type}. Expected 'user' but got '{user_type}'")
+        return None
 
     user_id = payload.get('user_id')
     if not user_id:
@@ -157,7 +164,7 @@ def get_orders(event, context):
                     "productName": order_item.get('productName', 'Unknown Product'),
                     "quantity": safe_amount_conversion(order_item.get('quantity', 0), 0),
                     "unitPrice": safe_amount_conversion(order_item.get('amount') or order_item.get('unitPrice', 0), 0),
-                    "totalPrice": safe_amount_conversion(order_item.get('totalAmount', 0), 0),
+                    "totalAmount": safe_amount_conversion(order_item.get('totalAmount', 0), 0),
                 })
             
             orders.append({
@@ -317,15 +324,15 @@ def get_order_detail(event, context):
         items = []
         for item in items_response.get('Items', []):
             logger.info(f"Processing ORDER_ITEM from DynamoDB: {item}")
-            total_price = safe_amount_conversion(item.get('totalPrice') or item.get('totalAmount', 0), 0)
-            logger.info(f"totalPrice/totalAmount from item: {total_price}, raw values - totalPrice: {item.get('totalPrice')}, totalAmount: {item.get('totalAmount')}")
+            total_amount = safe_amount_conversion(item.get('totalAmount', 0), 0)
+            logger.info(f"totalAmount from item: {total_amount}, raw value - totalAmount: {item.get('totalAmount')}")
             items.append({
                 "orderItemId": item.get('orderItemId') or item.get('itemId'),
                 "productId": item.get('productId'),
                 "productName": item.get('productName', 'Unknown Product'),
                 "quantity": safe_amount_conversion(item.get('quantity', 0), 0),
                 "unitPrice": safe_amount_conversion(item.get('amount') or item.get('unitPrice', 0), 0),
-                "totalPrice": total_price,
+                "totalAmount": total_amount,
             })
         
         # Build order detail response
@@ -621,7 +628,7 @@ def save_order(event, context):
                 "productName": item.get('productName', 'Unknown Product'),
                 "unitPrice": int(item.get('amount', 0)),
                 "quantity": int(item.get('quantity', 1)),
-                "totalPrice": int(item.get('totalAmount', 0)),
+                "totalAmount": int(item.get('totalAmount', 0)),
                 "createdAt": now,
                 "updatedAt": now,
             }

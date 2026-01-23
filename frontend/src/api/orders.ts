@@ -30,7 +30,7 @@ export interface OrderItemData {
   productName: string;
   quantity: number;
   unitPrice: number;
-  totalPrice: number;
+  totalAmount: number;
 }
 
 export interface Address {

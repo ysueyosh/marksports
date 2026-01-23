@@ -174,7 +174,10 @@ export default function OrderDetailPage() {
                     ¥{item.unitPrice ? item.unitPrice.toLocaleString() : '0'}
                   </div>
                   <div className={styles.itemSubtotal}>
-                    ¥{item.totalPrice ? item.totalPrice.toLocaleString() : '0'}
+                    ¥
+                    {item.unitPrice && item.quantity
+                      ? (item.unitPrice * item.quantity).toLocaleString()
+                      : '0'}
                   </div>
                 </div>
               ))}

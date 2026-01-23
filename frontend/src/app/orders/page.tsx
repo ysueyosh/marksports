@@ -158,7 +158,7 @@ export default function OrdersPage() {
                             </span>
                           </div>
                           <span>
-                            ¥{(item.price * item.quantity).toLocaleString()}
+                            ¥{(item.unitPrice * item.quantity).toLocaleString()}
                           </span>
                         </div>
                       ))}
