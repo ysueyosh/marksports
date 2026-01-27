@@ -19,7 +19,7 @@ let decrementLoadingFn: (() => void) | null = null;
 
 export const setLoadingInterceptors = (
   increment: () => void,
-  decrement: () => void
+  decrement: () => void,
 ) => {
   incrementLoadingFn = increment;
   decrementLoadingFn = decrement;
@@ -48,7 +48,7 @@ const responseInterceptor = () => {
  */
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const url = `${API_CONFIG.baseURL}${endpoint}`;
 
@@ -122,20 +122,22 @@ export async function apiRequest<T>(
     // ⭐ 401 Unauthorized の場合、リフレッシュトークンで再試行
     if (response.status === 401) {
       console.warn(
-        '[TOKEN_REFRESH] Access token expired, attempting to refresh...'
+        '[TOKEN_REFRESH] Access token expired, attempting to refresh...',
       );
 
       // リフレッシュトークンを取得
       let refreshToken: string | null = null;
+      const isAdminEndpoint = endpoint.includes('/admin');
 
       if (typeof window !== 'undefined') {
-        const authTokensStr = localStorage.getItem('authTokens');
-        if (authTokensStr) {
+        const tokenKey = isAdminEndpoint ? 'adminTokens' : 'authTokens';
+        const tokensStr = localStorage.getItem(tokenKey);
+        if (tokensStr) {
           try {
-            const authTokens = JSON.parse(authTokensStr);
-            refreshToken = authTokens.refreshToken;
+            const tokens = JSON.parse(tokensStr);
+            refreshToken = tokens.refreshToken;
           } catch (e) {
-            console.error('Failed to parse authTokens:', e);
+            console.error(`Failed to parse ${tokenKey}:`, e);
           }
         }
       }
@@ -143,47 +145,46 @@ export async function apiRequest<T>(
       // リフレッシュトークンで新しいアクセストークンを取得
       if (refreshToken) {
         try {
+          const refreshEndpoint = isAdminEndpoint
+            ? '/admin/refresh-token'
+            : '/refresh-token';
           const refreshResponse = await fetch(
-            `${API_CONFIG.baseURL}/verify-token`,
+            `${API_CONFIG.baseURL}${refreshEndpoint}`,
             {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                access_token: headers['Authorization']?.replace('Bearer ', ''),
                 refresh_token: refreshToken,
               }),
-            }
+            },
           );
 
           if (refreshResponse.ok) {
             const refreshData = await refreshResponse.json();
 
-            if (refreshData.accessToken) {
+            if (refreshData.success && refreshData.data?.accessToken) {
               console.log(
-                '[TOKEN_REFRESH] New access token obtained, retrying request...'
+                '[TOKEN_REFRESH] New access token obtained, retrying request...',
               );
 
-              // localStorage に新しいアクセストークンを保存
+              // localStorage に新しいトークンを保存
               if (typeof window !== 'undefined') {
-                const authTokensStr = localStorage.getItem('authTokens');
-                if (authTokensStr) {
-                  try {
-                    const authTokens = JSON.parse(authTokensStr);
-                    authTokens.accessToken = refreshData.accessToken;
-                    localStorage.setItem(
-                      'authTokens',
-                      JSON.stringify(authTokens)
-                    );
-                  } catch (e) {
-                    console.error('Failed to update authTokens:', e);
-                  }
-                }
+                const tokenKey = isAdminEndpoint ? 'adminTokens' : 'authTokens';
+                const newTokens = {
+                  accessToken: refreshData.data.accessToken,
+                  refreshToken: refreshData.data.refreshToken,
+                  expiresIn: refreshData.data.expiresIn,
+                  expiresAt:
+                    Date.now() + (refreshData.data.expiresIn || 3600) * 1000,
+                };
+                localStorage.setItem(tokenKey, JSON.stringify(newTokens));
               }
 
               // 元のリクエストを再試行（新しいアクセストークンで）
-              headers['Authorization'] = `Bearer ${refreshData.accessToken}`;
+              headers['Authorization'] =
+                `Bearer ${refreshData.data.accessToken}`;
 
               const retryResponse = await fetch(url, {
                 ...options,
@@ -193,7 +194,7 @@ export async function apiRequest<T>(
               if (!retryResponse.ok) {
                 console.error(
                   `API Response Error (after refresh): ${retryResponse.status} ${retryResponse.statusText}`,
-                  retryResponse
+                  retryResponse,
                 );
                 try {
                   const errorData: T = await retryResponse.json();
@@ -211,7 +212,7 @@ export async function apiRequest<T>(
             }
           } else {
             console.warn(
-              '[TOKEN_REFRESH] Token refresh failed, keeping user on the current page'
+              '[TOKEN_REFRESH] Token refresh failed, keeping user on the current page',
             );
             // リフレッシュ失敗時の処理をここに追加可能
             localStorage.removeItem('authTokens');
@@ -219,14 +220,14 @@ export async function apiRequest<T>(
         } catch (refreshError) {
           console.error(
             '[TOKEN_REFRESH] Error during token refresh:',
-            refreshError
+            refreshError,
           );
           // リフレッシュ失敗時の処理をここに追加可能
           localStorage.removeItem('authTokens');
         }
       } else {
         console.warn(
-          '[TOKEN_REFRESH] No refresh token available, keeping user on the current page'
+          '[TOKEN_REFRESH] No refresh token available, keeping user on the current page',
         );
         // リフレッシュ失敗時の処理をここに追加可能
         localStorage.removeItem('authTokens');
@@ -247,7 +248,7 @@ export async function apiRequest<T>(
     if (!response.ok) {
       console.error(
         `API Response Error: ${response.status} ${response.statusText}`,
-        response
+        response,
       );
       try {
         const errorData: T = await response.json();

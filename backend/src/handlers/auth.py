@@ -15,7 +15,11 @@ from src.models.auth import (
     UpdateProfileResponse, ChangePasswordRequest, ChangePasswordResponse
 )
 from src.utils.auth import require_auth_handler
-from src.utils.jwt import generate_access_token, generate_refresh_token, verify_token as verify_jwt_token
+from src.utils.jwt import (
+    generate_access_token, generate_refresh_token, 
+    verify_token as verify_jwt_token,
+    hash_refresh_token, verify_refresh_token
+)
 from src.utils.dynamodb import get_users_table
 
 logger = logging.getLogger()
@@ -112,6 +116,21 @@ def login(event, context):
                     }, ensure_ascii=False),
                 }
             
+            # Check if email is verified
+            if not user_item.get('verifiedAt'):
+                return {
+                    "statusCode": 403,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "メールアドレスの認証が必要です。メールをご確認ください。",
+                        "requiresEmailVerification": True,
+                    }, ensure_ascii=False),
+                }
+            
             # Check if user is active
             if user_item.get('status') != 'active':
                 return {
@@ -129,6 +148,20 @@ def login(event, context):
             # Generate JWT tokens
             access_token = generate_access_token(user_id, login_request.email, user_type="user")
             refresh_token_str = generate_refresh_token(user_id, login_request.email, user_type="user")
+            
+            # Hash and store refresh token in DB
+            refresh_token_hash = hash_refresh_token(refresh_token_str)
+            users_table.update_item(
+                Key={
+                    'PK': f'USER#{user_id}',
+                    'SK': f'PROFILE#{user_id}'
+                },
+                UpdateExpression='SET refreshTokenHash = :hash, updatedAt = :updated',
+                ExpressionAttributeValues={
+                    ':hash': refresh_token_hash,
+                    ':updated': datetime.utcnow().isoformat()
+                }
+            )
             
             response_data = LoginResponse(
                 success=True,
@@ -200,7 +233,7 @@ def login(event, context):
 
 def refresh_token(event, context):
     """
-    Token refresh handler
+    Token refresh handler - Verifies refresh token against DB hash and issues new tokens
     
     Args:
         event: Lambda event
@@ -216,7 +249,7 @@ def refresh_token(event, context):
         body = json.loads(event.get("body", "{}"))
         refresh_request = TokenRefreshRequest(**body)
         
-        # Verify the refresh token
+        # Verify the refresh token JWT signature and expiration
         is_valid, payload, error_msg = verify_jwt_token(refresh_request.refresh_token)
         
         if not is_valid:
@@ -238,8 +271,7 @@ def refresh_token(event, context):
         email = payload.get("email")
         user_type = payload.get("user_type", "user")
         
-        # Get user details from database for consistent response
-        # Query by email using GSI to get user data with all attributes
+        # Get user details from database and verify refresh token hash
         table = get_users_table()
         user_response = table.query(
             IndexName='GSI_MAIL',
@@ -249,12 +281,72 @@ def refresh_token(event, context):
         
         logger.info(f"User response query: {user_response}")
         user_data = user_response.get("Items", [{}])[0] if user_response.get("Items") else {}
+        
+        if not user_data:
+            logger.warning(f"User not found for email: {email}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "User not found"
+                }),
+            }
+        
+        # Verify refresh token against stored hash in DB
+        stored_refresh_token_hash = user_data.get("refreshTokenHash")
+        if not stored_refresh_token_hash:
+            logger.warning(f"No refresh token hash stored for user: {user_id}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "No valid refresh token found"
+                }),
+            }
+        
+        # Verify the refresh token matches the stored hash
+        if not verify_refresh_token(refresh_request.refresh_token, stored_refresh_token_hash):
+            logger.warning(f"Refresh token hash mismatch for user: {user_id}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Invalid refresh token"
+                }),
+            }
+        
         logger.info(f"User data retrieved: {user_data}")
         logger.info(f"User name from DB: {user_data.get('name', 'NOT FOUND')}")
         
         # Generate new access token and refresh token
         new_access_token = generate_access_token(user_id, email, user_type=user_type)
         new_refresh_token = generate_refresh_token(user_id, email, user_type=user_type)
+        
+        # Hash and store new refresh token in DB
+        new_refresh_token_hash = hash_refresh_token(new_refresh_token)
+        table.update_item(
+            Key={
+                'PK': f'USER#{user_id}',
+                'SK': f'PROFILE#{user_id}'
+            },
+            UpdateExpression='SET refreshTokenHash = :hash, updatedAt = :updated',
+            ExpressionAttributeValues={
+                ':hash': new_refresh_token_hash,
+                ':updated': datetime.utcnow().isoformat()
+            }
+        )
         
         response = TokenRefreshResponse(
             success=True,
@@ -344,9 +436,9 @@ def verify_token(event, context):
                 if refresh_is_valid:
                     user_id = refresh_payload.get("user_id")
                     email = refresh_payload.get("email")
+                    user_type = refresh_payload.get("user_type", "user")
                     
                     # Get user details from database using PK/SK
-                    # user_id はトークンから取得済みなのでGSIは不要
                     table = get_users_table()
                     user_response = table.get_item(
                         Key={
@@ -356,10 +448,70 @@ def verify_token(event, context):
                     )
                     user_data = user_response.get("Item", {})
                     
-                    # 新しいアクセストークンを生成
-                    new_access_token = generate_access_token(user_id, email)
+                    if not user_data:
+                        logger.warning(f"User not found: {user_id}")
+                        return {
+                            "statusCode": 401,
+                            "headers": {
+                                "Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*",
+                            },
+                            "body": json.dumps({
+                                "success": False,
+                                "message": "User not found"
+                            }),
+                        }
                     
-                    logger.info(f"New access token generated for user: {user_id}")
+                    # Verify refresh token against stored hash in DB
+                    stored_refresh_token_hash = user_data.get("refreshTokenHash")
+                    if not stored_refresh_token_hash:
+                        logger.warning(f"No refresh token hash stored for user: {user_id}")
+                        return {
+                            "statusCode": 401,
+                            "headers": {
+                                "Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*",
+                            },
+                            "body": json.dumps({
+                                "success": False,
+                                "message": "No valid refresh token found"
+                            }),
+                        }
+                    
+                    # Verify the refresh token matches the stored hash
+                    if not verify_refresh_token(refresh_token, stored_refresh_token_hash):
+                        logger.warning(f"Refresh token hash mismatch for user: {user_id}")
+                        return {
+                            "statusCode": 401,
+                            "headers": {
+                                "Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*",
+                            },
+                            "body": json.dumps({
+                                "success": False,
+                                "message": "Invalid refresh token"
+                            }),
+                        }
+                    
+                    # 新しいアクセストークンとリフレッシュトークンを生成
+                    new_access_token = generate_access_token(user_id, email, user_type=user_type)
+                    new_refresh_token = generate_refresh_token(user_id, email, user_type=user_type)
+                    
+                    # Hash and store new refresh token in DB
+                    new_refresh_token_hash = hash_refresh_token(new_refresh_token)
+                    table.update_item(
+                        Key={
+                            'PK': f'USER#{user_id}',
+                            'SK': f'PROFILE#{user_id}'
+                        },
+                        UpdateExpression='SET refreshTokenHash = :hash, updatedAt = :updated',
+                        ExpressionAttributeValues={
+                            ':hash': new_refresh_token_hash,
+                            ':updated': datetime.utcnow().isoformat()
+                        }
+                    )
+                    
+                    logger.info(f"New tokens generated for user: {user_id}")
                     
                     return {
                         "statusCode": 200,
@@ -371,14 +523,14 @@ def verify_token(event, context):
                             "success": True,
                             "message": "Token refreshed successfully",
                             "data": {
-                                "userId": user_id,
+                                "id": user_id,
                                 "email": email,
                                 "name": user_data.get("name", ""),
                                 "phone": user_data.get("phone"),
                                 "sex": user_data.get("sex"),
                                 "address": user_data.get("address", ""),
                                 "accessToken": new_access_token,
-                                "refreshToken": refresh_token,
+                                "refreshToken": new_refresh_token,
                                 "expiresIn": 3600
                             }
                         }, ensure_ascii=False),
@@ -497,44 +649,23 @@ def update_profile(event, context):
     try:
         logger.info(f"Update profile event: {event}")
         
-        # Get user ID from token
-        headers = event.get('headers', {})
-        auth_header = (
-            headers.get('Authorization', '') or 
-            headers.get('authorization', '') or
-            headers.get('AUTHORIZATION', '')
-        )
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
         
-        if not auth_header or not auth_header.startswith('Bearer '):
+        if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }),
             }
-        
-        token = auth_header[7:]
-        is_valid, payload, error = verify_jwt_token(token)
-        
-        if not is_valid or not payload:
-            return {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Invalid or expired token"
-                }),
-            }
-        
-        user_id = payload.get('user_id')
         
         # Parse request body
         body = json.loads(event.get("body", "{}"))
@@ -650,6 +781,24 @@ def change_password(event, context):
     """
     try:
         logger.info(f"Change password event: {event}")
+        
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+        
+        if not user_id:
+            logger.error("No user_id in user_payload")
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Internal server error"
+                }),
+            }
         
         # Parse request body
         body = json.loads(event.get("body", "{}"))
@@ -839,44 +988,23 @@ def get_profile(event, context):
     try:
         logger.info(f"Get profile event: {event}")
         
-        # Get user ID from token
-        headers = event.get('headers', {})
-        auth_header = (
-            headers.get('Authorization', '') or 
-            headers.get('authorization', '') or
-            headers.get('AUTHORIZATION', '')
-        )
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
         
-        if not auth_header or not auth_header.startswith('Bearer '):
+        if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }),
             }
-        
-        token = auth_header[7:]
-        is_valid, payload, error = verify_jwt_token(token)
-        
-        if not is_valid or not payload:
-            return {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Invalid or expired token"
-                }),
-            }
-        
-        user_id = payload.get('user_id')
         
         # Get DynamoDB table
         table = get_users_table()

@@ -110,7 +110,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     try {
       set({ isLoading: true });
       const items = await apiGetCart(userIdentifier);
-      set({ items });
+      set({ items: Array.isArray(items) ? items : [] });
     } catch (error) {
       console.error('Error fetching cart:', error);
       // Silently fail on fetch errors
@@ -192,6 +192,7 @@ export function useCart() {
     fetchCart,
     isLoading,
     userIdentifier,
+    setUserIdentifier,
   } = useCartStore();
 
   const addItem = useCallback(
@@ -203,7 +204,7 @@ export function useCart() {
         snackbar.show('カートへの追加に失敗しました', 'error');
       }
     },
-    [storeAddItem, snackbar]
+    [storeAddItem, snackbar],
   );
 
   const removeItem = useCallback(
@@ -215,7 +216,7 @@ export function useCart() {
         snackbar.show('削除に失敗しました', 'error');
       }
     },
-    [storeRemoveItem, snackbar]
+    [storeRemoveItem, snackbar],
   );
 
   const updateQuantity = useCallback(
@@ -227,7 +228,7 @@ export function useCart() {
         snackbar.show('更新に失敗しました', 'error');
       }
     },
-    [storeUpdateQuantity, snackbar]
+    [storeUpdateQuantity, snackbar],
   );
 
   const clear = useCallback(async () => {
@@ -250,5 +251,6 @@ export function useCart() {
     fetchCart,
     isLoading,
     userIdentifier,
+    setUserIdentifier,
   };
 }

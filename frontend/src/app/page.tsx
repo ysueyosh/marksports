@@ -17,7 +17,7 @@ export default function Home() {
   }>({});
 
   const handleProductClick = (productId: number) => {
-    router.push(`/product/${productId}`);
+    router.push(`/product/detail?id=${productId}`);
   };
 
   useEffect(() => {
@@ -50,8 +50,8 @@ export default function Home() {
               new Map(
                 Object.values(featuredProducts)
                   .flat()
-                  .map((product) => [product.id, product])
-              ).values()
+                  .map((product) => [product.id, product]),
+              ).values(),
             )
               .slice(0, 6)
               .map((product, index) => (

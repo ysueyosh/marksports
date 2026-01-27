@@ -88,5 +88,5 @@ export default function ProductCard({
     return content;
   }
 
-  return <Link href={`/product/${id}`}>{content}</Link>;
+  return <Link href={`/product/detail?id=${id}`}>{content}</Link>;
 }

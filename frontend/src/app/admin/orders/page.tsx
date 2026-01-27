@@ -38,7 +38,6 @@ export default function AdminOrdersPage() {
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<
     'all' | 'unpaid' | 'awaiting_shipment' | 'in_transit' | 'delivered'
   >('all');
-  const [sortByDate, setSortByDate] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
@@ -52,7 +51,7 @@ export default function AdminOrdersPage() {
       // API から注文データを取得
       const fetchOrders = async () => {
         try {
-          const response = await getAllOrders('date');
+          const response = await getAllOrders();
           if (response.success && response.data) {
             // APIレスポンスをフォーマット
             const formattedOrders: Order[] = response.data.map((order) => ({
@@ -86,7 +85,7 @@ export default function AdminOrdersPage() {
   // フィルタが変更されたらページを1に戻す
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterPaymentStatus, sortByDate]);
+  }, [searchQuery, filterPaymentStatus]);
 
   if (!isLoggedIn) {
     return null;
@@ -110,7 +109,7 @@ export default function AdminOrdersPage() {
     return labels[status] || status;
   };
 
-  // フィルタリングとソート
+  // フィルタリング（ソートはバックエンド側で実施済み）
   let filteredOrders = orders.filter((order) => {
     const matchesSearch = order.id.toString().includes(searchQuery);
     const matchesStatus =
@@ -118,18 +117,11 @@ export default function AdminOrdersPage() {
     return matchesSearch && matchesStatus;
   });
 
-  // 注文日でソート
-  filteredOrders = [...filteredOrders].sort((a, b) => {
-    const dateA = new Date(a.orderDate).getTime();
-    const dateB = new Date(b.orderDate).getTime();
-    return sortByDate === 'desc' ? dateB - dateA : dateA - dateB;
-  });
-
   // ページング
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   return (
@@ -160,14 +152,6 @@ export default function AdminOrdersPage() {
             <option value="in_transit">配送中</option>
             <option value="delivered">配送完了</option>
           </select>
-          <select
-            value={sortByDate}
-            onChange={(e) => setSortByDate(e.target.value as any)}
-            className={styles.filterSelect}
-          >
-            <option value="desc">注文日: 新しい順</option>
-            <option value="asc">注文日: 古い順</option>
-          </select>
         </div>
 
         <AdminTable
@@ -187,16 +171,56 @@ export default function AdminOrdersPage() {
             {
               key: 'status',
               label: 'ステータス',
-              render: (v) => (
-                <OrderStatusChip
-                  status={
-                    v as
-                      | 'unpaid'
-                      | 'awaiting_shipment'
-                      | 'in_transit'
-                      | 'delivered'
-                  }
-                />
+              render: (v, row: Order) => (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  {row.isCancelRequest &&
+                    v !== 'cancelled_customer' &&
+                    v !== 'cancelled_internal' && (
+                      <span
+                        style={{
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        キャンセル申請中
+                      </span>
+                    )}
+                  {row.refundAt && (
+                    <span
+                      style={{
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      返金処理完了
+                    </span>
+                  )}
+                  <OrderStatusChip
+                    status={
+                      v as
+                        | 'unpaid'
+                        | 'awaiting_shipment'
+                        | 'in_transit'
+                        | 'delivered'
+                    }
+                  />
+                </div>
               ),
             },
             {
@@ -211,7 +235,8 @@ export default function AdminOrdersPage() {
           actions={[
             {
               label: '詳細表示',
-              onClick: (row) => router.push(`/admin/orders/${row.id}`),
+              onClick: (row) =>
+                router.push(`/admin/orders/detail?id=${row.id}`),
               variant: 'secondary',
             },
           ]}

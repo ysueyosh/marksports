@@ -5,6 +5,7 @@ JWT token generation and validation utilities
 import os
 import jwt
 import bcrypt
+import hashlib
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Tuple
@@ -124,31 +125,37 @@ def verify_token(token: str) -> Tuple[bool, Optional[Dict[str, Any]], Optional[s
 
 def hash_refresh_token(refresh_token: str) -> str:
     """
-    Hash refresh token for storage
+    Hash refresh token for storage using SHA-256
     
     Args:
         refresh_token: Refresh token string
     
     Returns:
-        Hashed refresh token
+        Hashed refresh token (hex digest)
     """
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(refresh_token.encode('utf-8'), salt).decode('utf-8')
+    return hashlib.sha256(refresh_token.encode('utf-8')).hexdigest()
 
 
 def verify_refresh_token(refresh_token: str, hashed_token: str) -> bool:
     """
-    Verify refresh token against its hash
+    Verify refresh token against its hash using SHA-256 or bcrypt (for backwards compatibility)
     
     Args:
         refresh_token: Plain refresh token
-        hashed_token: Hashed refresh token
+        hashed_token: Hashed refresh token (SHA-256 hex digest or bcrypt hash)
     
     Returns:
         True if token matches, False otherwise
     """
     try:
-        return bcrypt.checkpw(refresh_token.encode('utf-8'), hashed_token.encode('utf-8'))
+        # Check if it's a bcrypt hash (starts with $2b$, $2a$, or $2y$)
+        if hashed_token.startswith(('$2b$', '$2a$', '$2y$')):
+            # Legacy bcrypt format - verify using bcrypt
+            return bcrypt.checkpw(refresh_token.encode('utf-8'), hashed_token.encode('utf-8'))
+        else:
+            # New SHA-256 format - verify using SHA-256
+            token_hash = hashlib.sha256(refresh_token.encode('utf-8')).hexdigest()
+            return token_hash == hashed_token
     except Exception as e:
         logger.error(f"Refresh token verification error: {str(e)}")
         return False

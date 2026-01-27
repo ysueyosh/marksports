@@ -127,7 +127,7 @@ export default function AdminHomePage() {
       const unshipped = allOrders
         .filter(
           (o) =>
-            o.shippingStatus === 'pending' && o.paymentStatus === 'completed'
+            o.shippingStatus === 'pending' && o.paymentStatus === 'completed',
         )
         .slice(0, 5);
       setUnshippedOrders(unshipped);
@@ -192,7 +192,7 @@ export default function AdminHomePage() {
             rowKey="id"
             onRowClick={(row) => {
               const orderId = row.id.replace('#', '');
-              router.push(`/admin/orders/${orderId}`);
+              router.push(`/admin/orders/detail?id=${orderId}`);
             }}
             emptyMessage="未配送の注文はありません"
           />

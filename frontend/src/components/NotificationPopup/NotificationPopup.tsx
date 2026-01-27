@@ -72,7 +72,7 @@ export default function NotificationPopup({
             notifications.slice(0, 10).map((notification) => (
               <Link
                 key={notification.id}
-                href={`/notifications/${notification.id}`}
+                href={`/notifications/detail?id=${notification.id}`}
                 className={`${styles.notificationItem} ${
                   notification.read ? styles.read : styles.unread
                 }`}

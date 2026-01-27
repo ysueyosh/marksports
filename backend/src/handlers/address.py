@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 from src.utils.dynamodb import get_users_table
-from src.utils.jwt import verify_token
+from src.utils.auth import require_user_auth
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -97,51 +97,6 @@ def search_address_by_postal_code(postal_code: str) -> AddressSearchResponse:
         )
 
 
-def get_user_id_from_token(event):
-    """
-    Extract user_id from JWT token in Authorization header
-    Validates that the token is for a regular user (not admin)
-    
-    Returns: user_id or None if not authenticated
-    """
-    headers = event.get('headers', {})
-    
-    # Try multiple header name variations (case-insensitive)
-    auth_header = (
-        headers.get('Authorization', '') or 
-        headers.get('authorization', '') or
-        headers.get('AUTHORIZATION', '')
-    )
-    
-    logger.info(f"Authorization header: {auth_header[:50] if auth_header else 'None'}...")
-    
-    if not auth_header or not auth_header.startswith('Bearer '):
-        logger.warning(f"No Bearer token found. Header: {auth_header[:50] if auth_header else 'None'}")
-        return None
-    
-    token = auth_header[7:]  # Remove "Bearer " prefix
-    logger.info(f"Verifying token: {token[:20]}...")
-    is_valid, payload, error = verify_token(token)
-    
-    if not is_valid or not payload:
-        logger.warning(f"Token verification failed: {error}")
-        return None
-    
-    # Check user_type - must be 'user' not 'admin'
-    user_type = payload.get('user_type', 'user')
-    if user_type != 'user':
-        logger.warning(f"Invalid user_type: {user_type}. Expected 'user' but got '{user_type}'")
-        return None
-    
-    user_id = payload.get('user_id')
-    if not user_id:
-        logger.warning("No user_id in JWT payload")
-        return None
-    
-    logger.info(f"Extracted user_id from JWT: {user_id}")
-    return user_id
-
-
 def search_address_handler(event, context):
     """Search address by postal code"""
     try:
@@ -187,6 +142,7 @@ def search_address_handler(event, context):
         }
 
 
+@require_user_auth
 def get_addresses(event, context):
     """
     Get user addresses handler
@@ -194,16 +150,19 @@ def get_addresses(event, context):
     try:
         logger.info(f"Get addresses event: {event}")
         
-        # Get user ID from JWT token
-        user_id = get_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                'statusCode': 401,
+                'statusCode': 500,
                 'headers': {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*',
                 },
-                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+                'body': json.dumps({'success': False, 'message': 'Internal server error'}, ensure_ascii=False),
             }
 
         users_table = get_users_table()
@@ -264,6 +223,7 @@ def get_addresses(event, context):
         }
 
 
+@require_user_auth
 def add_address(event, context):
     """
     Add new address handler
@@ -271,12 +231,16 @@ def add_address(event, context):
     try:
         logger.info(f"Add address event: {event}")
         
-        user_id = get_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                'statusCode': 401,
+                'statusCode': 500,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+                'body': json.dumps({'success': False, 'message': 'Internal server error'}, ensure_ascii=False),
             }
 
         body = json.loads(event.get('body', '{}'))
@@ -353,6 +317,7 @@ def add_address(event, context):
         }
 
 
+@require_user_auth
 def update_address(event, context):
     """
     Update address handler
@@ -360,15 +325,19 @@ def update_address(event, context):
     try:
         logger.info(f"Update address event: {event}")
         
-        user_id = get_user_id_from_token(event)
-        address_id = event.get('pathParameters', {}).get('id')
-        
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                'statusCode': 401,
+                'statusCode': 500,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+                'body': json.dumps({'success': False, 'message': 'Internal server error'}, ensure_ascii=False),
             }
+        
+        address_id = event.get('pathParameters', {}).get('id')
         
         if not address_id:
             return {
@@ -427,6 +396,7 @@ def update_address(event, context):
         }
 
 
+@require_user_auth
 def delete_address(event, context):
     """
     Delete address handler
@@ -434,15 +404,19 @@ def delete_address(event, context):
     try:
         logger.info(f"Delete address event: {event}")
         
-        user_id = get_user_id_from_token(event)
-        address_id = event.get('pathParameters', {}).get('id')
-        
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                'statusCode': 401,
+                'statusCode': 500,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+                'body': json.dumps({'success': False, 'message': 'Internal server error'}, ensure_ascii=False),
             }
+        
+        address_id = event.get('pathParameters', {}).get('id')
         
         if not address_id:
             return {
@@ -476,6 +450,7 @@ def delete_address(event, context):
         }
 
 
+@require_user_auth
 def set_main_address(event, context):
     """
     Set address as main/default handler
@@ -483,15 +458,19 @@ def set_main_address(event, context):
     try:
         logger.info(f"Set main address event: {event}")
         
-        user_id = get_user_id_from_token(event)
-        address_id = event.get('pathParameters', {}).get('id')
-        
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                'statusCode': 401,
+                'statusCode': 500,
                 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'success': False, 'message': 'Unauthorized'}, ensure_ascii=False),
+                'body': json.dumps({'success': False, 'message': 'Internal server error'}, ensure_ascii=False),
             }
+        
+        address_id = event.get('pathParameters', {}).get('id')
         
         if not address_id:
             return {

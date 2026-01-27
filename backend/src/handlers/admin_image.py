@@ -4,79 +4,88 @@ Admin image upload handler - Backend uploads to S3
 
 import json
 import base64
-from src.utils.jwt import verify_token
-from src.utils.s3 import upload_image_to_s3, get_s3_image_url
 import logging
+from email.parser import BytesParser
+from email.policy import default
+
+from src.utils.auth import require_admin_auth
+from src.utils.s3 import upload_image_to_s3
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def verify_admin_token(headers):
-    """認可ヘッダーから管理者トークンを検証"""
-    auth_header = headers.get('Authorization', '') or headers.get('authorization', '')
-    
-    if not auth_header.startswith('Bearer '):
-        return None
+def _parse_multipart(event):
+    """Parse multipart/form-data from API Gateway HTTP API event."""
+    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+    content_type = headers.get("content-type")
+    if not content_type or "boundary=" not in content_type:
+        raise ValueError("Missing Content-Type boundary")
 
-    token = auth_header[7:]
-    
-    try:
-        is_valid, payload, error = verify_token(token)
-        
-        if not is_valid or payload.get('user_type') != 'admin':
-            return None
-        return payload
-    except Exception as e:
-        print(f"Token verification error: {str(e)}")
-        return None
+    body = event.get("body", "") or ""
+    body_bytes = base64.b64decode(body) if event.get("isBase64Encoded") else body.encode("utf-8")
+
+    raw_message = b"Content-Type: " + content_type.encode() + b"\r\n\r\n" + body_bytes
+    message = BytesParser(policy=default).parsebytes(raw_message)
+
+    file_content = None
+    file_content_type = None
+    filename = None
+    fields = {}
+
+    for part in message.iter_parts():
+        if part.get_content_disposition() != "form-data":
+            continue
+        name = part.get_param("name", header="content-disposition")
+        current_filename = part.get_filename()
+        if current_filename:
+            file_content = part.get_payload(decode=True)
+            file_content_type = part.get_content_type() or "application/octet-stream"
+            filename = current_filename
+        else:
+            fields[name] = part.get_content()
+
+    if file_content is None:
+        raise ValueError("File is required")
+
+    return fields, file_content, file_content_type, filename
 
 
+@require_admin_auth
 def upload_image(event, context):
-    """
-    Upload image to S3 - Backend uploads the file
-    
-    Request:
-        - multipart/form-data
-        - Form fields:
-            - file: image file
-            - productId: product id
-            - imageName: image name (main, 0, 1, 2, ...)
-    
-    Returns:
-        {
-            "success": true,
-            "data": {
-                "s3Url": "https://..."
-            }
-        }
-    """
+    """Upload image to S3. Expects multipart/form-data with file, productId, imageName."""
     try:
-        # Verify admin token
-        admin_info = verify_admin_token(event.get('headers', {}))
-        if not admin_info:
+        fields, file_content, content_type, filename = _parse_multipart(event)
+        product_id = fields.get("productId")
+        image_name = fields.get("imageName") or filename
+
+        if not product_id or not image_name:
             return {
-                'statusCode': 401,
-                'body': json.dumps({'success': False, 'error': 'Unauthorized'})
+                "statusCode": 400,
+                "body": json.dumps({"success": False, "error": "productId and imageName are required"})
             }
 
-        # Get form data from Flask request
-        # This function will be called from local_app.py with Flask's request object
-        # So we'll need to handle it differently in local_app.py
-        
-        # For serverless, we would parse multipart form data from event
-        # For now, we'll use a helper function
-        
-        logger.info("Image upload endpoint called")
-        
+        s3_url = upload_image_to_s3(product_id, image_name, file_content, content_type)
+        if not s3_url:
+            return {
+                "statusCode": 500,
+                "body": json.dumps({"success": False, "error": "Failed to upload image"})
+            }
+
         return {
-            'statusCode': 200,
-            'body': json.dumps({'success': True})
+            "statusCode": 200,
+            "body": json.dumps({"success": True, "data": {"s3Url": s3_url}})
         }
 
+    except ValueError as e:
+        logger.error(f"Validation error during image upload: {str(e)}")
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"success": False, "error": str(e)})
+        }
     except Exception as e:
         logger.error(f"Error uploading image: {str(e)}")
         return {
-            'statusCode': 500,
-            'body': json.dumps({'success': False, 'error': f'Failed to upload image: {str(e)}'})
+            "statusCode": 500,
+            "body": json.dumps({"success": False, "error": f"Failed to upload image: {str(e)}"})
         }

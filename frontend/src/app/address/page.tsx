@@ -28,6 +28,16 @@ export default function AddressPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const totalItems = addresses.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+
+  useEffect(() => {
+    const nextTotalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    if (currentPage > nextTotalPages) {
+      setCurrentPage(nextTotalPages);
+    }
+  }, [totalItems]);
+
   useEffect(() => {
     const loadAddresses = async () => {
       try {
@@ -96,7 +106,7 @@ export default function AddressPage() {
           addresses.map((addr) => ({
             ...addr,
             isMain: addr.id === id,
-          }))
+          })),
         );
         showSnackbar('メイン住所を変更しました', 'success');
       } else {
@@ -127,7 +137,14 @@ export default function AddressPage() {
 
         <div className={styles.addressList}>
           {addresses.length === 0 ? (
-            <p className={styles.emptyMessage}>登録された住所はありません</p>
+            <>
+              <p className={styles.emptyMessage}>登録された住所はありません</p>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </>
           ) : (
             <>
               {(() => {
@@ -135,9 +152,8 @@ export default function AddressPage() {
                 const endIndex = startIndex + ITEMS_PER_PAGE;
                 const paginatedAddresses = addresses.slice(
                   startIndex,
-                  endIndex
+                  endIndex,
                 );
-                const totalPages = Math.ceil(addresses.length / ITEMS_PER_PAGE);
 
                 return (
                   <>
@@ -168,7 +184,7 @@ export default function AddressPage() {
                             </button>
                           )}
                           <Link
-                            href={`/address/${addr.id}/edit`}
+                            href={`/address/detail?id=${addr.id}`}
                             className={styles.editButton}
                           >
                             編集

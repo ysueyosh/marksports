@@ -28,8 +28,41 @@ export interface RegisterResponse {
   };
 }
 
+export interface VerifyEmailResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    userId: string;
+    email: string;
+  };
+}
+
+export interface ResendVerificationEmailRequest {
+  email: string;
+}
+
+export interface ResendVerificationEmailResponse {
+  success: boolean;
+  message: string;
+}
+
 export async function register(
-  registerData: RegisterRequest
+  registerData: RegisterRequest,
 ): Promise<RegisterResponse> {
   return apiClient.post<RegisterResponse>('/register', registerData);
+}
+
+export async function verifyEmail(token: string): Promise<VerifyEmailResponse> {
+  return apiClient.post<VerifyEmailResponse>('/verify-email-registration', {
+    token,
+  });
+}
+
+export async function resendVerificationEmail(
+  request: ResendVerificationEmailRequest,
+): Promise<ResendVerificationEmailResponse> {
+  return apiClient.post<ResendVerificationEmailResponse>(
+    '/resend-verification-email',
+    request,
+  );
 }

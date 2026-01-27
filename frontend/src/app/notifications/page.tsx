@@ -28,7 +28,7 @@ export default function NotificationsPage() {
             (n) => ({
               ...n,
               read: readIds.includes(n.id),
-            })
+            }),
           );
           setNotifications(notificationsWithReadStatus);
         }
@@ -54,7 +54,7 @@ export default function NotificationsPage() {
       localStorage.setItem('readNotifications', JSON.stringify(readIds));
       // ローカル状態も更新
       setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
       );
       // Context の未読件数を 1 件減らす
       decrementUnreadCount();
@@ -97,7 +97,7 @@ export default function NotificationsPage() {
             paginatedNotifications.map((notification) => (
               <Link
                 key={notification.id}
-                href={`/notifications/${notification.id}`}
+                href={`/notifications/detail?id=${notification.id}`}
                 onClick={() => markAsRead(notification.id)}
                 className={`${styles.notificationItem} ${
                   notification.read ? styles.read : styles.unread
@@ -112,7 +112,7 @@ export default function NotificationsPage() {
                   <div className={styles.meta}>
                     <span className={styles.date}>
                       {new Date(notification.timestamp).toLocaleDateString(
-                        'ja-JP'
+                        'ja-JP',
                       )}
                     </span>
                   </div>

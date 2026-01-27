@@ -5,6 +5,7 @@ import uuid
 import requests
 from datetime import datetime
 from src.utils.dynamodb import get_users_table
+from src.utils.auth import require_user_auth
 from src.utils.jwt import verify_token
 from src.models.payment import PaymentMethod
 
@@ -37,34 +38,57 @@ def _get_or_create_square_customer(user_id: str, user_email: str, table) -> str:
         square_customer_id if successful, None otherwise
     """
     try:
+        logger.info(f"[CUSTOMER] _get_or_create_square_customer called for user_id: {user_id}, email: {user_email}")
+        
         # Step 1: Check if we already have a Square Customer ID stored for this user
+        pk_value = f"USER#{user_id}"
+        sk_value = f"PROFILE#{user_id}"
+        
+        logger.info(f"[CUSTOMER] Querying with PK={pk_value}, SK={sk_value}")
+        
         profile_response = table.query(
-            KeyConditionExpression="PK = :pk",
+            KeyConditionExpression="PK = :pk AND SK = :sk",
             ExpressionAttributeValues={
-                ":pk": f"USER#{user_id}"
-            }  # Closing the dictionary properly
+                ":pk": pk_value,
+                ":sk": sk_value
+            }
         )
-        user_item = profile_response.get("Items", [{}])[0] if profile_response.get("Items") else {}
+        
+        items = profile_response.get("Items", [])
+        logger.info(f"[CUSTOMER] Query result - Items count: {len(items)}")
+        logger.info(f"[CUSTOMER] Query response: {profile_response}")
+        
+        if not items:
+            logger.error(f"[PAYMENT] Cannot create Square customer: user not found in database for user_id {user_id}")
+            logger.error(f"[PAYMENT] Query was: PK={pk_value}, SK={sk_value}")
+            return None
+        
+        user_item = items[0]
         square_customer_id = user_item.get("squareCustomerId")
+        
+        logger.info(f"[CUSTOMER] User found - square_customer_id: {square_customer_id}")
+        
         if square_customer_id:
+            logger.info(f"[CUSTOMER] Found existing square_customer_id: {square_customer_id}")
             return square_customer_id
         
         # Step 2: Get user profile for customer creation
         user_profile = user_item
+        logger.info(f"[CUSTOMER] User profile data: {json.dumps({k: v for k, v in user_profile.items() if k not in ['PK', 'SK']}, default=str)}")
         
         # Step 3: Create new Square Customer
         # ベストプラクティス: reference_id で user_id を Square に記録
         customer_body = {
             "idempotency_key": str(uuid.uuid4()),
             "given_name": user_profile.get("name", "Customer"),
-            "email_address": user_profile.get("email"),
+            "email_address": user_profile.get("email") or user_email,
             "reference_id": f"USER#{user_id}",  # ⭐ 自社 user_id とのマッピング
         }
         
         if user_profile.get("phone"):
             customer_body["phone_number"] = user_profile.get("phone")
         
-        logger.info(f"Creating Square customer with body: {json.dumps(customer_body)}")
+        logger.info(f"[CUSTOMER] Creating Square customer with body: {json.dumps(customer_body)}")
         
         response = requests.post(
             f"{SQUARE_API_BASE_URL}/v2/customers",
@@ -73,19 +97,20 @@ def _get_or_create_square_customer(user_id: str, user_email: str, table) -> str:
             timeout=30
         )
         
-        logger.info(f"Square CreateCustomer response status: {response.status_code}")
-        logger.info(f"Square CreateCustomer response: {response.text}")
+        logger.info(f"[CUSTOMER] Square CreateCustomer response status: {response.status_code}")
+        logger.info(f"[CUSTOMER] Square CreateCustomer response: {response.text}")
         
         if response.status_code in [200, 201]:
             result = response.json()
             square_customer_id = result.get('customer', {}).get('id')
+            logger.info(f"[CUSTOMER] Successfully created customer: {square_customer_id}")
             
-        if square_customer_id:
+            if square_customer_id:
                 # Save the square_customer_id to user profile
                 user_pk = user_item.get("PK", f"USER#{user_id}")
                 user_sk = user_item.get("SK")
                 
-                logger.info(f"Saving square_customer_id: {square_customer_id} for user PK: {user_pk}, SK: {user_sk}")
+                logger.info(f"[CUSTOMER] Saving square_customer_id: {square_customer_id} for user PK: {user_pk}, SK: {user_sk}")
                 
                 if user_pk and user_sk:
                     table.update_item(
@@ -99,17 +124,19 @@ def _get_or_create_square_customer(user_id: str, user_email: str, table) -> str:
                             ":now": datetime.utcnow().isoformat() + 'Z'
                         }
                     )
-                    logger.info(f"Created and saved Square customer: {square_customer_id}")
+                    logger.info(f"[CUSTOMER] Created and saved Square customer: {square_customer_id}")
                 else:
-                    logger.error(f"Cannot save Square customer: missing PK or SK - PK: {user_pk}, SK: {user_sk}")
+                    logger.error(f"[CUSTOMER] Cannot save Square customer: missing PK or SK - PK: {user_pk}, SK: {user_sk}")
                 
                 return square_customer_id
+        else:
+            logger.error(f"[CUSTOMER] Failed to create Square customer: response status {response.status_code}")
+            logger.error(f"[CUSTOMER] Response body: {response.text}")
+            return None
         
-        logger.error(f"Failed to create Square customer: {response.text}")
         return None
-        
     except Exception as e:
-        logger.error(f"Error in _get_or_create_square_customer: {str(e)}")
+        logger.error(f"[CUSTOMER] Error in _get_or_create_square_customer: {str(e)}", exc_info=True)
         return None
 
 
@@ -148,19 +175,43 @@ def _create_square_card(source_id: str, square_customer_id: str, cardholder_name
         # Card on File の場合は card オブジェクトを指定
         # customer_id を指定すると、このカードが Customer に紐づけられる
         if square_customer_id:
-            card_body["card"] = {
+            logger.info(f"[PAYMENT] Creating card with customer_id: {square_customer_id}, cardholder_name: {cardholder_name}")
+            card_obj = {
                 "customer_id": square_customer_id,  # ⭐ Card on File 用
-                "cardholder_name": cardholder_name,  # ⭐ 必須：カード所有者名
-                "reference_id": f"USER#{user_id}" if user_id else None,  # ⭐ 自社user_idをマッピング
             }
-            # None の値を削除
-            card_body["card"] = {k: v for k, v in card_body["card"].items() if v is not None}
+            
+            # cardholder_name が提供されている場合のみ追加
+            if cardholder_name:
+                card_obj["cardholder_name"] = cardholder_name
+                logger.info(f"[PAYMENT] Added cardholder_name to card object: {cardholder_name}")
+            
+            # reference_id を追加
+            if user_id:
+                card_obj["reference_id"] = f"USER#{user_id}"
+                logger.info(f"[PAYMENT] Added reference_id: USER#{user_id}")
+            
+            card_body["card"] = card_obj
+            logger.info(f"[PAYMENT] Final card object: {json.dumps(card_body['card'])}")
+        else:
+            logger.error(f"[PAYMENT] square_customer_id is None or empty! Cannot create card without customer_id")
+            logger.error(f"[PAYMENT] square_customer_id value: '{square_customer_id}'")
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Failed to create Square customer - cannot save card"
+                }, ensure_ascii=False),
+            }
         
         # verification_token が提供されている場合は追加
         if verification_token:
             card_body["verification_token"] = verification_token
         
-        logger.info(f"Creating Square card with body: {json.dumps(card_body)}")
+        logger.info(f"[PAYMENT] Creating Square card with body: {json.dumps(card_body)}")
         
         response = requests.post(
             f"{SQUARE_API_BASE_URL}/v2/cards",
@@ -188,44 +239,7 @@ def _create_square_card(source_id: str, square_customer_id: str, cardholder_name
         return None
 
 
-def extract_user_id_from_token(event):
-    """
-    Extract user_id from JWT token in Authorization header
-    
-    Returns:
-        user_id if valid token found, None otherwise
-    """
-    headers = event.get('headers', {})
-    
-    auth_header = (
-        headers.get('Authorization', '') or 
-        headers.get('authorization', '') or
-        headers.get('AUTHORIZATION', '')
-    )
-    
-    logger.info(f"Authorization header: {auth_header[:50] if auth_header else 'None'}...")
-    
-    if not auth_header or not auth_header.startswith('Bearer '):
-        logger.warning(f"No Bearer token found. Header: {auth_header[:50] if auth_header else 'None'}")
-        return None
-    
-    token = auth_header[7:]  # Remove "Bearer " prefix
-    logger.info(f"Verifying token: {token[:20]}...")
-    is_valid, payload, error = verify_token(token)
-    
-    if not is_valid or not payload:
-        logger.warning(f"Token verification failed: {error}")
-        return None
-    
-    user_id = payload.get('user_id')
-    if not user_id:
-        logger.warning("No user_id in JWT payload")
-        return None
-    
-    logger.info(f"Extracted user_id from JWT: {user_id}")
-    return user_id
-
-
+@require_user_auth
 def get_payment_methods(event, context):
     """
     Get user's saved payment methods - Requires authentication
@@ -233,18 +247,21 @@ def get_payment_methods(event, context):
     try:
         logger.info("Get payment methods event")
         
-        # Get user ID from token
-        user_id = extract_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+        
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }, ensure_ascii=False),
             }
         
@@ -294,6 +311,7 @@ def get_payment_methods(event, context):
         }
 
 
+@require_user_auth
 def add_payment_method(event, context):
     """
     Add new payment method - Requires authentication
@@ -321,11 +339,20 @@ def add_payment_method(event, context):
     }
     """
     try:
-        logger.info(f"Add payment method event: {event}")
+        logger.info(f"[ADD_PAYMENT] Starting add_payment_method")
+        logger.info(f"[ADD_PAYMENT] Event keys: {list(event.keys())}")
+        logger.info(f"[ADD_PAYMENT] Raw body: {event.get('body', 'NO BODY')}")
         
-        # Get user ID from token
-        user_id = extract_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+        
+        logger.info(f"[ADD_PAYMENT] user_payload: {user_payload}")
+        logger.info(f"[ADD_PAYMENT] user_id: {user_id}")
+
+        # ⭐ カード追加はログイン必須
         if not user_id:
+            logger.error("[ADD_PAYMENT] Unauthorized - No user_id provided")
             return {
                 "statusCode": 401,
                 "headers": {
@@ -334,7 +361,7 @@ def add_payment_method(event, context):
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Authentication required to add payment method"
                 }, ensure_ascii=False),
             }
         
@@ -378,27 +405,69 @@ def add_payment_method(event, context):
         # Get user email from database if user_id is available
         user_email = None
         square_customer_id = None
-        if user_id:
+        
+        # ⭐ First, check if square_customer_id is provided in request (from payment response)
+        square_customer_id = body.get('squareCustomerId')
+        logger.info(f"[PAYMENT] square_customer_id from request: {square_customer_id}")
+        
+        cardholder_name = body.get('cardholderName', '')
+        logger.info(f"[PAYMENT] cardholder_name from request: {cardholder_name}")
+        
+        if user_id and not square_customer_id:
             user_response = table.query(
-                KeyConditionExpression="PK = :pk",
-                ExpressionAttributeValues={':pk': f'USER#{user_id}'},
-                Limit=1
+                KeyConditionExpression="PK = :pk AND SK = :sk",
+                ExpressionAttributeValues={
+                    ':pk': f'USER#{user_id}',
+                    ':sk': f'PROFILE#{user_id}'
+                }
             )
             if user_response.get('Items'):
                 user_email = user_response['Items'][0].get('email')
                 square_customer_id = user_response['Items'][0].get('squareCustomerId')
+                logger.info(f"[PAYMENT] Retrieved from DB - square_customer_id: {square_customer_id}, email: {user_email}")
         
-        # Step 1: Get or create Square Customer if user_id and email are available
-        if user_id and user_email and not square_customer_id:
+        # Step 1: Get or create Square Customer (only if user_id exists, which is guaranteed by auth check above)
+        if user_id and not square_customer_id:
+            # Use user_email if available from DB, otherwise error
+            if not user_email:
+                logger.error(f"[PAYMENT] Cannot create Square customer: user not found in database for user_id {user_id}")
+                return {
+                    "statusCode": 404,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "User profile not found"
+                    }, ensure_ascii=False),
+                }
+            
+            logger.info(f"[PAYMENT] Creating customer for user_id={user_id}, email={user_email}")
             square_customer_id = _get_or_create_square_customer(user_id, user_email, table)
-        elif user_id:
-            logger.info(f"User found: user_id={user_id}, user_email={user_email}, square_customer_id={square_customer_id}")
-        else:
-            logger.info("No user_id provided, proceeding with guest payment")
+            logger.info(f"[PAYMENT] Created new Square Customer: {square_customer_id}")
+        
+        # ⭐ Validate square_customer_id exists before proceeding
+        if not square_customer_id:
+            logger.error(f"[PAYMENT] Failed to get or create Square Customer ID for user {user_id}")
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Failed to create Square customer - cannot save card"
+                }, ensure_ascii=False),
+            }
         
         # Step 2: Create Card via Square API
-        cardholder_name = body.get('cardholderName')  # ⭐ 必須
         verification_token = body.get('verificationToken')  # ⭐ Optional but recommended
+        
+        logger.info(f"[PAYMENT] cardholder_name from request: {cardholder_name}")
+        logger.info(f"[PAYMENT] Full request body keys: {list(body.keys())}")
+        
         card_data = _create_square_card(
             source_id,
             square_customer_id,
@@ -507,6 +576,7 @@ def add_payment_method(event, context):
         }
 
 
+@require_user_auth
 def delete_payment_method(event, context):
     """
     Delete payment method - Requires authentication
@@ -514,18 +584,21 @@ def delete_payment_method(event, context):
     try:
         logger.info(f"Delete payment method event: {event}")
         
-        # Get user ID from token
-        user_id = extract_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }, ensure_ascii=False),
             }
         
@@ -631,6 +704,7 @@ def delete_payment_method(event, context):
         }
 
 
+@require_user_auth
 def set_default_payment_method(event, context):
     """
     Set payment method as default (main) - Requires authentication
@@ -638,18 +712,21 @@ def set_default_payment_method(event, context):
     try:
         logger.info(f"Set default payment method event: {event}")
         
-        # Get user ID from token
-        user_id = extract_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }, ensure_ascii=False),
             }
         
@@ -857,6 +934,9 @@ def create_payment(event, context):
         logger.info(f"[PAYMENT] source_id starts with 'ccof:': {str(source_id).startswith('ccof:')}")
         logger.info(f"[PAYMENT] source_id starts with 'cnon_': {str(source_id).startswith('cnon_')}")
 
+        # Initialize payment_square_customer_id to None
+        payment_square_customer_id = None
+
         # ⭐ If paying with saved card (card_id or ccof:), must include customer_id
         # ccof: = Customer Card On File token from Square SDK
         if str(source_id).startswith('card_') or str(source_id).startswith('ccof:'):
@@ -931,6 +1011,7 @@ def create_payment(event, context):
         is_square_payment = (
             source_id_str.startswith('card_') or 
             source_id_str.startswith('ccof:') or 
+            source_id_str.startswith('cnon:') or  # ⭐ cnon: (with colon, not underscore)
             source_id_str.startswith('cnon_')
         )
         
@@ -982,8 +1063,28 @@ def create_payment(event, context):
             if response.status_code in [200, 201]:
                 result = response.json()
                 payment_data = result.get('payment', {})
+                card_details = payment_data.get('card_details', {})
                 
                 logger.info(f"Payment successful: {payment_data.get('id')}")
+                logger.info(f"Card details: {card_details}")
+                
+                response_data = {
+                    "id": payment_data.get('id'),
+                    "status": payment_data.get('status'),
+                    "amount_money": payment_data.get('amount_money', {}),
+                    "receipt_number": payment_data.get('receipt_number'),
+                    "receipt_url": payment_data.get('receipt_url'),
+                    "customer_id": payment_square_customer_id if payment_square_customer_id else None
+                }
+                
+                # Add card details if available
+                if card_details:
+                    response_data["card_details"] = {
+                        "card_brand": card_details.get('card_brand'),
+                        "last_4": card_details.get('last_4'),
+                        "exp_month": card_details.get('exp_month'),
+                        "exp_year": card_details.get('exp_year'),
+                    }
                 
                 return {
                     "statusCode": 200,
@@ -994,13 +1095,7 @@ def create_payment(event, context):
                     "body": json.dumps({
                         "success": True,
                         "message": "Payment completed successfully",
-                        "data": {
-                            "id": payment_data.get('id'),
-                            "status": payment_data.get('status'),
-                            "amount_money": payment_data.get('amount_money', {}),
-                            "receipt_number": payment_data.get('receipt_number'),
-                            "receipt_url": payment_data.get('receipt_url')
-                        }
+                        "data": response_data
                     }, ensure_ascii=False),
                 }
             

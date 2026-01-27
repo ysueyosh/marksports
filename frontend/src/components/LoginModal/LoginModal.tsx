@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLoading } from '@/context/LoadingContext';
+import { useCart } from '@/context/CartContext';
 import { login as apiLogin } from '@/api/auth';
 import Overlay from '@/components/Common/Overlay';
 import styles from './LoginModal.module.css';
@@ -19,6 +20,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [error, setError] = useState('');
   const router = useRouter();
   const { loginWithUserData } = useAuth();
+  const { setUserIdentifier, fetchCart } = useCart();
   const { isLoading, setIsLoading } = useLoading();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,6 +38,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         const userData = response.data;
 
         loginWithUserData(userData);
+
+        // ログインユーザーのカートに切り替える
+        setUserIdentifier(userData.userId);
+        try {
+          await fetchCart();
+        } catch (cartError) {
+          console.error('Failed to fetch user cart:', cartError);
+          // カート取得に失敗してもログイン処理は続行
+        }
+
         setEmail('');
         setPassword('');
         onClose();

@@ -61,7 +61,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
               // トークン検証失敗 → ログアウト
               console.warn(
                 'Admin token verification failed:',
-                response.message
+                response.message,
               );
               localStorage.removeItem('adminLogged');
               localStorage.removeItem('adminTokens');
@@ -72,20 +72,22 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
           } else {
             // アクセストークン期限切れ → リフレッシュトークンで更新
             const refreshResponse = await refreshAdminToken(
-              parsedTokens.refreshToken
+              parsedTokens.refreshToken,
             );
 
             if (refreshResponse.success && refreshResponse.data) {
-              // 新しいアクセストークンで更新
+              // 新しいアクセストークンとリフレッシュトークンで更新
               const newTokens: AdminTokens = {
                 accessToken: refreshResponse.data.accessToken,
-                refreshToken: parsedTokens.refreshToken,
+                refreshToken:
+                  refreshResponse.data.refreshToken ||
+                  parsedTokens.refreshToken,
                 expiresAt: Date.now() + refreshResponse.data.expiresIn * 1000,
               };
 
               // 新しいアクセストークンで検証
               const verifyResponse = await verifyAdminToken(
-                newTokens.accessToken
+                newTokens.accessToken,
               );
 
               if (verifyResponse.success) {
@@ -104,7 +106,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
               // リフレッシュ失敗 → ログアウト
               console.warn(
                 'Admin token refresh failed:',
-                refreshResponse.message
+                refreshResponse.message,
               );
               localStorage.removeItem('adminLogged');
               localStorage.removeItem('adminTokens');

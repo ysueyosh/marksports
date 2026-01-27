@@ -1,13 +1,62 @@
 service: ecsite-backend
 
-frameworkVersion: '3'
+frameworkVersion: '4'
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - '!venv/**'
+    - '!.venv/**'
+    - '!__pycache__/**'
+    - '!.pytest_cache/**'
+    - '!tests/**'
+    - '!*.md'
+    - '!.git/**'
 
 provider:
   name: aws
   runtime: python3.11
   region: ap-northeast-1
+  layers:
+    - arn:aws:lambda:ap-northeast-1:681816819085:layer:ecsite-python-dependencies:2
   environment:
-    DYNAMODB_TABLE: ${self:service}-${sls:stage}
+    DYNAMODB_TABLE: ${self:service}
+    # Table names (stage-specific)
+    USERS_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.user}
+    ADMIN_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.admin}
+    COMMERCE_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.commerce}
+    CART_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.user}
+    # Square API (Lambda デプロイ時に AWS SSM Parameter Store から取得)
+    SQUARE_ACCESS_TOKEN: ${ssm:/ecsite/${sls:stage}/SQUARE_ACCESS_TOKEN}
+    SQUARE_ENVIRONMENT: ${sls:stage}
+    # Email configuration (SES)
+    ORDER_FROM_EMAIL: ${ssm:/ecsite/${sls:stage}/ORDER_FROM_EMAIL}
+    # Notification table (DynamoDB)
+    NOTIFICATION_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.notification}
+    # Frontend URL
+    FRONTEND_URL: ${self:custom.frontendUrl.${sls:stage}}
+    # S3 bucket for product images
+    S3_BUCKET_NAME: ${self:custom.s3Bucket.${sls:stage}}
+    # CloudFront domain for image delivery
+    CLOUDFRONT_DOMAIN: ${self:custom.cloudfrontDomain.${sls:stage}}
+  httpApi:
+    metrics: false
+    cors:
+      allowedOrigins:
+        - http://localhost:3000
+        - http://localhost:5000
+        - http://192.168.40.228:3000
+        - https://marksports.example.com
+      allowedHeaders:
+        - '*'
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      maxAge: 86400
+      allowCredentials: true
   iam:
     role:
       statements:
@@ -19,7 +68,75 @@ provider:
             - dynamodb:PutItem
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
-          Resource: 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.DYNAMODB_TABLE}'
+            - dynamodb:BatchWriteItem
+          Resource:
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.USERS_TABLE_NAME}'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.ADMIN_TABLE_NAME}'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.COMMERCE_TABLE_NAME}'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.NOTIFICATION_TABLE_NAME}'
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.USERS_TABLE_NAME}/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.ADMIN_TABLE_NAME}/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.COMMERCE_TABLE_NAME}/index/GSI_COUPON_CODE'
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:DeleteObject
+            - s3:GetObject
+            - s3:ListBucket
+          Resource:
+            - 'arn:aws:s3:::${self:provider.environment.S3_BUCKET_NAME}'
+            - 'arn:aws:s3:::${self:provider.environment.S3_BUCKET_NAME}/*'
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+          Resource:
+            - 'arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/ecsite/*'
+
+custom:
+  frontendUrl:
+    dev: http://localhost:3000
+    stage: https://stage.example.com
+    prod: https://ecsite.example.com
+
+  # DynamoDB tables per stage
+  dynamoTables:
+    dev:
+      user: User
+      admin: Admin
+      commerce: Commerce
+      notification: Notification
+    stage:
+      user: User-stage
+      admin: Admin-stage
+      commerce: Commerce-stage
+      notification: Notification-stage
+    prod:
+      user: User-prod
+      admin: Admin-prod
+      commerce: Commerce-prod
+      notification: Notification-prod
+
+  # S3 bucket per stage (provided stage bucket name)
+  s3Bucket:
+    dev: marksports-image-dev
+    stage: marksports-image-stage
+    prod: marksports-image-prod
+
+  # CloudFront domain per stage
+  cloudfrontDomain:
+    dev: d23pzr22xoegue.cloudfront.net
+    stage: d1rxenf9seg5xc.cloudfront.net
+    prod: d1rxenf9seg5xc.cloudfront.net
 
 functions:
   # Authentication
@@ -28,6 +145,27 @@ functions:
     events:
       - httpApi:
           path: /login
+          method: post
+
+  register:
+    handler: src.handlers.register.register
+    events:
+      - httpApi:
+          path: /register
+          method: post
+
+  verifyEmail:
+    handler: src.handlers.verify_email.verify_email
+    events:
+      - httpApi:
+          path: /verify-email-registration
+          method: post
+
+  resendVerificationEmail:
+    handler: src.handlers.resend_verification_email.resend_verification_email
+    events:
+      - httpApi:
+          path: /resend-verification-email
           method: post
 
   requestPasswordReset:
@@ -50,6 +188,56 @@ functions:
       - httpApi:
           path: /password-reset/reset
           method: post
+
+  refreshToken:
+    handler: src.handlers.auth.refresh_token
+    events:
+      - httpApi:
+          path: /refresh-token
+          method: post
+
+  verifyToken:
+    handler: src.handlers.auth.verify_token
+    events:
+      - httpApi:
+          path: /verify-token
+          method: post
+
+  # User Profile
+  updateProfile:
+    handler: src.handlers.auth.update_profile
+    events:
+      - httpApi:
+          path: /update-profile
+          method: post
+
+  changePassword:
+    handler: src.handlers.auth.change_password
+    events:
+      - httpApi:
+          path: /change-password
+          method: post
+
+  updateNotificationSettings:
+    handler: src.handlers.auth.update_notification_settings
+    events:
+      - httpApi:
+          path: /update-notification-settings
+          method: post
+
+  deleteAccount:
+    handler: src.handlers.auth.delete_account
+    events:
+      - httpApi:
+          path: /delete-account
+          method: post
+
+  getProfile:
+    handler: src.handlers.auth.get_profile
+    events:
+      - httpApi:
+          path: /get-profile
+          method: get
 
   # Admin Authentication
   adminLogin:
@@ -78,6 +266,180 @@ functions:
     events:
       - httpApi:
           path: /admin/create
+          method: post
+
+  getAdminSettings:
+    handler: src.handlers.admin.get_admin_settings
+    events:
+      - httpApi:
+          path: /admin/settings
+          method: get
+
+  updateAdminSettings:
+    handler: src.handlers.admin.update_admin_settings
+    events:
+      - httpApi:
+          path: /admin/settings
+          method: put
+
+  # Admin Product Management
+  createAdminProduct:
+    handler: src.handlers.admin_product.create_product
+    events:
+      - httpApi:
+          path: /admin/products
+          method: post
+
+  getAllAdminProducts:
+    handler: src.handlers.admin_product.get_all_products
+    events:
+      - httpApi:
+          path: /admin/products
+          method: get
+
+  updateAdminProduct:
+    handler: src.handlers.admin_product.update_product
+    events:
+      - httpApi:
+          path: /admin/products/{productId}
+          method: put
+
+  deleteAdminProduct:
+    handler: src.handlers.admin_product.delete_product
+    events:
+      - httpApi:
+          path: /admin/products/{productId}
+          method: delete
+
+  # Admin Category Management
+  createAdminCategory:
+    handler: src.handlers.admin_category.create_category
+    events:
+      - httpApi:
+          path: /admin/categories
+          method: post
+
+  getAllAdminCategories:
+    handler: src.handlers.admin_category.get_all_categories
+    events:
+      - httpApi:
+          path: /admin/categories
+          method: get
+
+  updateAdminCategory:
+    handler: src.handlers.admin_category.update_category
+    events:
+      - httpApi:
+          path: /admin/categories/{categoryId}
+          method: put
+
+  deleteAdminCategory:
+    handler: src.handlers.admin_category.delete_category
+    events:
+      - httpApi:
+          path: /admin/categories/{categoryId}
+          method: delete
+
+  # Admin Coupon Management
+  createAdminCoupon:
+    handler: src.handlers.admin_coupon.create_coupon
+    events:
+      - httpApi:
+          path: /admin/coupons
+          method: post
+
+  getAllAdminCoupons:
+    handler: src.handlers.admin_coupon.get_all_coupons
+    events:
+      - httpApi:
+          path: /admin/coupons
+          method: get
+
+  updateAdminCoupon:
+    handler: src.handlers.admin_coupon.update_coupon
+    events:
+      - httpApi:
+          path: /admin/coupons/{couponId}
+          method: put
+
+  deleteAdminCoupon:
+    handler: src.handlers.admin_coupon.delete_coupon
+    events:
+      - httpApi:
+          path: /admin/coupons/{couponId}
+          method: delete
+
+  # Admin User Management
+  getAllAdminUsers:
+    handler: src.handlers.admin_user.get_all_users
+    events:
+      - httpApi:
+          path: /admin/users
+          method: get
+
+  getAdminUser:
+    handler: src.handlers.admin_user.get_user
+    events:
+      - httpApi:
+          path: /admin/users/{user_id}
+          method: get
+
+  updateAdminUser:
+    handler: src.handlers.admin_user.update_user
+    events:
+      - httpApi:
+          path: /admin/users/{user_id}
+          method: put
+
+  deleteAdminUser:
+    handler: src.handlers.admin_user.delete_user
+    events:
+      - httpApi:
+          path: /admin/users/{user_id}
+          method: delete
+
+  # Admin Notification Management
+  getAllAdminNotifications:
+    handler: src.handlers.admin_notification.get_all_notifications
+    events:
+      - httpApi:
+          path: /admin/notifications
+          method: get
+
+  getAdminNotification:
+    handler: src.handlers.admin_notification.get_notification
+    events:
+      - httpApi:
+          path: /admin/notifications/{notification_id}
+          method: get
+
+  createAdminNotification:
+    handler: src.handlers.admin_notification.create_notification
+    events:
+      - httpApi:
+          path: /admin/notifications
+          method: post
+
+  updateAdminNotification:
+    handler: src.handlers.admin_notification.update_notification
+    events:
+      - httpApi:
+          path: /admin/notifications/{notification_id}
+          method: put
+
+  deleteAdminNotification:
+    handler: src.handlers.admin_notification.delete_notification
+    events:
+      - httpApi:
+          path: /admin/notifications/{notification_id}
+          method: delete
+
+  # Admin Image Upload
+  uploadAdminImage:
+    handler: src.handlers.admin_image.upload_image
+    events:
+      - httpApi:
+          path: /admin/images/upload
           method: post
 
   # Address Management
@@ -113,7 +475,7 @@ functions:
     handler: src.handlers.address.set_main_address
     events:
       - httpApi:
-          path: /addresses/{id}/main
+          path: /addresses/{id}/default
           method: put
 
   searchAddress:
@@ -166,11 +528,39 @@ functions:
           path: /orders
           method: post
 
+  getOrders:
+    handler: src.handlers.order.get_orders
+    events:
+      - httpApi:
+          path: /orders
+          method: get
+
+  getOrderDetail:
+    handler: src.handlers.order.get_order_detail
+    events:
+      - httpApi:
+          path: /orders/{id}
+          method: get
+
+  cancelOrder:
+    handler: src.handlers.order.cancel_order
+    events:
+      - httpApi:
+          path: /orders/{id}/cancel
+          method: post
+
   getAllOrders:
     handler: src.handlers.order.get_all_orders
     events:
       - httpApi:
           path: /admin/orders
+          method: get
+
+  getAdminOrderDetail:
+    handler: src.handlers.order.get_admin_order_detail
+    events:
+      - httpApi:
+          path: /admin/orders/{id}
           method: get
 
   updateOrderStatus:
@@ -180,64 +570,140 @@ functions:
           path: /admin/orders/status
           method: post
 
+  manualRefund:
+    handler: src.handlers.admin.manual_refund
+    events:
+      - httpApi:
+          path: /admin/orders/manual-refund
+          method: post
+
+  revokeCancelRequest:
+    handler: src.handlers.order.revoke_cancel_request
+    events:
+      - httpApi:
+          path: /orders/{id}/cancel/revoke
+          method: post
+
+  # Cart Management
+  getCart:
+    handler: src.handlers.cart.get_cart
+    events:
+      - httpApi:
+          path: /cart
+          method: get
+
+  addToCart:
+    handler: src.handlers.cart.add_to_cart
+    events:
+      - httpApi:
+          path: /cart
+          method: post
+
+  updateCartItem:
+    handler: src.handlers.cart.update_cart_item
+    events:
+      - httpApi:
+          path: /cart/{product_id}
+          method: put
+
+  deleteFromCart:
+    handler: src.handlers.cart.delete_from_cart
+    events:
+      - httpApi:
+          path: /cart/{product_id}
+          method: delete
+
+  clearCart:
+    handler: src.handlers.cart.clear_cart
+    events:
+      - httpApi:
+          path: /cart/clear
+          method: post
+
+  # Product Management
+  getCategories:
+    handler: src.handlers.category.get_categories
+    events:
+      - httpApi:
+          path: /categories
+          method: get
+
+  getFeaturedProducts:
+    handler: src.handlers.product.get_featured_products
+    events:
+      - httpApi:
+          path: /featured-products
+          method: get
+
+  getProductDetail:
+    handler: src.handlers.product.get_product_detail
+    events:
+      - httpApi:
+          path: /product/{id}
+          method: get
+
+  checkProductExists:
+    handler: src.handlers.product.check_product_exists
+    events:
+      - httpApi:
+          path: /product/{id}/exists
+          method: get
+
+  checkProductsExist:
+    handler: src.handlers.product.check_products_exist
+    events:
+      - httpApi:
+          path: /products/exists
+          method: post
+
+  getRelatedProducts:
+    handler: src.handlers.product.get_related_products
+    events:
+      - httpApi:
+          path: /related-products
+          method: get
+
+  # Search
+  searchProducts:
+    handler: src.handlers.search.search_products
+    events:
+      - httpApi:
+          path: /search
+          method: get
+
+  # Coupon
+  applyCoupon:
+    handler: src.handlers.coupon.apply_coupon
+    events:
+      - httpApi:
+          path: /apply-coupon
+          method: post
+
+  # Notification Management
+  getNotifications:
+    handler: src.handlers.notification.get_notifications
+    events:
+      - httpApi:
+          path: /notifications
+          method: get
+
+  getNotificationDetail:
+    handler: src.handlers.notification.get_notification_detail
+    events:
+      - httpApi:
+          path: /notifications/{notification_id}
+          method: get
+
+  getNotificationCount:
+    handler: src.handlers.notification.get_notification_count
+    events:
+      - httpApi:
+          path: /notifications/count
+          method: get
+
   health:
     handler: src.app.health_check
     events:
       - httpApi:
           path: /health
           method: get
-
-resources:
-  Resources:
-    AdminTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.environment.DYNAMODB_TABLE}-admin
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: PK
-            AttributeType: S
-          - AttributeName: SK
-            AttributeType: S
-          - AttributeName: email
-            AttributeType: S
-        KeySchema:
-          - AttributeName: PK
-            KeyType: HASH
-          - AttributeName: SK
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: GSI_MAIL
-            KeySchema:
-              - AttributeName: email
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-
-    UsersTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.environment.DYNAMODB_TABLE}-users
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: PK
-            AttributeType: S
-          - AttributeName: SK
-            AttributeType: S
-          - AttributeName: email
-            AttributeType: S
-        KeySchema:
-          - AttributeName: PK
-            KeyType: HASH
-          - AttributeName: SK
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: GSI_MAIL
-            KeySchema:
-              - AttributeName: email
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-
-plugins:
-  - serverless-offline

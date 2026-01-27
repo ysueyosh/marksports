@@ -24,7 +24,7 @@ export default function CartPage() {
   const { show: showSnackbar } = useSnackbar();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [deletedProductsList, setDeletedProductsList] = useState<CartItem[]>(
-    []
+    [],
   );
   const [couponCode, setCouponCode] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -56,7 +56,7 @@ export default function CartPage() {
     try {
       // 1度のAPI呼び出しですべての商品を確認
       const response = await checkProductsExist(
-        cartItems.map((item) => item.id)
+        cartItems.map((item) => item.id),
       );
 
       if (!response.success || !response.data?.results) {
@@ -126,7 +126,7 @@ export default function CartPage() {
       setCouponError('');
       showSnackbar(
         `${response.data!.coupon_description}が適用されました`,
-        'success'
+        'success',
       );
     } catch (err) {
       console.error('Failed to apply coupon:', err);
@@ -139,7 +139,7 @@ export default function CartPage() {
   // 税抜き小計から税込み合計を計算
   const subtotal = cartItems.reduce<number>(
     (sum, item: CartItem) => sum + item.price * item.quantity,
-    0
+    0,
   );
   const shipping = cartItems.length > 0 ? 500 : 0;
   // 消費税は商品代金にのみかかる（送料は非課税）
@@ -151,7 +151,7 @@ export default function CartPage() {
     const couponTargetAmount = subtotal + tax;
     if (coupon.discount_type === 'percentage') {
       discountAmount = Math.floor(
-        (couponTargetAmount * coupon.discount_value) / 100
+        (couponTargetAmount * coupon.discount_value) / 100,
       );
       // 最高割引額でキャップ
       if (coupon.max_discount_amount) {
@@ -225,7 +225,7 @@ export default function CartPage() {
                 {cartItems.map((item: CartItem) => (
                   <div key={item.id} className={styles.cartItem}>
                     <div className={styles.itemInfo}>
-                      <Link href={`/product/${item.id}`}>
+                      <Link href={`/product/detail?id=${item.id}`}>
                         <div className={styles.itemImage}>
                           {item.image ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -243,7 +243,9 @@ export default function CartPage() {
                       </Link>
                       <div>
                         <h3 className={styles.itemName}>
-                          <Link href={`/product/${item.id}`}>{item.name}</Link>
+                          <Link href={`/product/detail?id=${item.id}`}>
+                            {item.name}
+                          </Link>
                         </h3>
                       </div>
                     </div>

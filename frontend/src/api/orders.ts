@@ -8,7 +8,9 @@ export interface OrderItem {
   productId: string;
   productName: string;
   quantity: number;
-  price: number;
+  price?: number;
+  unitPrice?: number;
+  totalAmount?: number;
 }
 
 export interface Order {
@@ -22,6 +24,8 @@ export interface Order {
   shippingCost: number;
   items?: OrderItem[];
   cancelRequestSent?: boolean;
+  isCancelRequest?: boolean;
+  refundAt?: string;
 }
 
 export interface OrderItemData {
@@ -34,13 +38,17 @@ export interface OrderItemData {
 }
 
 export interface Address {
+  name?: string;
   lastName?: string;
   firstName?: string;
   postalCode?: string;
   prefecture?: string;
   address?: string;
+  addressLine1?: string;
   building?: string;
+  addressLine2?: string;
   phone?: string;
+  email?: string;
 }
 
 export interface PaymentMethod {
@@ -69,6 +77,10 @@ export interface OrderDetail {
   cancelRequestSent?: boolean;
   statusLabel?: string;
   subtotal?: number;
+  isCancelRequest?: boolean;
+  cancelReason?: string;
+  cancelRequestAt?: string;
+  refundAt?: string;
 }
 
 export interface GetOrdersResponse {
@@ -110,10 +122,10 @@ export async function getOrders(): Promise<GetOrdersResponse> {
  * @param orderId - Order ID
  */
 export async function getOrderDetail(
-  orderId: string
+  orderId: string,
 ): Promise<GetOrderDetailResponse> {
   const response = await apiClient.get<GetOrderDetailResponse>(
-    `/orders/${orderId}`
+    `/orders/${orderId}`,
   );
 
   return response;
@@ -126,11 +138,26 @@ export async function getOrderDetail(
  */
 export async function cancelOrder(
   orderId: string,
-  reason: string
+  reason: string,
 ): Promise<CancelOrderResponse> {
   const response = await apiClient.post<CancelOrderResponse>(
     `/orders/${orderId}/cancel`,
-    { reason }
+    { reason },
+  );
+
+  return response;
+}
+
+/**
+ * Revoke cancel request
+ * @param orderId - Order ID
+ */
+export async function revokeCancelRequest(
+  orderId: string,
+): Promise<CancelOrderResponse> {
+  const response = await apiClient.post<CancelOrderResponse>(
+    `/orders/${orderId}/cancel/revoke`,
+    {},
   );
 
   return response;
@@ -157,8 +184,11 @@ export interface SaveOrderRequest {
   expYear?: number;
   squareTransactionId?: string;
   status?: string;
+  userEmail?: string;
+  userName?: string;
   items: Array<{
     productId: string;
+    productName?: string;
     quantity: number;
     amount: number;
     totalAmount: number;
@@ -176,12 +206,12 @@ export interface SaveOrderResponse {
 }
 
 export async function saveOrder(
-  request: SaveOrderRequest
+  request: SaveOrderRequest,
 ): Promise<SaveOrderResponse> {
   try {
     const response = await apiClient.post<SaveOrderResponse>(
       '/orders',
-      request
+      request,
     );
     return response;
   } catch (error) {

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
 import { addCard } from '@/api/payment';
+import { CardFormComponent } from '@/components/CardFormComponent/CardFormComponent';
 import styles from './add.module.css';
 
 export default function AddPaymentPage() {
@@ -15,112 +16,17 @@ export default function AddPaymentPage() {
   const { show: showSnackbar } = useSnackbar();
   const [cardholderName, setCardholderName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [sqInitialized, setSqInitialized] = useState(false);
 
   // Square Web Payments SDK の参照
   const cardInstanceRef = useRef<any>(null);
-  const paymentsInstanceRef = useRef<any>(null); // ⭐ verifyBuyer用
-
-  // Square Web Payments SDK を初期化
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    const initializeSquare = async () => {
-      try {
-        if (!window.Square) {
-          console.error('Square SDK not loaded');
-          showSnackbar('Square SDK が読み込まれていません', 'error');
-          return;
-        }
-
-        const applicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID;
-        const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID;
-
-        if (!applicationId || !locationId || applicationId.includes('YOUR_')) {
-          console.warn('Square not configured. Using demo mode.');
-          showSnackbar(
-            'Square が設定されていません。Dashboard から ApplicationID と LocationID を設定してください。',
-            'error'
-          );
-          return;
-        }
-
-        console.log('[DIAGNOSTIC] Initializing Square...');
-        // Payments インスタンスを作成
-        const payments = await window.Square.payments(
-          applicationId,
-          locationId
-        );
-        paymentsInstanceRef.current = payments; // ⭐ verifyBuyer用に保存
-
-        // Card オブジェクトを作成
-        // ⭐ 日本向けの設定：postalCode を無効化
-        const card = await payments.card({
-          style: {
-            input: {
-              fontFamily: '"Helvetica Neue", sans-serif',
-              fontSize: '16px',
-              color: '#333',
-            },
-          },
-        });
-        cardInstanceRef.current = card;
-
-        console.log('[DIAGNOSTIC] Card object created, attaching to DOM...');
-
-        // DOM に Card をアタッチ
-        const cardContainer = document.getElementById('card-container');
-        if (cardContainer) {
-          await card.attach('#card-container');
-          console.log('[DIAGNOSTIC] Card attached to DOM');
-          setSqInitialized(true);
-        } else {
-          console.error('card-container element not found');
-        }
-      } catch (err) {
-        console.error('Failed to initialize Square:', err);
-        showSnackbar('Square の初期化に失敗しました', 'error');
-      }
-    };
-
-    // DOM が準備できるまで待機
-    const timer = setTimeout(() => {
-      initializeSquare();
-    }, 500);
-
-    return () => {
-      clearTimeout(timer);
-      if (cardInstanceRef.current) {
-        try {
-          cardInstanceRef.current.destroy();
-        } catch (err) {
-          console.error('Error destroying card:', err);
-        }
-      }
-    };
-  }, [isLoggedIn]);
-
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-
-    if (!cardholderName.trim()) {
-      errors.cardholderName = 'カード所有者名を入力してください';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return false;
-    }
-
-    setFieldErrors({});
-    return true;
-  };
+  const paymentsInstanceRef = useRef<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!cardholderName.trim()) {
+      showSnackbar('カード所有者名を入力してください', 'error');
       return;
     }
 
@@ -154,7 +60,7 @@ export default function AddPaymentPage() {
       const sourceId = tokenResult.token;
       console.log(
         '[DIAGNOSTIC] sourceId (nonce):',
-        sourceId.substring(0, 50) + '...'
+        sourceId.substring(0, 50) + '...',
       );
       console.log('[DIAGNOSTIC] nonce length:', sourceId.length);
 
@@ -169,7 +75,7 @@ export default function AddPaymentPage() {
             intent: 'STORE', // Card on File の目的
             amount: '0',
             currencyCode: 'JPY',
-          }
+          },
         );
 
         if (verifyResult?.token) {
@@ -178,7 +84,7 @@ export default function AddPaymentPage() {
             '[DIAGNOSTIC] Verification token obtained:',
             verificationToken
               ? verificationToken.substring(0, 30) + '...'
-              : 'undefined'
+              : 'undefined',
           );
         } else {
           console.warn('[DIAGNOSTIC] No verification token from verifyBuyer');
@@ -186,7 +92,7 @@ export default function AddPaymentPage() {
       } catch (verifyErr) {
         console.warn(
           '[DIAGNOSTIC] verifyBuyer error (non-critical):',
-          verifyErr
+          verifyErr,
         );
         // verifyBuyer エラーは非致命的 - 続行
       }
@@ -216,7 +122,7 @@ export default function AddPaymentPage() {
       } else {
         showSnackbar(
           `カードの追加に失敗しました: ${response.message}`,
-          'error'
+          'error',
         );
         console.error('addCard failed:', response);
       }
@@ -263,46 +169,15 @@ export default function AddPaymentPage() {
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formGroup}>
-            <label htmlFor="cardholderName" className={styles.label}>
-              カード所有者名
-            </label>
-            <input
-              id="cardholderName"
-              type="text"
-              value={cardholderName}
-              onChange={(e) => setCardholderName(e.target.value)}
-              placeholder="例：TARO YAMADA"
-              className={`${styles.input} ${
-                fieldErrors.cardholderName ? styles.inputError : ''
-              }`}
-            />
-            {fieldErrors.cardholderName && (
-              <span className={styles.fieldError}>
-                {fieldErrors.cardholderName}
-              </span>
-            )}
-          </div>
-
-          {/* Square Web Payments SDK の Card コンテナ */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>カード情報</label>
-            <div
-              id="card-container"
-              style={{
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                padding: '12px',
-                minHeight: '100px',
-                backgroundColor: '#f9f9f9',
-              }}
-            />
-            {!sqInitialized && (
-              <p style={{ color: '#999', fontSize: '12px', marginTop: '8px' }}>
-                カード入力フォームを読み込み中...
-              </p>
-            )}
-          </div>
+          <CardFormComponent
+            cardholderName={cardholderName}
+            onCardholderNameChange={setCardholderName}
+            sqInitialized={sqInitialized}
+            onSqInitialized={setSqInitialized}
+            cardInstanceRef={cardInstanceRef}
+            paymentsInstanceRef={paymentsInstanceRef}
+            isLoggedIn={isLoggedIn}
+          />
 
           <div className={styles.formGroup}>
             <button

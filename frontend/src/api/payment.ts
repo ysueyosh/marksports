@@ -8,6 +8,7 @@ import { apiClient } from './client';
  */
 export interface SavedCard {
   id: string; // card_id from Square (card_xxx), NOT sourceId (cnon_xxx)
+  cardholderName?: string; // ⭐ Cardholder name
   lastFourDigits: string;
   cardType: string; // "VISA", "MASTERCARD", "AMEX"
   expiryMonth: number;
@@ -25,6 +26,7 @@ export interface GetSavedCardsResponse {
 export interface AddCardRequest {
   sourceId: string; // Payment nonce from Square Web Payments SDK (cnon_xxx)
   cardholderName: string; // ⭐ Cardholder name for card storage
+  squareCustomerId?: string; // ⭐ Square Customer ID (optional if already in DB)
   verificationToken?: string; // ⭐ From verifyBuyer() for SCA
   billingAddress?: {
     givenName?: string;
@@ -65,7 +67,7 @@ export async function getSavedCards(): Promise<GetSavedCardsResponse> {
  * Add new card
  */
 export async function addCard(
-  cardData: AddCardRequest
+  cardData: AddCardRequest,
 ): Promise<AddCardResponse> {
   // ⭐ 診断: cardData の内容をログ出力
   console.log('[DIAGNOSTIC] addCard called with:', cardData);
@@ -100,10 +102,10 @@ export async function deleteCard(cardId: string): Promise<DeleteCardResponse> {
  * Set card as default
  */
 export async function setDefaultCard(
-  cardId: string
+  cardId: string,
 ): Promise<SetDefaultCardResponse> {
   return apiClient.put<SetDefaultCardResponse>(
     `/payment-methods/${cardId}/default`,
-    {}
+    {},
   );
 }

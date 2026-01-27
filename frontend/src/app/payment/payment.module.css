@@ -239,6 +239,20 @@
   margin-bottom: 20px;
 }
 
+.noCardsActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.noCardsPagination {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .loadingMessage {
   text-align: center;
   color: var(--text-secondary);

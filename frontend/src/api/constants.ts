@@ -4,12 +4,13 @@
 
 // Local development
 // PC
-export const API_BASE_URL = 'http://localhost:5000';
+// export const API_BASE_URL = 'http://localhost:5000';
 // スマホ
 // export const API_BASE_URL = 'http://192.168.40.228:5000';
 
-// Production (change when deploying)
-// export const API_BASE_URL = 'https://xxx.execute-api.ap-northeast-1.amazonaws.com';
+// Production (AWS Lambda deployed)
+export const API_BASE_URL =
+  'https://vyxotu48nk.execute-api.ap-northeast-1.amazonaws.com';
 
 export const API_ENDPOINTS = {
   LOGIN: '/login',

@@ -26,6 +26,8 @@ import { saveOrder } from '@/api/orders';
 import TextInput from '@/components/Input/TextInput';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
+import { CardFormComponent } from '@/components/CardFormComponent/CardFormComponent';
+import { CardAddModal } from '@/components/CardAddModal/CardAddModal';
 import styles from './checkout.module.css';
 
 export default function CheckoutPage() {
@@ -44,12 +46,14 @@ export default function CheckoutPage() {
     string | null
   >(null);
   const [savePaymentMethod, setSavePaymentMethod] = useState(false);
+  const [cardholderName, setCardholderName] = useState('');
+  const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [isPrefectureDropdownOpen, setIsPrefectureDropdownOpen] =
     useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [userAddresses, setUserAddresses] = useState<AddressItem[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    null
+    null,
   );
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   const [useNewAddress, setUseNewAddress] = useState(false);
@@ -67,6 +71,7 @@ export default function CheckoutPage() {
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [isLoadingCards, setIsLoadingCards] = useState(false);
   const [cardsLoadError, setCardsLoadError] = useState<string | null>(null);
+  const [squareCustomerId, setSquareCustomerId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -86,7 +91,7 @@ export default function CheckoutPage() {
   const priceInfo = useMemo(() => {
     const subtotal = cartItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
-      0
+      0,
     );
     const shippingFee = SHIPPING_FEE_NORMAL;
     // 消費税は商品代金にのみかかる（送料は税抜き）
@@ -100,7 +105,7 @@ export default function CheckoutPage() {
       const couponTargetAmount = subtotalWithTax;
       if (coupon.discount_type === 'percentage') {
         discountAmount = Math.floor(
-          (couponTargetAmount * coupon.discount_value) / 100
+          (couponTargetAmount * coupon.discount_value) / 100,
         );
         // 最高割引額でキャップ
         if (coupon.max_discount_amount) {
@@ -311,7 +316,7 @@ export default function CheckoutPage() {
 
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [addressSearchError, setAddressSearchError] = useState<string | null>(
-    null
+    null,
   );
   const [isSearchingAddressInModal, setIsSearchingAddressInModal] =
     useState(false);
@@ -382,7 +387,7 @@ export default function CheckoutPage() {
       if (result.success && result.data) {
         // prefectureは日本語名なので、prefectureOptionsから該当するIDを探す
         const prefectureId = prefectureOptions.find(
-          (opt) => opt.label === result.data!.prefecture
+          (opt) => opt.label === result.data!.prefecture,
         )?.id;
 
         if (prefectureId) {
@@ -391,7 +396,7 @@ export default function CheckoutPage() {
         handleNewAddressFormChange('address', result.data.address);
       } else {
         setAddressSearchErrorInModal(
-          result.message || '指定の郵便番号が見つかりません'
+          result.message || '指定の郵便番号が見つかりません',
         );
       }
     } catch (error) {
@@ -405,7 +410,7 @@ export default function CheckoutPage() {
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
 
@@ -562,23 +567,6 @@ export default function CheckoutPage() {
           }
           paymentSourceId = sourceId;
           console.log('Credit card sourceId:', paymentSourceId);
-
-          // ⭐ カード保存処理（ログイン済みかつ checkbox がオンの場合）
-          if (isLoggedIn && savePaymentMethod) {
-            try {
-              console.log('Saving card with sourceId:', sourceId);
-              // ⭐ sourceId と cardholderName を送信
-              await addCard({
-                sourceId: sourceId,
-                cardholderName: formData.name || '名無し',
-              });
-              setSavePaymentMethod(false);
-              console.log('Card saved successfully');
-            } catch (error) {
-              console.error('Failed to save card:', error);
-              // カード保存失敗は決済を続行
-            }
-          }
           orderStatus = 'awaiting_shipment';
           break;
 
@@ -636,12 +624,18 @@ export default function CheckoutPage() {
           currency: 'JPY',
           orderId: `ORDER_${Date.now()}`,
         },
-        authToken
+        authToken,
       );
 
       console.log('Payment result:', result);
 
       if (result && result.id) {
+        // ⭐ Store customer_id for card modal
+        if (result.customer_id) {
+          setSquareCustomerId(result.customer_id);
+          console.log('[CHECKOUT] Customer ID stored:', result.customer_id);
+        }
+
         // ⭐ Save order to database
         try {
           console.log('Saving order...');
@@ -678,7 +672,7 @@ export default function CheckoutPage() {
           ) {
             // Get selected card from saved cards
             const selectedCardData = savedCards.find(
-              (card) => card.id === selectedPaymentMethodId
+              (card) => card.id === selectedPaymentMethodId,
             );
             if (selectedCardData) {
               paymentDetails.paymentBrand = selectedCardData.cardType;
@@ -686,12 +680,18 @@ export default function CheckoutPage() {
               paymentDetails.expMonth = selectedCardData.expiryMonth;
               paymentDetails.expYear = selectedCardData.expiryYear;
             }
+          } else if (paymentMode === 'credit_card' && result.card_details) {
+            // New card: get card info from payment result
+            paymentDetails.paymentBrand = result.card_details.card_brand;
+            paymentDetails.last4 = result.card_details.last_4;
+            paymentDetails.expMonth = result.card_details.exp_month;
+            paymentDetails.expYear = result.card_details.exp_year;
           }
 
           // Save order
           // Get selected address data
           const addressData = userAddresses.find(
-            (addr) => addr.id === selectedAddressId
+            (addr) => addr.id === selectedAddressId,
           );
 
           const orderSaveResult = await saveOrder({
@@ -703,18 +703,31 @@ export default function CheckoutPage() {
             discount: priceInfo.discountAmount,
             couponCode: coupon?.code,
             couponDiscount: priceInfo.discountAmount,
-            shippingAddress: addressData || {
-              givenName: formData.name.split(' ')[0] || '',
-              familyName: formData.name.split(' ')[1] || '',
-              addressLine1: formData.address,
-              addressLine2: formData.building,
-              administrativeDistrictLevel1: formData.prefecture,
-              postalCode: formData.postalCode,
-              country: 'JP',
-            },
+            shippingAddress: addressData
+              ? {
+                  ...addressData,
+                  email: formData.email,
+                  phone: formData.phone,
+                  name: formData.name,
+                }
+              : {
+                  givenName: formData.name.split(' ')[0] || '',
+                  familyName: formData.name.split(' ')[1] || '',
+                  name: formData.name,
+                  email: formData.email,
+                  phone: formData.phone,
+                  addressLine1: formData.address,
+                  addressLine2: formData.building,
+                  administrativeDistrictLevel1: formData.prefecture,
+                  postalCode: formData.postalCode,
+                  country: 'JP',
+                },
             billingAddress: {
               givenName: formData.name.split(' ')[0] || '',
               familyName: formData.name.split(' ')[1] || '',
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone,
               addressLine1: formData.address,
               addressLine2: formData.building,
               administrativeDistrictLevel1: formData.prefecture,
@@ -729,15 +742,20 @@ export default function CheckoutPage() {
             expMonth: paymentDetails.expMonth,
             expYear: paymentDetails.expYear,
             status: orderStatus, // Set order status after paymentMethod
+            userEmail: formData.email,
+            userName: formData.name,
           });
 
           console.log('Order saved:', orderSaveResult);
+
+          // ⭐ No card saving here - card saving is done separately via Add Card Modal
         } catch (orderError) {
           console.error('Failed to save order:', orderError);
           // Order save failure should not block checkout flow
           showSnackbar('注文情報の保存に失敗しました', 'warning');
         }
 
+        // ⭐ Clear cart after successful purchase
         clearCart();
         setCurrentStep(4);
       } else {
@@ -748,7 +766,7 @@ export default function CheckoutPage() {
       setPaymentError(
         error instanceof Error
           ? error.message
-          : '決済処理中にエラーが発生しました'
+          : '決済処理中にエラーが発生しました',
       );
     } finally {
       setIsProcessing(false);
@@ -982,13 +1000,13 @@ export default function CheckoutPage() {
                               isOpen={isPrefectureDropdownOpen}
                               onToggle={() =>
                                 setIsPrefectureDropdownOpen(
-                                  !isPrefectureDropdownOpen
+                                  !isPrefectureDropdownOpen,
                                 )
                               }
                               onClose={() => setIsPrefectureDropdownOpen(false)}
                               buttonText={
                                 prefectureOptions.find(
-                                  (opt) => opt.id === formData.prefecture
+                                  (opt) => opt.id === formData.prefecture,
                                 )?.label || '選択してください'
                               }
                               containerClassName={
@@ -1310,7 +1328,7 @@ export default function CheckoutPage() {
                               onChange={(e) =>
                                 handleNewAddressFormChange(
                                   'postalCode',
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               placeholder="8112108"
@@ -1393,7 +1411,7 @@ export default function CheckoutPage() {
                               isOpen={isPrefectureDropdownOpenInModal}
                               onToggle={() =>
                                 setIsPrefectureDropdownOpenInModal(
-                                  !isPrefectureDropdownOpenInModal
+                                  !isPrefectureDropdownOpenInModal,
                                 )
                               }
                               onClose={() =>
@@ -1402,7 +1420,7 @@ export default function CheckoutPage() {
                               buttonText={
                                 prefectureOptions.find(
                                   (opt) =>
-                                    opt.id === newAddressFormData.prefecture
+                                    opt.id === newAddressFormData.prefecture,
                                 )?.label || '選択してください'
                               }
                             >
@@ -1425,7 +1443,7 @@ export default function CheckoutPage() {
                                   onClick={() => {
                                     handleNewAddressFormChange(
                                       'prefecture',
-                                      option.id
+                                      option.id,
                                     );
                                     setIsPrefectureDropdownOpenInModal(false);
                                   }}
@@ -1466,7 +1484,7 @@ export default function CheckoutPage() {
                             onChange={(e) =>
                               handleNewAddressFormChange(
                                 'address',
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             placeholder="丸の内1-1-1"
@@ -1498,7 +1516,7 @@ export default function CheckoutPage() {
                             onChange={(e) =>
                               handleNewAddressFormChange(
                                 'option',
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             placeholder="◇◇ビル 4階"
@@ -1602,7 +1620,7 @@ export default function CheckoutPage() {
                         !useNewAddress ? (
                           (() => {
                             const selectedAddress = userAddresses.find(
-                              (addr) => addr.id === selectedAddressId
+                              (addr) => addr.id === selectedAddressId,
                             );
                             return selectedAddress ? (
                               <>
@@ -1939,30 +1957,30 @@ export default function CheckoutPage() {
                         cardTokenizeResponseReceived={async (token: any) => {
                           console.log(
                             '[DEBUG] Full token object:',
-                            JSON.stringify(token, null, 2)
+                            JSON.stringify(token, null, 2),
                           );
                           console.log('[DEBUG] token.token:', token.token);
                           console.log(
                             '[DEBUG] token.token type:',
-                            typeof token.token
+                            typeof token.token,
                           );
                           console.log('[DEBUG] token.status:', token.status);
 
                           // ⭐ token の全キーを確認
                           console.log(
                             '[DEBUG] All token keys:',
-                            Object.keys(token)
+                            Object.keys(token),
                           );
 
                           // token.token が本当に nonce か確認
                           if (token.token) {
                             console.log(
                               '[DEBUG] token.token length:',
-                              token.token.length
+                              token.token.length,
                             );
                             console.log(
                               '[DEBUG] token.token starts with cnon:',
-                              token.token.toString().startsWith('cnon')
+                              token.token.toString().startsWith('cnon'),
                             );
                           }
 
@@ -1971,7 +1989,7 @@ export default function CheckoutPage() {
                             const sourceId = token.token;
                             console.log(
                               '[DEBUG] Extracted sourceId:',
-                              sourceId
+                              sourceId,
                             );
 
                             if (
@@ -1980,12 +1998,12 @@ export default function CheckoutPage() {
                             ) {
                               console.error(
                                 '[ERROR] Invalid sourceId format:',
-                                sourceId
+                                sourceId,
                               );
                               console.error(
                                 '[ERROR] sourceId is:',
                                 typeof sourceId,
-                                sourceId
+                                sourceId,
                               );
                               setPaymentError('Invalid card token format');
                               return;
@@ -1996,7 +2014,7 @@ export default function CheckoutPage() {
                             console.error('Token Error:', token.errors);
                             setPaymentError(
                               token.errors?.[0]?.message ||
-                                'トークン生成中にエラーが発生しました'
+                                'トークン生成中にエラーが発生しました',
                             );
                           }
                         }}
@@ -2069,7 +2087,7 @@ export default function CheckoutPage() {
                                         }
                                         onChange={(e) =>
                                           setSelectedPaymentMethodId(
-                                            e.target.value
+                                            e.target.value,
                                           )
                                         }
                                         style={{ marginRight: '10px' }}
@@ -2094,7 +2112,7 @@ export default function CheckoutPage() {
                                           有効期限:{' '}
                                           {String(card.expiryMonth).padStart(
                                             2,
-                                            '0'
+                                            '0',
                                           )}
                                           /{String(card.expiryYear).slice(-2)}
                                         </span>
@@ -2150,6 +2168,39 @@ export default function CheckoutPage() {
                                 />
                                 <span>新しいカードを追加</span>
                               </label>
+
+                              {/* "One-time Payment" Option (No Save) */}
+                              <label
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  padding: '8px',
+                                  backgroundColor:
+                                    selectedPaymentMethodId === 'one_time'
+                                      ? '#f0f9ff'
+                                      : 'transparent',
+                                  borderRadius: '4px',
+                                  border:
+                                    selectedPaymentMethodId === 'one_time'
+                                      ? '1px solid #0284c7'
+                                      : '1px solid #e5e7eb',
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  name="saved_card"
+                                  value="one_time"
+                                  checked={
+                                    selectedPaymentMethodId === 'one_time'
+                                  }
+                                  onChange={(e) =>
+                                    setSelectedPaymentMethodId(e.target.value)
+                                  }
+                                  style={{ marginRight: '10px' }}
+                                />
+                                <span>別のカードで支払い</span>
+                              </label>
                             </div>
                           )}
 
@@ -2165,63 +2216,123 @@ export default function CheckoutPage() {
                               >
                                 カード情報を入力
                               </h5>
+                              {/* Card Holder Name for Guest */}
+                              <div
+                                style={{
+                                  marginBottom: '15px',
+                                }}
+                              >
+                                <label
+                                  htmlFor="cardholderNameGuest"
+                                  style={{
+                                    display: 'block',
+                                    fontSize: '13px',
+                                    marginBottom: '5px',
+                                    fontWeight: '500',
+                                  }}
+                                >
+                                  カード所有者名
+                                </label>
+                                <input
+                                  id="cardholderNameGuest"
+                                  type="text"
+                                  value={cardholderName}
+                                  onChange={(e) =>
+                                    setCardholderName(e.target.value)
+                                  }
+                                  placeholder="例：TARO YAMADA"
+                                  style={{
+                                    width: '100%',
+                                    padding: '10px 12px',
+                                    border: '1px solid #ccc',
+                                    borderRadius: '4px',
+                                    fontSize: '14px',
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              </div>
                               <CreditCard />
                             </div>
-                          ) : (
-                            // Logged in: Show form only if selected
-                            selectedPaymentMethodId === 'new_card' && (
-                              <div style={{ marginBottom: '20px' }}>
-                                <h5
+                          ) : // Logged in: Show button for new_card or form for one_time
+                          selectedPaymentMethodId === 'new_card' ? (
+                            <div style={{ marginBottom: '20px' }}>
+                              <button
+                                onClick={() => setIsAddCardModalOpen(true)}
+                                style={{
+                                  width: '100%',
+                                  padding: '12px',
+                                  backgroundColor: '#0284c7',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  fontWeight: '500',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                新しいカードを登録
+                              </button>
+                            </div>
+                          ) : selectedPaymentMethodId === 'one_time' ? (
+                            <div style={{ marginBottom: '20px' }}>
+                              <h5
+                                style={{
+                                  marginBottom: '10px',
+                                  fontSize: '14px',
+                                }}
+                              >
+                                カード情報を入力
+                              </h5>
+                              {/* Card Holder Name */}
+                              <div
+                                style={{
+                                  marginBottom: '15px',
+                                }}
+                              >
+                                <label
+                                  htmlFor="cardholderName"
                                   style={{
-                                    marginBottom: '10px',
+                                    display: 'block',
+                                    fontSize: '13px',
+                                    marginBottom: '5px',
+                                    fontWeight: '500',
+                                  }}
+                                >
+                                  カード所有者名
+                                </label>
+                                <input
+                                  id="cardholderName"
+                                  type="text"
+                                  value={cardholderName}
+                                  onChange={(e) =>
+                                    setCardholderName(e.target.value)
+                                  }
+                                  placeholder="例：TARO YAMADA"
+                                  style={{
+                                    width: '100%',
+                                    padding: '10px 12px',
+                                    border: '1px solid #ccc',
+                                    borderRadius: '4px',
                                     fontSize: '14px',
+                                    boxSizing: 'border-box',
                                   }}
-                                >
-                                  カード情報を入力
-                                </h5>
-                                <div
-                                  style={{
-                                    marginTop: '10px',
-                                    marginBottom: '20px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                  }}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    id="save_card"
-                                    checked={savePaymentMethod}
-                                    onChange={(e) =>
-                                      setSavePaymentMethod(e.target.checked)
-                                    }
-                                    style={{ marginRight: '8px' }}
-                                  />
-                                  <label
-                                    htmlFor="save_card"
-                                    style={{
-                                      fontSize: '14px',
-                                      cursor: 'pointer',
-                                      marginBottom: '0',
-                                    }}
-                                  >
-                                    このカード情報を保存する
-                                  </label>
-                                </div>
-                                <CreditCard />
+                                />
                               </div>
-                            )
-                          )}
+                              <CreditCard />
+                            </div>
+                          ) : null}
 
                           {/* Saved Card Info - Only for logged in users */}
                           {isLoggedIn &&
                             selectedPaymentMethodId &&
                             selectedPaymentMethodId !== 'new_card' &&
+                            selectedPaymentMethodId !== 'one_time' &&
                             savedCards.find(
-                              (card) => card.id === selectedPaymentMethodId
+                              (card) => card.id === selectedPaymentMethodId,
                             ) &&
                             (() => {
                               const selectedCard = savedCards.find(
-                                (card) => card.id === selectedPaymentMethodId
+                                (card) => card.id === selectedPaymentMethodId,
                               );
                               if (!selectedCard) return null;
 
@@ -2247,7 +2358,7 @@ export default function CheckoutPage() {
                                     <strong>有効期限:</strong>{' '}
                                     {String(selectedCard.expiryMonth).padStart(
                                       2,
-                                      '0'
+                                      '0',
                                     )}
                                     /{String(selectedCard.expiryYear).slice(-2)}
                                   </p>
@@ -2349,11 +2460,11 @@ export default function CheckoutPage() {
                             } else {
                               console.error(
                                 'Apple Pay Token Error:',
-                                token.errors
+                                token.errors,
                               );
                               setPaymentError(
                                 token.errors?.[0]?.message ||
-                                  'トークン生成中にエラーが発生しました'
+                                  'トークン生成中にエラーが発生しました',
                               );
                             }
                           }}
@@ -2415,11 +2526,11 @@ export default function CheckoutPage() {
                             } else {
                               console.error(
                                 'Google Pay Token Error:',
-                                token.errors
+                                token.errors,
                               );
                               setPaymentError(
                                 token.errors?.[0]?.message ||
-                                  'トークン生成中にエラーが発生しました'
+                                  'トークン生成中にエラーが発生しました',
                               );
                             }
                           }}
@@ -2590,6 +2701,22 @@ export default function CheckoutPage() {
               </>
             )}
           </div>
+        )}
+
+        {/* Card Add Modal */}
+        {isLoggedIn && (
+          <CardAddModal
+            isOpen={isAddCardModalOpen}
+            onClose={() => setIsAddCardModalOpen(false)}
+            onCardAdded={(newCard: SavedCard) => {
+              // Add newly created card to savedCards and auto-select it
+              console.log('[CHECKOUT] New card added:', newCard);
+              setSavedCards([...savedCards, newCard]);
+              setSelectedPaymentMethodId(newCard.id);
+              setIsAddCardModalOpen(false);
+            }}
+            squareCustomerId={squareCustomerId || ''}
+          />
         )}
       </div>
     </CheckoutLayout>

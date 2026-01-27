@@ -9,7 +9,7 @@ import boto3
 import os
 from decimal import Decimal
 from datetime import datetime
-from src.utils.jwt import verify_token
+from src.utils.auth import require_admin_auth
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -30,80 +30,7 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def verify_admin_token(event):
-    """
-    Verify admin JWT token from Authorization header
-    
-    Args:
-        event: Lambda event
-    
-    Returns:
-        tuple: (is_valid, error_response) - One will be None
-    """
-    auth_header = event.get('headers', {}).get('Authorization', '')
-    
-    if not auth_header.startswith('Bearer '):
-        return False, {
-            "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": False,
-                "message": "認証が必要です"
-            }, cls=DecimalEncoder, ensure_ascii=False),
-        }
-    
-    token = auth_header[7:]  # Remove 'Bearer ' prefix
-    
-    try:
-        is_valid, payload, error = verify_token(token)
-        
-        if not is_valid:
-            return False, {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": error or "トークンが無効です"
-                }, cls=DecimalEncoder, ensure_ascii=False),
-            }
-        
-        # Check if token is for admin
-        if payload.get('user_type') != 'admin':
-            return False, {
-                "statusCode": 403,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": "管理者権限が必要です"
-                }, cls=DecimalEncoder, ensure_ascii=False),
-            }
-        
-        return True, None
-    
-    except Exception as e:
-        logger.error(f"Token verification failed: {str(e)}")
-        return False, {
-            "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": False,
-                "message": "無効なトークンです"
-            }, cls=DecimalEncoder, ensure_ascii=False),
-        }
-
-
+@require_admin_auth
 def get_all_notifications(event, context):
     """
     Get all notifications with pagination
@@ -116,10 +43,8 @@ def get_all_notifications(event, context):
         API response with notifications list
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get pagination parameters
         query_params = event.get('queryStringParameters', {}) or {}
@@ -214,10 +139,8 @@ def get_notification(event, context):
         API response with notification data
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get notification ID from path
         path_params = event.get('pathParameters', {}) or {}
@@ -318,10 +241,8 @@ def create_notification(event, context):
         API response with created notification
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Parse request body
         try:
@@ -418,10 +339,8 @@ def update_notification(event, context):
         API response with updated notification
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get notification ID from path
         path_params = event.get('pathParameters', {}) or {}
@@ -597,10 +516,8 @@ def delete_notification(event, context):
         API response
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get notification ID from path
         path_params = event.get('pathParameters', {}) or {}

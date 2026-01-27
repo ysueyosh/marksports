@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import boto3
+from datetime import datetime
 from decimal import Decimal
 from src.models.admin import (
     AdminLoginRequest, AdminLoginResponse, AdminRefreshTokenRequest,
@@ -16,6 +17,7 @@ from src.utils.jwt import (
     generate_access_token, generate_refresh_token, verify_token,
     verify_password, hash_password, hash_refresh_token
 )
+from src.utils.auth import require_admin_auth
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -164,7 +166,7 @@ def admin_login(event, context):
 
 def admin_refresh_token(event, context):
     """
-    Admin token refresh handler
+    Admin token refresh handler - Verifies refresh token against DB hash
     
     Args:
         event: Lambda event
@@ -180,7 +182,7 @@ def admin_refresh_token(event, context):
         body = json.loads(event.get("body", "{}"))
         refresh_request = AdminRefreshTokenRequest(**body)
         
-        # Verify refresh token
+        # Verify refresh token JWT signature and expiration
         is_valid, payload, error_msg = verify_token(refresh_request.refresh_token)
         
         if not is_valid:
@@ -212,18 +214,102 @@ def admin_refresh_token(event, context):
                 }),
             }
         
-        # Generate new access token
+        admin_id = payload.get('user_id')
+        email = payload.get('email')
+        
+        # Get admin details from database and verify refresh token hash
+        admin_response = table.query(
+            IndexName='GSI_MAIL',
+            KeyConditionExpression='email = :email',
+            ExpressionAttributeValues={':email': email}
+        )
+        
+        logger.info(f"Admin response query: {admin_response}")
+        admin_data = admin_response.get("Items", [{}])[0] if admin_response.get("Items") else {}
+        
+        if not admin_data:
+            logger.warning(f"Admin not found for email: {email}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Admin not found"
+                }),
+            }
+        
+        # Verify refresh token against stored hash in DB (check both field names for backwards compatibility)
+        stored_refresh_token_hash = admin_data.get("refleshTokenHash") or admin_data.get("refreshTokenHash")
+        if not stored_refresh_token_hash:
+            logger.warning(f"No refresh token hash stored for admin: {admin_id}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "No valid refresh token found"
+                }),
+            }
+        
+        # Import verify_refresh_token from jwt utils
+        from src.utils.jwt import verify_refresh_token
+        
+        # Verify the refresh token matches the stored hash
+        if not verify_refresh_token(refresh_request.refresh_token, stored_refresh_token_hash):
+            logger.warning(f"Refresh token hash mismatch for admin: {admin_id}")
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Invalid refresh token"
+                }),
+            }
+        
+        # Generate new access token and refresh token
         new_access_token = generate_access_token(
-            payload['user_id'],
-            payload['email'],
+            admin_id,
+            email,
             payload.get('user_type', 'admin')
+        )
+        new_refresh_token = generate_refresh_token(
+            admin_id,
+            email,
+            'admin'
+        )
+        
+        # Hash and store new refresh token in DB
+        new_refresh_token_hash = hash_refresh_token(new_refresh_token)
+        table.update_item(
+            Key={
+                'PK': f'ADMIN#{admin_id}',
+                'SK': f'PROFILE#{admin_id}'
+            },
+            UpdateExpression='SET refleshTokenHash = :hash, updatedAt = :updated',
+            ExpressionAttributeValues={
+                ':hash': new_refresh_token_hash,
+                ':updated': datetime.utcnow().isoformat()
+            }
         )
         
         response = AdminRefreshTokenResponse(
             success=True,
             message="Token refreshed successfully",
             data={
+                "adminId": admin_id,
+                "email": email,
+                "name": admin_data.get("name", ""),
                 "accessToken": new_access_token,
+                "refreshToken": new_refresh_token,
                 "expiresIn": 3600  # Token expires in 1 hour (seconds)
             }
         )
@@ -318,23 +404,28 @@ def admin_verify_token(event, context):
         
         # Get admin info from database (if available)
         try:
+            admin_id = payload.get('user_id')
+            admin_pk = f"ADMIN#{admin_id}"
+            admin_sk = f"PROFILE#{admin_id}"
+
             response = table.get_item(
                 Key={
-                    'userId': payload['user_id']
+                    'PK': admin_pk,
+                    'SK': admin_sk,
                 }
             )
-            
+
             if response.get('Item'):
                 admin = response['Item']
                 admin_data = {
-                    "adminId": admin.get('userId', payload['user_id']),
+                    "adminId": admin.get('adminId', admin_id),
                     "email": admin.get('email', payload.get('email', '')),
                     "name": admin.get('name', '')
                 }
             else:
                 # If admin not found in database, use token payload
                 admin_data = {
-                    "adminId": payload['user_id'],
+                    "adminId": admin_id,
                     "email": payload.get('email', ''),
                     "name": payload.get('name', '')
                 }
@@ -342,7 +433,7 @@ def admin_verify_token(event, context):
             # If database query fails, use token payload
             logger.warning(f"Failed to query admin table: {str(db_error)}, using token payload")
             admin_data = {
-                "adminId": payload['user_id'],
+                "adminId": payload.get('user_id'),
                 "email": payload.get('email', ''),
                 "name": payload.get('name', '')
             }
@@ -604,9 +695,6 @@ def get_admin_settings(event, context):
             'id': admin.get('adminId'),
             'name': admin.get('name', ''),
             'email': admin.get('email', ''),
-            'contactEmail': admin.get('contactMail', ''),
-            'autoEmail': admin.get('autoMail', ''),
-            'orderNotificationEmail': admin.get('adminNotificationMail', '')
         }
         
         return {
@@ -691,7 +779,7 @@ def update_admin_settings(event, context):
         body = json.loads(event.get("body", "{}"))
         
         # Validate required fields
-        required_fields = ['name', 'email', 'contactEmail', 'autoEmail', 'orderNotificationEmail']
+        required_fields = ['name', 'email']
         for field in required_fields:
             if not body.get(field):
                 return {
@@ -705,20 +793,6 @@ def update_admin_settings(event, context):
                         "message": f"{field} is required"
                     }),
                 }
-        
-        # Validate email constraint
-        if body.get('email') == body.get('orderNotificationEmail'):
-            return {
-                "statusCode": 400,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Personal email and order notification email cannot be the same"
-                }),
-            }
         
         # Check if new email is already used by another admin
         if body.get('email') != payload.get('email'):
@@ -770,7 +844,7 @@ def update_admin_settings(event, context):
         
         # Update admin settings
         from datetime import datetime
-        update_expression = 'SET #name = :name, #email = :email, contactMail = :contact_mail, autoMail = :auto_mail, adminNotificationMail = :notification_mail, updatedAt = :updated_at'
+        update_expression = 'SET #name = :name, #email = :email, updatedAt = :updated_at'
         expression_attribute_names = {
             '#name': 'name',
             '#email': 'email'
@@ -778,9 +852,6 @@ def update_admin_settings(event, context):
         expression_attribute_values = {
             ':name': body.get('name'),
             ':email': body.get('email'),
-            ':contact_mail': body.get('contactEmail'),
-            ':auto_mail': body.get('autoEmail'),
-            ':notification_mail': body.get('orderNotificationEmail'),
             ':updated_at': datetime.utcnow().isoformat()
         }
         
@@ -799,9 +870,6 @@ def update_admin_settings(event, context):
             'id': admin_id,
             'name': body.get('name'),
             'email': body.get('email'),
-            'contactEmail': body.get('contactEmail'),
-            'autoEmail': body.get('autoEmail'),
-            'orderNotificationEmail': body.get('orderNotificationEmail')
         }
         
         return {
@@ -843,4 +911,180 @@ def update_admin_settings(event, context):
                 "success": False,
                 "message": f"Failed to update admin settings: {str(e)}"
             }),
+        }
+
+
+@require_admin_auth
+def manual_refund(event, context):
+    """
+    Manual refund processing for bank transfer orders - Requires admin authentication
+    
+    Args:
+        event: Lambda event containing orderId in body
+        context: Lambda context
+    
+    Returns:
+        API response
+    """
+    try:
+        logger.info(f"Manual refund event: {event}")
+        
+        # Get admin ID from payload injected by decorator
+        admin_payload = event.get('admin_payload', {})
+        admin_id = admin_payload.get('user_id')
+        
+        if not admin_id:
+            logger.error("No admin_id in admin_payload")
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Internal server error"
+                }, ensure_ascii=False),
+            }
+        
+        # Parse request body
+        body = json.loads(event.get('body', '{}'))
+        order_id = body.get('orderId')
+        
+        if not order_id:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "orderId is required"
+                }, ensure_ascii=False),
+            }
+        
+        # Get Users table
+        from src.utils.dynamodb import get_users_table
+        table = get_users_table()
+        
+        # Find the order
+        response = table.scan(
+            FilterExpression='orderId = :order_id',
+            ExpressionAttributeValues={
+                ':order_id': order_id
+            }
+        )
+        
+        items = response.get('Items', [])
+        if not items:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Order not found"
+                }, ensure_ascii=False),
+            }
+        
+        order_item = items[0]
+        user_id_from_item = order_item.get('PK')
+        sk_value = order_item.get('SK')
+        payment_method = order_item.get('paymentMethod')
+        current_refund_at = order_item.get('refundAt')
+        user_email = order_item.get('userEmail')
+        user_name = order_item.get('userName', '')
+        order_number = order_item.get('orderNumber', order_id)
+        total_amount = order_item.get('totalAmount', 0)
+        
+        # Validate payment method
+        if payment_method != 'bank_transfer':
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Manual refund is only for bank transfer orders"
+                }, ensure_ascii=False),
+            }
+        
+        # Check if already refunded
+        if current_refund_at:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Order already refunded"
+                }, ensure_ascii=False),
+            }
+        
+        # Update refundAt
+        refund_at = datetime.utcnow().isoformat() + 'Z'
+        
+        table.update_item(
+            Key={
+                'PK': user_id_from_item,
+                'SK': sk_value
+            },
+            UpdateExpression='SET refundAt = :refundAt, updatedAt = :updatedAt',
+            ExpressionAttributeValues={
+                ':refundAt': refund_at,
+                ':updatedAt': datetime.utcnow().isoformat() + 'Z'
+            }
+        )
+        
+        logger.info(f"Manual refund processed for order {order_id} at {refund_at}")
+        
+        # Send refund completed email
+        if user_email:
+            try:
+                from src.handlers.order import send_refund_completed_email
+                send_refund_completed_email(
+                    user_email=user_email,
+                    user_name=user_name,
+                    order_number=order_number,
+                    payment_method=payment_method,
+                    refund_amount=int(total_amount) if total_amount else 0
+                )
+                logger.info(f"Refund completed email sent to {user_email}")
+            except Exception as email_error:
+                logger.error(f"Failed to send refund completed email: {str(email_error)}")
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": True,
+                "data": {
+                    "orderId": order_id,
+                    "refundAt": refund_at
+                }
+            }, ensure_ascii=False),
+        }
+    
+    except Exception as e:
+        logger.error(f"Error during manual refund: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": False,
+                "message": f"Failed to process manual refund: {str(e)}"
+            }, ensure_ascii=False),
         }

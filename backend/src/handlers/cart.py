@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from src.utils.jwt import verify_token
+from src.utils.cors import cors_headers
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -93,10 +94,7 @@ def get_cart(event, context):
         if not cart_identifier:
             return {
                 "statusCode": 400,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
+                "headers": cors_headers(event),
                 "body": json.dumps({
                     "success": False,
                     "message": "ユーザー識別情報が必要です",
@@ -157,10 +155,7 @@ def get_cart(event, context):
         
         return {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps({
                 "success": True,
                 "message": "カート情報を取得しました",
@@ -169,16 +164,17 @@ def get_cart(event, context):
         }
     
     except Exception as e:
-        logger.error(f"Error getting cart: {str(e)}")
+        import traceback
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error getting cart: {error_msg}\nStack: {stack_trace}")
         return {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps({
                 "success": False,
-                "message": f"カート取得エラー: {str(e)}",
+                "message": f"カート取得エラー: {error_msg}",
+                "error": stack_trace if True else None,
                 "data": None
             }, ensure_ascii=False),
         }

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/Admin/LoadingSpinner';
-import InfoPopper from '@/components/Common/InfoPopper';
 import {
   getAdminSettings,
   updateAdminSettings,
@@ -81,25 +80,8 @@ export default function AdminSettingsPage() {
 
   const handleSaveAdmin = async () => {
     if (editingAdmin) {
-      if (
-        !editingAdmin.name ||
-        !editingAdmin.email ||
-        !editingAdmin.contactEmail ||
-        !editingAdmin.autoEmail ||
-        !editingAdmin.orderNotificationEmail
-      ) {
-        setError(
-          '名前、個人メールアドレス、手動連絡用メール、自動送信用メール、受注通知送信用メールアドレスは必須です'
-        );
-        return;
-      }
-      if (
-        editingAdmin.email === editingAdmin.orderNotificationEmail &&
-        editingAdmin.orderNotificationEmail
-      ) {
-        setError(
-          '個人メールアドレスと受注通知送信用メールアドレスに同じメールアドレスを設定することはできません'
-        );
+      if (!editingAdmin.name || !editingAdmin.email) {
+        setError('名前と個人メールアドレスは必須です');
         return;
       }
 
@@ -108,9 +90,6 @@ export default function AdminSettingsPage() {
         const response = await updateAdminSettings({
           name: editingAdmin.name,
           email: editingAdmin.email,
-          contactEmail: editingAdmin.contactEmail,
-          autoEmail: editingAdmin.autoEmail,
-          orderNotificationEmail: editingAdmin.orderNotificationEmail,
         });
 
         if (response.success && response.data) {
@@ -278,7 +257,8 @@ export default function AdminSettingsPage() {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gridTemplateColumns:
+                          'repeat(auto-fit, minmax(260px, 1fr))',
                         gap: '15px',
                         marginBottom: '20px',
                       }}
@@ -298,7 +278,7 @@ export default function AdminSettingsPage() {
                         </p>
                       </div>
                       <div>
-                        <div
+                        <p
                           style={{
                             fontSize: '12px',
                             color: '#6b7280',
@@ -306,56 +286,9 @@ export default function AdminSettingsPage() {
                           }}
                         >
                           個人メールアドレス
-                          <InfoPopper content="管理者本人宛メールの受信アドレスとして使用されます" />
-                        </div>
+                        </p>
                         <p style={{ fontSize: '14px', fontWeight: '500' }}>
                           {adminInfo.email}
-                        </p>
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: '12px',
-                            color: '#6b7280',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          手動連絡用メール
-                          <InfoPopper content="お問い合わせ対応や返金対応など、手動対応が必要なメールの送信元アドレスとして使用されます" />
-                        </div>
-                        <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                          {adminInfo.contactEmail}
-                        </p>
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: '12px',
-                            color: '#6b7280',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          自動送信用メール
-                          <InfoPopper content="顧客宛の受注確認メールなど、自動送信されるメールの送信元アドレスとして使用されます" />
-                        </div>
-                        <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                          {adminInfo.autoEmail}
-                        </p>
-                      </div>
-
-                      <div>
-                        <div
-                          style={{
-                            fontSize: '12px',
-                            color: '#6b7280',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          受注通知送信用メールアドレス
-                          <InfoPopper content="新しい受注があった時に、管理者へ通知するメールの送信元アドレスとして使用されます" />
-                        </div>
-                        <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                          {adminInfo.orderNotificationEmail || '未設定'}
                         </p>
                       </div>
                     </div>
@@ -417,105 +350,6 @@ export default function AdminSettingsPage() {
                         />
                       </div>
 
-                      <div style={{ marginBottom: '15px' }}>
-                        <span
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          個人メールアドレス *
-                          <InfoPopper content="管理者本人宛メールの受信アドレスとして使用されます" />
-                        </span>
-                        <input
-                          type="email"
-                          value={editingAdmin.email}
-                          onChange={(e) =>
-                            setEditingAdmin({
-                              ...editingAdmin,
-                              email: e.target.value,
-                            })
-                          }
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            boxSizing: 'border-box',
-                          }}
-                          required
-                          disabled={isSaving}
-                        />
-                      </div>
-
-                      <div style={{ marginBottom: '15px' }}>
-                        <span
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          手動連絡用メール *
-                          <InfoPopper content="お問い合わせ対応や返金対応など、手動対応が必要なメールの送信元アドレスとして使用されます" />
-                        </span>
-                        <input
-                          type="email"
-                          value={editingAdmin.contactEmail}
-                          onChange={(e) =>
-                            setEditingAdmin({
-                              ...editingAdmin,
-                              contactEmail: e.target.value,
-                            })
-                          }
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            boxSizing: 'border-box',
-                          }}
-                          required
-                          disabled={isSaving}
-                        />
-                      </div>
-
-                      <div style={{ marginBottom: '15px' }}>
-                        <span
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          自動送信用メール *
-                          <InfoPopper content="顧客宛の受注確認メールなど、自動送信されるメールの送信元アドレスとして使用されます" />
-                        </span>
-                        <input
-                          type="email"
-                          value={editingAdmin.autoEmail}
-                          onChange={(e) =>
-                            setEditingAdmin({
-                              ...editingAdmin,
-                              autoEmail: e.target.value,
-                            })
-                          }
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            boxSizing: 'border-box',
-                          }}
-                          required
-                          disabled={isSaving}
-                        />
-                      </div>
-
                       <div style={{ marginBottom: '20px' }}>
                         <span
                           style={{
@@ -524,16 +358,15 @@ export default function AdminSettingsPage() {
                             marginBottom: '5px',
                           }}
                         >
-                          受注通知送信用メールアドレス *
-                          <InfoPopper content="新しい受注があった時に、管理者へ通知するメールの送信元アドレスとして使用されます" />
+                          個人メールアドレス *
                         </span>
                         <input
                           type="email"
-                          value={editingAdmin.orderNotificationEmail}
+                          value={editingAdmin.email}
                           onChange={(e) =>
                             setEditingAdmin({
                               ...editingAdmin,
-                              orderNotificationEmail: e.target.value,
+                              email: e.target.value,
                             })
                           }
                           style={{

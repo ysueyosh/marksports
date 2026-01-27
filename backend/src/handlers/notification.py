@@ -7,6 +7,7 @@ import logging
 from decimal import Decimal
 import boto3
 import os
+from src.utils.cors import cors_headers
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -92,10 +93,7 @@ def get_notifications(event, context):
         
         return {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps({
                 "success": True,
                 "message": "Notifications retrieved successfully",
@@ -107,16 +105,17 @@ def get_notifications(event, context):
         }
     
     except Exception as e:
-        logger.error(f"Error getting notifications: {str(e)}")
+        import traceback
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error getting notifications: {error_msg}\nStack: {stack_trace}")
         return {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps({
                 "success": False,
-                "message": f"Failed to get notifications: {str(e)}"
+                "message": f"Failed to get notifications: {error_msg}",
+                "error": stack_trace if True else None
             }),
         }
 

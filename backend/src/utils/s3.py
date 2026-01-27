@@ -9,8 +9,9 @@ from datetime import datetime, timedelta
 # S3 client
 s3_client = boto3.client('s3', region_name='ap-northeast-1')
 
-# S3 bucket name
+# S3 bucket and CloudFront domain (stage-specific via env)
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'ecsite-images')
+CLOUDFRONT_DOMAIN = os.environ.get('CLOUDFRONT_DOMAIN', 'd23pzr22xoegue.cloudfront.net')
 
 def get_s3_client():
     """Get S3 client instance"""
@@ -60,8 +61,7 @@ def get_s3_image_url(product_id, image_name):
     Returns:
         CloudFront URL
     """
-    cloudfront_domain = 'd23pzr22xoegue.cloudfront.net'
-    return f"https://{cloudfront_domain}/products/{product_id}/{image_name}"
+    return f"https://{CLOUDFRONT_DOMAIN}/products/{product_id}/{image_name}"
 
 def delete_product_images(product_id):
     """

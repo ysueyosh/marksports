@@ -17,7 +17,7 @@ export default function ImportantNotificationsBanner() {
           <span key={notification.id}>
             {index > 0 && <span className={styles.separator}>・</span>}
             <Link
-              href={`/notifications/${notification.id}`}
+              href={`/notifications/detail?id=${notification.id}`}
               className={styles.notificationLink}
             >
               {notification.title}

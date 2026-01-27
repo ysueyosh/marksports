@@ -11,6 +11,7 @@ from src.models.product import ProductsResponse
 from src.utils.dynamodb import (
     get_commerce_table, PRODUCT_PK, build_product_sk
 )
+from src.utils.cors import cors_headers
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -119,24 +120,22 @@ def get_featured_products(event, context):
         
         return {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps(response.model_dump(), cls=DecimalEncoder),
         }
     
     except Exception as e:
-        logger.error(f"Error during get featured products: {str(e)}")
+        import traceback
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error during get featured products: {error_msg}\nStack: {stack_trace}")
         return {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps({
                 "success": False,
-                "message": f"Failed to get featured products: {str(e)}"
+                "message": f"Failed to get featured products: {error_msg}",
+                "error": stack_trace if True else None
             }, cls=DecimalEncoder),
         }
 

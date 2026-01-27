@@ -5,9 +5,17 @@ export interface AdminOrder {
   userId: string;
   orderNumber: string;
   orderDate: string;
-  status: 'unpaid' | 'awaiting_shipment' | 'in_transit' | 'delivered';
+  status:
+    | 'unpaid'
+    | 'awaiting_shipment'
+    | 'in_transit'
+    | 'delivered'
+    | 'cancelled_customer'
+    | 'cancelled_internal';
   totalAmount: number;
   shippingAddress?: Record<string, any>;
+  isCancelRequest?: boolean;
+  refundAt?: string;
 }
 
 export interface GetAllOrdersResponse {
@@ -18,7 +26,13 @@ export interface GetAllOrdersResponse {
 
 export interface UpdateOrderStatusRequest {
   orderId: string;
-  status: 'unpaid' | 'awaiting_shipment' | 'in_transit' | 'delivered';
+  status:
+    | 'unpaid'
+    | 'awaiting_shipment'
+    | 'in_transit'
+    | 'delivered'
+    | 'cancelled_customer'
+    | 'cancelled_internal';
 }
 
 export interface UpdateOrderStatusResponse {
@@ -30,13 +44,68 @@ export interface UpdateOrderStatusResponse {
   message?: string;
 }
 
-export async function getAllOrders(
-  sortBy: 'status' | 'date' | 'amount' = 'status'
-): Promise<GetAllOrdersResponse> {
+export interface AdminOrderDetail {
+  id: string;
+  orderNumber: string;
+  orderDate: string;
+  status:
+    | 'unpaid'
+    | 'awaiting_shipment'
+    | 'in_transit'
+    | 'delivered'
+    | 'cancelled_customer'
+    | 'cancelled_internal';
+  totalAmount: number;
+  tax: number;
+  shippingCost: number;
+  discount: number;
+  couponCode?: string;
+  paymentMethod: any;
+  paymentBrand?: string;
+  last4?: string;
+  shippingAddress?: any;
+  billingAddress?: any;
+  items: Array<{
+    orderItemId: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalAmount: number;
+  }>;
+  paymentAt?: string;
+  deliveryAt?: string;
+  cancelRequestSent?: boolean;
+  statusLabel?: string;
+  subtotal?: number;
+  isCancelRequest?: boolean;
+  cancelReason?: string;
+  cancelRequestAt?: string;
+  refundAt?: string;
+}
+
+export interface GetAdminOrderDetailResponse {
+  success: boolean;
+  message: string;
+  data?: AdminOrderDetail;
+}
+
+export interface ManualRefundRequest {
+  orderId: string;
+}
+
+export interface ManualRefundResponse {
+  success: boolean;
+  data?: {
+    orderId: string;
+    refundAt: string;
+  };
+  message?: string;
+}
+
+export async function getAllOrders(): Promise<GetAllOrdersResponse> {
   try {
-    const response = await apiClient.get<GetAllOrdersResponse>(
-      `/admin/orders?sortBy=${sortBy}`
-    );
+    const response = await apiClient.get<GetAllOrdersResponse>(`/admin/orders`);
     return response;
   } catch (error) {
     console.error('Failed to get all orders:', error);
@@ -48,12 +117,12 @@ export async function getAllOrders(
 }
 
 export async function updateOrderStatus(
-  data: UpdateOrderStatusRequest
+  data: UpdateOrderStatusRequest,
 ): Promise<UpdateOrderStatusResponse> {
   try {
     const response = await apiClient.post<UpdateOrderStatusResponse>(
       '/admin/orders/status',
-      data
+      data,
     );
     return response;
   } catch (error) {
@@ -61,6 +130,41 @@ export async function updateOrderStatus(
     return {
       success: false,
       message: 'Failed to update order status',
+    };
+  }
+}
+
+export async function getAdminOrderDetail(
+  orderId: string,
+): Promise<GetAdminOrderDetailResponse> {
+  try {
+    const response = await apiClient.get<GetAdminOrderDetailResponse>(
+      `/admin/orders/${orderId}`,
+    );
+    return response;
+  } catch (error) {
+    console.error('Failed to get admin order detail:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch order detail',
+    };
+  }
+}
+
+export async function manualRefund(
+  data: ManualRefundRequest,
+): Promise<ManualRefundResponse> {
+  try {
+    const response = await apiClient.post<ManualRefundResponse>(
+      '/admin/orders/manual-refund',
+      data,
+    );
+    return response;
+  } catch (error) {
+    console.error('Failed to process manual refund:', error);
+    return {
+      success: false,
+      message: 'Failed to process manual refund',
     };
   }
 }

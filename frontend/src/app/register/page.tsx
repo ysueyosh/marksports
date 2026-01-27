@@ -4,7 +4,11 @@ import MainLayout from '@/components/Layout/MainLayout';
 import styles from './register.module.css';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { register as apiRegister } from '@/api/register';
+import {
+  register as apiRegister,
+  verifyEmail,
+  resendVerificationEmail,
+} from '@/api/register';
 import { useLoading } from '@/context/LoadingContext';
 import { TextInput } from '@/components/Input/TextInput';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
@@ -43,11 +47,17 @@ export default function RegisterPage() {
     useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [step, setStep] = useState<'form' | 'confirm' | 'done'>('form');
+  const [step, setStep] = useState<
+    'form' | 'confirm' | 'verification' | 'done'
+  >('form');
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [addressSearchError, setAddressSearchError] = useState<string | null>(
-    null
+    null,
   );
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationError, setVerificationError] = useState('');
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const router = useRouter();
   const { setIsLoading } = useLoading();
 
@@ -203,7 +213,7 @@ export default function RegisterPage() {
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     const { name, value } = e.target as HTMLInputElement | HTMLSelectElement;
 
@@ -286,7 +296,8 @@ export default function RegisterPage() {
       });
 
       if (response.success) {
-        setStep('done');
+        // メール認証が必要に変更
+        setStep('verification');
       } else {
         setError(response.message || 'ユーザー登録に失敗しました');
         setStep('form');
@@ -530,7 +541,7 @@ export default function RegisterPage() {
                     onClose={() => setIsPrefectureDropdownOpen(false)}
                     buttonText={
                       prefectureOptions.find(
-                        (opt) => opt.id === formData.prefecture
+                        (opt) => opt.id === formData.prefecture,
                       )?.label || '選択してください'
                     }
                   >
@@ -643,7 +654,7 @@ export default function RegisterPage() {
                   <span>都道府県</span>
                   <span>
                     {prefectureOptions.find(
-                      (opt) => opt.id === formData.prefecture
+                      (opt) => opt.id === formData.prefecture,
                     )?.label || '-'}
                   </span>
                 </div>
@@ -672,6 +683,142 @@ export default function RegisterPage() {
             </div>
           </div>
         )}
+
+        {step === 'verification' && (
+          <div className={styles.verificationBox}>
+            <div className={styles.checkIcon}>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="23"
+                  fill="none"
+                  stroke="#007bff"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M24 8v16M24 32h0M30 14h-12a2 2 0 00-2 2v8"
+                  stroke="#007bff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <h2>メールアドレス認証</h2>
+            <p
+              style={{
+                marginTop: '8px',
+                marginBottom: '20px',
+                textAlign: 'center',
+                color: '#666',
+              }}
+            >
+              {formData.email}{' '}
+              に送信された認証メール内のリンクをクリックしてください。
+            </p>
+
+            <div
+              style={{
+                backgroundColor: '#e7f3ff',
+                border: '1px solid #b3d9ff',
+                borderRadius: '6px',
+                padding: '12px',
+                fontSize: '13px',
+                color: '#004085',
+                marginBottom: '20px',
+              }}
+            >
+              <strong>ご確認ください</strong>
+              <ul style={{ margin: '8px 0 0 16px', paddingLeft: '8px' }}>
+                <li>
+                  メールが届かない場合は、迷惑メール（スパム）フォルダをご確認ください
+                </li>
+                <li>
+                  @mark-sports.com
+                  ドメインをメール設定でブロックしている場合はご解除ください
+                </li>
+                <li>認証リンクは24時間有効です</li>
+              </ul>
+            </div>
+
+            {verificationError && (
+              <div
+                style={{
+                  color: '#e74c3c',
+                  fontSize: '14px',
+                  marginBottom: '16px',
+                  backgroundColor: '#fdeef0',
+                  border: '1px solid #e74c3c',
+                  padding: '10px',
+                  borderRadius: '4px',
+                }}
+              >
+                {verificationError}
+              </div>
+            )}
+
+            {resendSuccess && (
+              <div
+                style={{
+                  color: '#27ae60',
+                  fontSize: '14px',
+                  marginBottom: '16px',
+                  backgroundColor: '#eafcf0',
+                  border: '1px solid #27ae60',
+                  padding: '10px',
+                  borderRadius: '4px',
+                }}
+              >
+                認証メールを再送信しました。メールをご確認ください。
+              </div>
+            )}
+
+            <div className={styles.verificationActions}>
+              <button
+                className={styles.resendButton}
+                onClick={async () => {
+                  try {
+                    setIsResendingEmail(true);
+                    setVerificationError('');
+                    setResendSuccess(false);
+                    const response = await resendVerificationEmail({
+                      email: formData.email,
+                    });
+                    if (response.success) {
+                      setResendSuccess(true);
+                    } else {
+                      setVerificationError(
+                        response.message || 'メール再送に失敗しました',
+                      );
+                    }
+                  } catch (err) {
+                    console.error('Resend error:', err);
+                    setVerificationError(
+                      'メール再送に失敗しました。時間をおいて再度お試しください。',
+                    );
+                  } finally {
+                    setIsResendingEmail(false);
+                  }
+                }}
+                disabled={isResendingEmail}
+              >
+                {isResendingEmail ? '送信中...' : 'メール再送'}
+              </button>
+              <button
+                className={styles.cancelButton}
+                onClick={() => {
+                  setStep('form');
+                  setVerificationCode('');
+                  setVerificationError('');
+                  setResendSuccess(false);
+                }}
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 'done' && (
           <div className={styles.doneBox}>
             <div className={styles.checkIcon}>

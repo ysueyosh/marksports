@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
-import styles from './product.module.css';
+import styles from '../detail/product.module.css';
 import { formatPriceIncludedTax } from '@/utils/price';
 import {
   getProductDetail,
@@ -18,24 +19,18 @@ import {
 import { useSearch } from '@/context/SearchContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+export default function ProductDetailPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const id = searchParams.get('id');
 
-export default function ProductDetailPage({ params }: PageProps) {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [id, setId] = useState<string | null>(null);
   const [searchUrl, setSearchUrl] = useState<string>('/search');
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const { conditions } = useSearch();
   const { show: showSnackbar } = useSnackbar();
-
-  // Get ID from params
-  useEffect(() => {
-    params.then(({ id }) => setId(id));
-  }, [params]);
 
   // Build search URL from Context conditions
   useEffect(() => {

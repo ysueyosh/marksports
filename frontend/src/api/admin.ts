@@ -62,7 +62,11 @@ export interface AdminRefreshTokenResponse {
   success: boolean;
   message: string;
   data?: {
+    adminId: string;
+    email: string;
+    name: string;
     accessToken: string;
+    refreshToken: string;
     expiresIn: number;
   };
 }
@@ -70,18 +74,12 @@ export interface AdminRefreshTokenResponse {
 export interface AdminSettingsRequest {
   name: string;
   email: string;
-  contactEmail: string;
-  autoEmail: string;
-  orderNotificationEmail: string;
 }
 
 export interface AdminSettings {
   id: string;
   name: string;
   email: string;
-  contactEmail: string;
-  autoEmail: string;
-  orderNotificationEmail: string;
 }
 
 export interface GetAdminSettingsResponse {
@@ -100,11 +98,11 @@ export interface UpdateAdminSettingsResponse {
  * Admin login
  */
 export const adminLogin = async (
-  request: AdminLoginRequest
+  request: AdminLoginRequest,
 ): Promise<AdminLoginResponse> => {
   const response = await apiClient.post<AdminLoginResponse>(
     '/admin/login',
-    request
+    request,
   );
   return response as AdminLoginResponse;
 };
@@ -113,11 +111,11 @@ export const adminLogin = async (
  * Create admin
  */
 export const createAdmin = async (
-  request: CreateAdminRequest
+  request: CreateAdminRequest,
 ): Promise<CreateAdminResponse> => {
   const response = await apiClient.post<CreateAdminResponse>(
     '/admin/create',
-    request
+    request,
   );
   return response as CreateAdminResponse;
 };
@@ -126,11 +124,11 @@ export const createAdmin = async (
  * Verify admin token
  */
 export const verifyAdminToken = async (
-  accessToken: string
+  accessToken: string,
 ): Promise<AdminVerifyTokenResponse> => {
   const response = await apiClient.post<AdminVerifyTokenResponse>(
     '/admin/verify-token',
-    { access_token: accessToken }
+    { access_token: accessToken },
   );
   return response as AdminVerifyTokenResponse;
 };
@@ -139,11 +137,11 @@ export const verifyAdminToken = async (
  * Refresh admin token
  */
 export const refreshAdminToken = async (
-  refreshToken: string
+  refreshToken: string,
 ): Promise<AdminRefreshTokenResponse> => {
   const response = await apiClient.post<AdminRefreshTokenResponse>(
     '/admin/refresh-token',
-    { refresh_token: refreshToken }
+    { refresh_token: refreshToken },
   );
   return response as AdminRefreshTokenResponse;
 };
@@ -152,9 +150,8 @@ export const refreshAdminToken = async (
  * Get admin settings
  */
 export const getAdminSettings = async (): Promise<GetAdminSettingsResponse> => {
-  const response = await apiClient.get<GetAdminSettingsResponse>(
-    '/admin/settings'
-  );
+  const response =
+    await apiClient.get<GetAdminSettingsResponse>('/admin/settings');
   return response as GetAdminSettingsResponse;
 };
 
@@ -162,11 +159,11 @@ export const getAdminSettings = async (): Promise<GetAdminSettingsResponse> => {
  * Update admin settings
  */
 export const updateAdminSettings = async (
-  request: AdminSettingsRequest
+  request: AdminSettingsRequest,
 ): Promise<UpdateAdminSettingsResponse> => {
   const response = await apiClient.put<UpdateAdminSettingsResponse>(
     '/admin/settings',
-    request
+    request,
   );
   return response as UpdateAdminSettingsResponse;
 };
@@ -241,10 +238,10 @@ export interface DeleteUserResponse {
  */
 export const getAllUsers = async (
   page: number = 1,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<GetAllUsersResponse> => {
   const response = await apiClient.get<GetAllUsersResponse>(
-    `/admin/users?page=${page}&limit=${limit}`
+    `/admin/users?page=${page}&limit=${limit}`,
   );
   return response as GetAllUsersResponse;
 };
@@ -254,7 +251,7 @@ export const getAllUsers = async (
  */
 export const getUser = async (userId: string): Promise<GetUserResponse> => {
   const response = await apiClient.get<GetUserResponse>(
-    `/admin/users/${userId}`
+    `/admin/users/${userId}`,
   );
   return response as GetUserResponse;
 };
@@ -264,11 +261,11 @@ export const getUser = async (userId: string): Promise<GetUserResponse> => {
  */
 export const updateUser = async (
   userId: string,
-  request: UpdateUserRequest
+  request: UpdateUserRequest,
 ): Promise<UpdateUserResponse> => {
   const response = await apiClient.put<UpdateUserResponse>(
     `/admin/users/${userId}`,
-    request
+    request,
   );
   return response as UpdateUserResponse;
 };
@@ -277,10 +274,10 @@ export const updateUser = async (
  * Delete user
  */
 export const deleteUser = async (
-  userId: string
+  userId: string,
 ): Promise<DeleteUserResponse> => {
   const response = await apiClient.delete<DeleteUserResponse>(
-    `/admin/users/${userId}`
+    `/admin/users/${userId}`,
   );
   return response as DeleteUserResponse;
 };

@@ -2,7 +2,7 @@
 Models for admin authentication
 """
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 class AdminLoginRequest(BaseModel):
@@ -20,7 +20,9 @@ class AdminLoginResponse(BaseModel):
 
 class AdminRefreshTokenRequest(BaseModel):
     """Admin token refresh request model"""
-    refresh_token: str
+    model_config = ConfigDict(populate_by_name=True)
+    
+    refresh_token: str = Field(alias='refreshToken')
 
 
 class AdminRefreshTokenResponse(BaseModel):

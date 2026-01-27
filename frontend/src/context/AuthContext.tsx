@@ -5,6 +5,9 @@ import { create } from 'zustand';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { verifyToken, refreshToken } from '@/api/token';
 
+// Token expiration constants
+const ACCESS_TOKEN_EXPIRE_MINUTES = 60;
+
 interface ShippingAddress {
   name: string;
   phone: string;
@@ -63,8 +66,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       }
     }
   },
-  loginWithUserData: (userData: any) => {
-    // バックエンドから取得したユーザー情報を保存
+  loginWithUserData: (userData: any, guestIdentifier?: string) => {
+    // ユーザー情報を保存
     const user: User = {
       id: userData.id || '',
       name: userData.name || '',
@@ -87,7 +90,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       tokens: tokens,
     });
 
-    // ローカルストレージには authTokens のみ保存（authUser は保存しない）
+    // ローカルストレージには authTokens のみ保存
     if (typeof window !== 'undefined') {
       localStorage.setItem('authTokens', JSON.stringify(tokens));
       localStorage.setItem('isLoggedIn', 'true');
@@ -115,7 +118,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         } catch (error) {
           console.error(
             'Failed to restore authTokens from localStorage:',
-            error
+            error,
           );
           localStorage.removeItem('authTokens');
           localStorage.removeItem('isLoggedIn');
@@ -148,7 +151,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       tokens: tokens,
     });
 
-    // ローカルストレージには authTokens のみ保存（authUser は保存しない）
+    // ローカルストレージには authTokens のみ保存
     if (typeof window !== 'undefined') {
       localStorage.setItem('authTokens', JSON.stringify(tokens));
       localStorage.setItem('isLoggedIn', 'true');
@@ -159,7 +162,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const restoreFromLocalStorage = useAuthStore(
-    (state) => state.restoreFromLocalStorage
+    (state) => state.restoreFromLocalStorage,
   );
   const { tokens, setUserWithTokens, logout } = useAuthStore();
 
@@ -183,7 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // アクセストークンが有効か確認
             if (parsedTokens.expiresAt > Date.now()) {
               // トークンがまだ有効 → /verify-token で自動ログイン
-              const response = await verifyToken(parsedTokens.accessToken);
+              const response = await verifyToken(
+                parsedTokens.accessToken,
+                parsedTokens.refreshToken,
+              );
 
               if (response.success && response.data) {
                 // ユーザー情報を取得してログイン状態を復元
@@ -192,6 +198,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   ...parsedTokens,
                   accessToken:
                     response.data.accessToken || parsedTokens.accessToken,
+                  refreshToken:
+                    response.data.refreshToken || parsedTokens.refreshToken,
                   expiresIn:
                     response.data.expiresIn || ACCESS_TOKEN_EXPIRE_MINUTES * 60,
                   expiresAt:
@@ -217,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else {
               // アクセストークン期限切れ → リフレッシュトークンで更新
               const refreshResponse = await refreshToken(
-                parsedTokens.refreshToken
+                parsedTokens.refreshToken,
               );
 
               if (refreshResponse.success && refreshResponse.data) {
@@ -225,12 +233,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const newTokens: AuthTokens = {
                   ...parsedTokens,
                   accessToken: refreshResponse.data.accessToken,
+                  refreshToken:
+                    refreshResponse.data.refreshToken ||
+                    parsedTokens.refreshToken,
                   expiresIn: refreshResponse.data.expiresIn,
                   expiresAt: Date.now() + refreshResponse.data.expiresIn * 1000,
                 };
 
                 // 新しいアクセストークンで /verify-token を実行
-                const verifyResponse = await verifyToken(newTokens.accessToken);
+                const verifyResponse = await verifyToken(
+                  newTokens.accessToken,
+                  newTokens.refreshToken,
+                );
 
                 if (verifyResponse.success && verifyResponse.data) {
                   // ユーザー情報を取得してログイン状態を復元

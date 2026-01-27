@@ -1,58 +1,16 @@
 import json
 import uuid
 from datetime import datetime
-from decimal import Decimal
-import boto3
-from src.utils.jwt import verify_token
-import os
-
-# DynamoDB 初期化
-dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
-
-COMMERCE_TABLE_NAME = 'Commerce'
+from src.utils.auth import require_admin_auth
+from src.utils.dynamodb import get_commerce_table
 
 
-def get_commerce_table():
-    return dynamodb.Table(COMMERCE_TABLE_NAME)
-
-
-def verify_admin_token(headers):
-    """認可ヘッダーから管理者トークンを検証"""
-    print(f"DEBUG: Headers keys: {list(headers.keys()) if headers else 'No headers'}")
-    
-    auth_header = headers.get('Authorization', '') or headers.get('authorization', '')
-    print(f"DEBUG: Auth header length: {len(auth_header) if auth_header else 0}")
-    
-    if not auth_header.startswith('Bearer '):
-        print("DEBUG: No Bearer token found")
-        return None
-
-    token = auth_header[7:]
-    print(f"DEBUG: Token length: {len(token)}")
-    
-    try:
-        is_valid, payload, error = verify_token(token)
-        print(f"DEBUG: Token valid: {is_valid}, payload: {payload}, error: {error}")
-        
-        if not is_valid or payload.get('user_type') != 'admin':
-            print(f"DEBUG: Invalid token or not admin user")
-            return None
-        return payload
-    except Exception as e:
-        print(f"Token verification error: {str(e)}")
-        return None
-
-
+@require_admin_auth
 def create_category(event, context):
     """カテゴリを新規作成"""
     try:
-        # 認可確認
-        admin_info = verify_admin_token(event.get('headers', {}))
-        if not admin_info:
-            return {
-                'statusCode': 401,
-                'body': json.dumps({'success': False, 'error': 'Unauthorized'})
-            }
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
 
         body = json.loads(event.get('body', '{}'))
         category_name = body.get('categoryName', '').strip()
@@ -107,13 +65,8 @@ def create_category(event, context):
 def get_all_categories(event, context):
     """すべてのカテゴリを取得（親子関係を保持）"""
     try:
-        # 認可確認
-        admin_info = verify_admin_token(event.get('headers', {}))
-        if not admin_info:
-            return {
-                'statusCode': 401,
-                'body': json.dumps({'success': False, 'error': 'Unauthorized'})
-            }
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
 
         table = get_commerce_table()
 
@@ -179,13 +132,8 @@ def get_all_categories(event, context):
 def update_category(event, context):
     """カテゴリを更新"""
     try:
-        # 認可確認
-        admin_info = verify_admin_token(event.get('headers', {}))
-        if not admin_info:
-            return {
-                'statusCode': 401,
-                'body': json.dumps({'success': False, 'error': 'Unauthorized'})
-            }
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
 
         category_id = event['pathParameters']['categoryId']
         body = json.loads(event.get('body', '{}'))
@@ -236,13 +184,8 @@ def update_category(event, context):
 def delete_category(event, context):
     """カテゴリを削除（soft delete）"""
     try:
-        # 認可確認
-        admin_info = verify_admin_token(event.get('headers', {}))
-        if not admin_info:
-            return {
-                'statusCode': 401,
-                'body': json.dumps({'error': 'Unauthorized'})
-            }
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
 
         category_id = event['pathParameters']['categoryId']
         table = get_commerce_table()

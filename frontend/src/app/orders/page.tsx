@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/Layout/MainLayout';
 import Pagination from '@/components/Pagination/Pagination';
+import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
 import { getOrders, Order } from '@/api/orders';
 import styles from './orders.module.css';
 
@@ -37,25 +38,17 @@ export default function OrdersPage() {
   }, []);
 
   const totalItems = allOrders.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+
+  useEffect(() => {
+    const nextTotalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+    if (currentPage > nextTotalPages) {
+      setCurrentPage(nextTotalPages);
+    }
+  }, [totalItems]);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentOrders = allOrders.slice(startIndex, endIndex);
-
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return { label: '未入金', color: '#FF9800' }; // オレンジ
-      case 'processing':
-        return { label: '入金済', color: '#00BCD4' }; // 水色
-      case 'shipped':
-        return { label: '配送中', color: '#2196F3' }; // 青
-      case 'delivered':
-        return { label: '配送済', color: '#4CAF50' }; // 緑
-      default:
-        return { label: status, color: '#9E9E9E' };
-    }
-  };
 
   if (loading) {
     return (
@@ -93,11 +86,27 @@ export default function OrdersPage() {
         </div>
 
         {currentOrders.length === 0 ? (
-          <div className={styles.empty}>
-            <p>注文履歴がありません</p>
-            <Link href="/" className={styles.shopButton}>
-              ショッピングを続ける
-            </Link>
+          <div className={styles.emptyWrapper}>
+            <div className={styles.emptyCard}>
+              <div className={styles.emptyIcon}>🛒</div>
+              <h2 className={styles.emptyTitle}>まだ注文がありません</h2>
+              <p className={styles.emptyText}>
+                気になるアイテムを見つけて、はじめてのご注文をお楽しみください。
+              </p>
+              <div className={styles.emptyActions}>
+                <Link href="/" className={styles.primaryAction}>
+                  ショッピングを続ける
+                </Link>
+                <Link href="/search" className={styles.secondaryAction}>
+                  カテゴリーから探す
+                </Link>
+              </div>
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         ) : (
           <>
@@ -116,52 +125,78 @@ export default function OrdersPage() {
                         <span className={styles.label}>注文日</span>
                         <span className={styles.value}>
                           {new Date(order.orderDate).toLocaleDateString(
-                            'ja-JP'
+                            'ja-JP',
                           )}
                         </span>
                       </div>
                     </div>
                     <div className={styles.orderStatus}>
-                      {order.cancelRequestSent && (
+                      {(order.cancelRequestSent || order.isCancelRequest) &&
+                        order.status !== 'cancelled_customer' &&
+                        order.status !== 'cancelled_internal' && (
+                          <span
+                            className={styles.status}
+                            style={{
+                              backgroundColor: '#ef4444',
+                              marginRight: '8px',
+                            }}
+                          >
+                            キャンセル申請中
+                          </span>
+                        )}
+                      {order.refundAt && (
                         <span
                           className={styles.status}
                           style={{
-                            backgroundColor: '#ef4444',
+                            backgroundColor: '#10b981',
                             marginRight: '8px',
                           }}
                         >
-                          キャンセル申請中
+                          返金処理完了
                         </span>
                       )}
-                      <span
-                        className={styles.status}
-                        style={{
-                          backgroundColor: getStatusDisplay(order.status).color,
-                        }}
-                      >
-                        {getStatusDisplay(order.status).label}
-                      </span>
+                      <OrderStatusChip
+                        status={
+                          order.status as
+                            | 'unpaid'
+                            | 'awaiting_shipment'
+                            | 'in_transit'
+                            | 'delivered'
+                        }
+                      />
                     </div>
                   </div>
 
                   <div className={styles.orderItems}>
                     <div className={styles.itemsPreview}>
-                      {order.items.slice(0, 2).map((item, idx) => (
-                        <div key={idx} className={styles.itemPreview}>
-                          <div>
-                            <span className={styles.itemName}>
-                              {item.productName}
-                            </span>
-                            <span className={styles.itemQty}>
-                              {' '}
-                              x{item.quantity}
-                            </span>
-                          </div>
-                          <span>
-                            ¥{(item.unitPrice * item.quantity).toLocaleString()}
-                          </span>
+                      {order.items &&
+                        order.items.slice(0, 2).map((item, idx) => {
+                          const unitPrice = item.unitPrice ?? item.price ?? 0;
+                          const lineTotal =
+                            item.totalAmount ??
+                            unitPrice * (item.quantity ?? 0);
+
+                          return (
+                            <div key={idx} className={styles.itemPreview}>
+                              <div>
+                                <span className={styles.itemName}>
+                                  {item.productName}
+                                </span>
+                                <span className={styles.itemQty}>
+                                  {' '}
+                                  x{item.quantity}
+                                </span>
+                              </div>
+                              <span>¥{lineTotal.toLocaleString()}</span>
+                            </div>
+                          );
+                        })}
+                      <div className={styles.itemPreview}>
+                        <div>
+                          <span className={styles.itemName}>送料</span>
                         </div>
-                      ))}
+                        <span>¥{order.shippingCost.toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -173,7 +208,7 @@ export default function OrdersPage() {
                       </span>
                     </div>
                     <Link
-                      href={`/orders/${order.id}`}
+                      href={`/orders/detail?id=${order.id}`}
                       className={styles.detailButton}
                     >
                       詳細を見る

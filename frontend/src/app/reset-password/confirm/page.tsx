@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/Layout/MainLayout';
 import { TextInput } from '@/components/Input/TextInput';
@@ -11,12 +11,12 @@ import { useLoading } from '@/context/LoadingContext';
 import styles from './reset-password.module.css';
 
 export default function ResetPasswordPage() {
-  const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { show: showSnackbar } = useSnackbar();
   const { isLoading, setIsLoading } = useLoading();
 
-  const token = params.token as string;
+  const token = searchParams.get('token') as string;
 
   const [passwordReset, setPasswordReset] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -93,7 +93,7 @@ export default function ResetPasswordPage() {
       } else {
         showSnackbar(
           response.message || 'パスワードリセットに失敗しました',
-          'error'
+          'error',
         );
       }
     } catch (err) {

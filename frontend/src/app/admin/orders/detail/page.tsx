@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
 import { getOrderDetail, OrderDetail } from '@/api/orders';
 import { updateOrderStatus } from '@/api/admin-orders';
@@ -10,8 +10,8 @@ import styles from '../orders.module.css';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
 
 export default function AdminOrderDetailPage() {
-  const params = useParams();
-  const orderId = params.id as string;
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get('id') as string;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);

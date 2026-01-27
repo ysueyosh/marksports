@@ -13,11 +13,14 @@ os.environ['ADMIN_TABLE_NAME'] = 'Admin'
 os.environ['COMMERCE_TABLE_NAME'] = 'Commerce'
 os.environ['USERS_TABLE_NAME'] = 'User'
 os.environ['CART_TABLE_NAME'] = 'User'
+os.environ['FRONTEND_URL'] = 'http://localhost:3000'
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from src.handlers.auth import login, refresh_token, verify_token, update_profile, change_password, update_notification_settings, delete_account, get_profile, request_password_reset, verify_reset_token, reset_password
 from src.handlers.register import register
+from src.handlers.verify_email import verify_email
+from src.handlers.resend_verification_email import resend_verification_email
 from src.handlers.cart import get_cart, add_to_cart, update_cart_item, delete_from_cart, clear_cart
 from src.handlers.address import get_addresses, add_address, update_address, delete_address, set_main_address
 from src.handlers.category import get_categories
@@ -26,8 +29,8 @@ from src.handlers.product import get_featured_products, get_product_detail, get_
 from src.handlers.search import search_products
 from src.handlers.coupon import apply_coupon
 from src.handlers.notification import get_notifications, get_notification_detail, get_notification_count
-from src.handlers.order import get_orders, get_order_detail, cancel_order, save_order, get_all_orders, update_order_status
-from src.handlers.admin import admin_login, admin_refresh_token, admin_verify_token, create_admin, get_admin_settings, update_admin_settings
+from src.handlers.order import get_orders, get_order_detail, cancel_order, revoke_cancel_request, save_order, get_all_orders, update_order_status, get_admin_order_detail
+from src.handlers.admin import admin_login, admin_refresh_token, admin_verify_token, create_admin, get_admin_settings, update_admin_settings, manual_refund
 from src.handlers.admin_product import create_product, update_product, delete_product, get_all_products
 from src.handlers.admin_category import admin_create_category_route, admin_get_all_categories_route, admin_update_category_route, admin_delete_category_route
 from src.handlers.admin_coupon import create_coupon, update_coupon, delete_coupon, get_all_coupons
@@ -429,6 +432,26 @@ def register_route():
     return jsonify(body), result['statusCode']
 
 
+@app.route('/verify-email-registration', methods=['POST'])
+def verify_email_route():
+    """Verify email endpoint"""
+    # Lambda event形式に変換
+    event = {'body': request.data.decode()}
+    result = verify_email(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/resend-verification-email', methods=['POST'])
+def resend_verification_email_route():
+    """Resend verification email endpoint"""
+    # Lambda event形式に変換
+    event = {'body': request.data.decode()}
+    result = resend_verification_email(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
 @app.route('/update-profile', methods=['POST'])
 def update_profile_route():
     """Update profile endpoint"""
@@ -814,6 +837,18 @@ def cancel_order_route(order_id):
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
+@app.route('/orders/<order_id>/cancel/revoke', methods=['POST'])
+def revoke_cancel_request_route(order_id):
+    """Revoke cancel request endpoint - Requires authentication"""
+    event = {
+        'pathParameters': {'id': order_id},
+        'headers': dict(request.headers),
+        'body': request.data.decode()
+    }
+    result = revoke_cancel_request(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
 @app.route('/admin/orders', methods=['GET'])
 def get_all_orders_route():
     """Get all orders for admin - Requires authentication"""
@@ -825,6 +860,17 @@ def get_all_orders_route():
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 
+@app.route('/admin/orders/<id>', methods=['GET'])
+def get_admin_order_detail_route(id):
+    """Get admin order detail - Requires authentication"""
+    event = {
+        'headers': dict(request.headers),
+        'pathParameters': {'id': id}
+    }
+    result = get_admin_order_detail(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
 @app.route('/admin/orders/status', methods=['POST'])
 def update_order_status_route():
     """Update order status - Requires authentication"""
@@ -833,6 +879,17 @@ def update_order_status_route():
         'body': request.data.decode()
     }
     result = update_order_status(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+@app.route('/admin/orders/manual-refund', methods=['POST'])
+def manual_refund_route():
+    """Manual refund for bank transfer orders - Requires admin authentication"""
+    event = {
+        'headers': dict(request.headers),
+        'body': request.data.decode()
+    }
+    result = manual_refund(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 

@@ -25,6 +25,16 @@ export default function PaymentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const totalItems = cards.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+
+  useEffect(() => {
+    const nextTotalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    if (currentPage > nextTotalPages) {
+      setCurrentPage(nextTotalPages);
+    }
+  }, [totalItems]);
+
   useEffect(() => {
     const loadCards = async () => {
       try {
@@ -40,7 +50,7 @@ export default function PaymentPage() {
         const errorMsg = err instanceof Error ? err.message : String(err);
         showSnackbar(
           `お支払方法の読み込みに失敗しました: ${errorMsg}`,
-          'error'
+          'error',
         );
       } finally {
         setIsLoading(false);
@@ -103,7 +113,7 @@ export default function PaymentPage() {
           cards.map((card) => ({
             ...card,
             isDefault: card.id === cardId,
-          }))
+          })),
         );
         setCurrentPage(1);
         showSnackbar('デフォルトカードを変更しました', 'success');
@@ -147,16 +157,17 @@ export default function PaymentPage() {
           ) : cards.length === 0 ? (
             <div className={styles.noCards}>
               <p>登録されているカードはありません</p>
-              <Link href="/payment/add" className={styles.addCardButton}>
-                カードを追加
-              </Link>
+              <div className={styles.noCardsActions}>
+                <Link href="/payment/add" className={styles.addCardButton}>
+                  カードを追加
+                </Link>
+              </div>
             </div>
           ) : (
             (() => {
               const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
               const endIndex = startIndex + ITEMS_PER_PAGE;
               const paginatedCards = cards.slice(startIndex, endIndex);
-              const totalPages = Math.ceil(cards.length / ITEMS_PER_PAGE);
 
               return (
                 <>
@@ -213,6 +224,11 @@ export default function PaymentPage() {
             })()
           )}
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </MainLayout>
   );

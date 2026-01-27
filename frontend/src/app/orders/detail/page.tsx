@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/Layout/MainLayout';
 import CancelOrderModal from '@/components/CancelOrderModal/CancelOrderModal';
 import { getOrderDetail, OrderDetail } from '@/api/orders';
@@ -11,9 +11,9 @@ import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
 import styles from '../orders.module.css';
 
 export default function OrderDetailPage() {
-  const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const orderId = params.id as string;
+  const orderId = searchParams.get('id') as string;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,7 +84,7 @@ export default function OrderDetailPage() {
               ...prevOrder,
               cancelRequestSent: response.cancelRequestSent,
             }
-          : null
+          : null,
       );
     }
   };
@@ -94,7 +94,7 @@ export default function OrderDetailPage() {
       .split('.')
       .reduce(
         (acc, key) => (acc && acc[key] !== undefined ? acc[key] : defaultValue),
-        obj
+        obj,
       );
   };
 
@@ -281,7 +281,10 @@ export default function OrderDetailPage() {
 
           {/* アクション */}
           <div className={styles.detailActions}>
-            <Link href={`/receipt/${order.id}`} className={styles.detailButton}>
+            <Link
+              href={`/receipt/detail?orderId=${order.id}`}
+              className={styles.detailButton}
+            >
               領収証を表示
             </Link>
             {order.status !== 'cancelled' && order.status !== 'delivered' && (

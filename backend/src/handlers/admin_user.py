@@ -8,7 +8,7 @@ from datetime import datetime
 from decimal import Decimal
 import boto3
 import os
-from src.utils.jwt import verify_token
+from src.utils.auth import require_admin_auth
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -34,88 +34,7 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-def verify_admin_token(event):
-    """
-    Verify admin token from Authorization header
-    
-    Args:
-        event: Lambda event with headers
-    
-    Returns:
-        Tuple of (is_valid, error_response)
-    """
-    auth_header = event.get('headers', {}).get('Authorization', '')
-    
-    if not auth_header.startswith('Bearer '):
-        error_response = {
-            "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": False,
-                "message": "認証が必要です",
-                "data": None
-            }, ensure_ascii=False),
-        }
-        return False, error_response
-    
-    token = auth_header[7:]
-    
-    try:
-        # verify_token returns (is_valid, payload, error)
-        is_valid, payload, error = verify_token(token)
-        
-        if not is_valid:
-            error_response = {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": error or "トークンが無効です",
-                    "data": None
-                }, ensure_ascii=False),
-            }
-            return False, error_response
-        
-        # Check if user is admin
-        if payload.get('user_type') != 'admin':
-            error_response = {
-                "statusCode": 403,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": "管理者権限が必要です",
-                    "data": None
-                }, ensure_ascii=False),
-            }
-            return False, error_response
-        
-        return True, None
-    except Exception as e:
-        logger.error(f"Token verification failed: {str(e)}")
-        error_response = {
-            "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": False,
-                "message": "無効なトークンです",
-                "data": None
-            }, ensure_ascii=False),
-        }
-        return False, error_response
-
-
+@require_admin_auth
 def get_all_users(event, context):
     """
     Get all users with pagination
@@ -128,10 +47,8 @@ def get_all_users(event, context):
         API response with users list
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get pagination parameters
         query_params = event.get('queryStringParameters', {}) or {}
@@ -220,6 +137,7 @@ def get_all_users(event, context):
         }
 
 
+@require_admin_auth
 def get_user(event, context):
     """
     Get a single user by ID
@@ -232,10 +150,8 @@ def get_user(event, context):
         API response with user data
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get user ID from path
         path_params = event.get('pathParameters', {}) or {}
@@ -318,22 +234,21 @@ def get_user(event, context):
         }
 
 
+@require_admin_auth
 def update_user(event, context):
     """
     Update user information
     
     Args:
-        event: Lambda event with body and pathParameters (user_id)
+        event: Lambda event with pathParameters (user_id) and body
         context: Lambda context
     
     Returns:
-        API response with updated user data
+        API response
     """
     try:
-        # Verify admin token
-        is_valid, error_response = verify_admin_token(event)
-        if not is_valid:
-            return error_response
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get user ID from path
         path_params = event.get('pathParameters', {}) or {}

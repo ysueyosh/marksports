@@ -1,20 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import MainLayout from '@/components/Layout/MainLayout';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import { TextInput } from '@/components/Input/TextInput';
-import Link from 'next/link';
 import {
   getAddresses,
   updateAddress,
   deleteAddress,
   searchAddressByPostalCode,
 } from '@/api/address';
-import styles from './edit.module.css';
+import styles from '../address.module.css';
 
 interface Address {
   id: string;
@@ -89,13 +89,14 @@ const prefectureMap: Record<string, string> = prefectureOptions.reduce(
     acc[opt.label] = opt.id;
     return acc;
   },
-  {} as Record<string, string>
+  {} as Record<string, string>,
 );
 
-export default function EditAddressPage() {
+export default function AddressDetailPage() {
   const router = useRouter();
-  const params = useParams();
-  const addressId = params.id as string;
+  const searchParams = useSearchParams();
+  const addressId = searchParams.get('id');
+
   const { isLoggedIn, user } = useAuth();
   const { show: showSnackbar } = useSnackbar();
   const [address, setAddress] = useState<Address | null>(null);
@@ -113,6 +114,12 @@ export default function EditAddressPage() {
   useEffect(() => {
     const loadAddress = async () => {
       try {
+        if (!addressId) {
+          showSnackbar('住所 ID が見つかりません', 'error');
+          setIsLoading(false);
+          return;
+        }
+
         const response = await getAddresses();
         if (response.success && response.data) {
           const foundAddress = response.data.find((a) => a.id === addressId);
@@ -137,7 +144,7 @@ export default function EditAddressPage() {
     };
 
     loadAddress();
-  }, [addressId]);
+  }, [addressId, showSnackbar]);
 
   if (!isLoggedIn || !user) {
     return (
@@ -208,7 +215,9 @@ export default function EditAddressPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value } = e.target;
 
@@ -248,7 +257,7 @@ export default function EditAddressPage() {
 
       if (response.success && response.data) {
         const prefectureId = Object.entries(prefectureMap).find(
-          ([key, val]) => key === response.data?.prefecture
+          ([key, val]) => key === response.data?.prefecture,
         )?.[1];
 
         setFormData((prev) => ({
@@ -272,7 +281,7 @@ export default function EditAddressPage() {
     }
 
     try {
-      const response = await updateAddress(addressId, {
+      const response = await updateAddress(addressId!, {
         postalCode: formData.postalCode,
         prefecture: formData.prefecture,
         address: formData.address,
@@ -298,7 +307,7 @@ export default function EditAddressPage() {
       confirm('この住所を削除してもよろしいですか？削除すると復元できません。')
     ) {
       try {
-        const response = await deleteAddress(addressId);
+        const response = await deleteAddress(addressId!);
 
         if (response.success) {
           showSnackbar('住所を削除しました', 'success');

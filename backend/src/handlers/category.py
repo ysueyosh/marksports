@@ -6,6 +6,7 @@ import json
 import logging
 from src.models.category import CategoriesResponse, Category, Subcategory
 from src.utils.dynamodb import get_commerce_table, CATEGORY_PK
+from src.utils.cors import cors_headers
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -91,24 +92,22 @@ def get_categories(event, context):
         
         return {
             "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps(response.model_dump()),
         }
     
     except Exception as e:
-        logger.error(f"Error during get categories: {str(e)}")
+        import traceback
+        error_msg = str(e)
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error during get categories: {error_msg}\nStack: {stack_trace}")
         return {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
+            "headers": cors_headers(event),
             "body": json.dumps({
                 "success": False,
-                "message": f"Failed to get categories: {str(e)}"
+                "message": f"Failed to get categories: {error_msg}",
+                "error": stack_trace if True else None  # Include traceback in dev
             }),
         }
 

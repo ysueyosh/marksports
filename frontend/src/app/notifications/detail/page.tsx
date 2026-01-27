@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import MainLayout from '@/components/Layout/MainLayout';
 import NotificationTag from '@/components/NotificationTag/NotificationTag';
@@ -9,8 +9,8 @@ import { Notification, getNotificationDetail } from '@/api/notifications';
 import styles from './notification-detail.module.css';
 
 export default function NotificationDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id') as string;
   const [notification, setNotification] = useState<Notification | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

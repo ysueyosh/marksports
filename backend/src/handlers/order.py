@@ -4,14 +4,29 @@ Order handler
 
 import json
 import logging
+import os
+import requests
 from datetime import datetime, timedelta
 from decimal import Decimal
-from src.utils.auth import require_auth_handler
+from src.utils.auth import require_auth_handler, require_admin_auth
 from src.utils.dynamodb import get_users_table
-from src.utils.jwt import verify_token
+from src.utils.ses import send_email, ORDER_FROM_EMAIL
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# Square API Configuration
+SQUARE_ACCESS_TOKEN = os.environ.get('SQUARE_ACCESS_TOKEN', '')
+SQUARE_ENVIRONMENT = os.environ.get('SQUARE_ENVIRONMENT', 'sandbox')
+SQUARE_API_BASE_URL = (
+    'https://connect.squareup.com' if SQUARE_ENVIRONMENT == 'production'
+    else 'https://connect.squareupsandbox.com'
+)
+SQUARE_HEADERS = {
+    'Square-Version': '2024-10-17',
+    'Authorization': f'Bearer {SQUARE_ACCESS_TOKEN}',
+    'Content-Type': 'application/json',
+}
 
 
 def convert_decimal(obj):
@@ -49,51 +64,362 @@ def safe_amount_conversion(value, default=0):
         return default
 
 
-def extract_user_id_from_token(event):
+def get_admin_emails():
     """
-    Extract user_id from JWT token in Authorization header
-    Validates that the token is for a regular user (not admin)
-
+    Get all admin email addresses from Admin table
+    
     Returns:
-        user_id if valid user token found, None otherwise
+        List of admin email addresses
     """
-    headers = event.get('headers', {})
+    try:
+        from src.utils.dynamodb import get_admin_table
+        admin_table = get_admin_table()
+        
+        # Scan all items in Admin table to get all admin emails
+        response = admin_table.scan()
+        
+        admin_emails = []
+        for item in response.get('Items', []):
+            email = item.get('email')
+            if email:
+                admin_emails.append(email)
+        
+        logger.info(f"Found {len(admin_emails)} admin emails: {admin_emails}")
+        return admin_emails
+    except Exception as e:
+        logger.error(f"Error getting admin emails: {str(e)}")
+        return []
 
-    auth_header = (
-        headers.get('Authorization', '') or 
-        headers.get('authorization', '') or
-        headers.get('AUTHORIZATION', '')
-    )
 
-    logger.info(f"Authorization header: {auth_header[:50] if auth_header else 'None'}...")
+def send_cancel_request_notification_email(order_number: str, user_name: str, user_email: str, cancel_reason: str, admin_emails: list):
+    """
+    Send cancel request notification email to all admins
+    
+    Args:
+        order_number: Order number
+        user_name: Customer name
+        user_email: Customer email
+        cancel_reason: Cancellation reason
+        admin_emails: List of admin email addresses
+    """
+    try:
+        if not admin_emails:
+            logger.warning("No admin emails found")
+            return
+        
+        subject = f"【キャンセルリクエスト】注文番号: {order_number}"
+        body = f'''
+キャンセルリクエストが送信されました。
 
-    if not auth_header or not auth_header.startswith('Bearer '):
-        logger.warning(f"No Bearer token found")
-        return None
+顧客情報:
+名前: {user_name}
+メール: {user_email}
 
-    token = auth_header[7:]  # Remove "Bearer " prefix
-    logger.info(f"Verifying token: {token[:20]}...")
-    is_valid, payload, error = verify_token(token)
+注文情報:
+注文番号: {order_number}
 
-    if not is_valid or not payload:
-        logger.warning(f"Token verification failed: {error}")
-        return None
+キャンセル理由:
+{cancel_reason}
 
-    logger.info(f"JWT payload: {payload}")  # Added logging for debugging
+管理画面よりキャンセル申請を確認・処理してください。
+'''
+        
+        # Send email to all admins
+        result = send_email(
+            to_addresses=admin_emails,
+            subject=subject,
+            body_text=body,
+            from_email=ORDER_FROM_EMAIL
+        )
+        
+        if result.get('success'):
+            logger.info(f"Cancel request notification email sent to {len(admin_emails)} admins for order {order_number}")
+        else:
+            logger.error(f"Failed to send cancel request notification email: {result.get('error')}")
+            
+    except Exception as e:
+        logger.error(f"Error sending cancel request notification email: {str(e)}")
 
-    # Check user_type - must be 'user' not 'admin'
-    user_type = payload.get('user_type', 'user')
-    if user_type != 'user':
-        logger.warning(f"Invalid user_type: {user_type}. Expected 'user' but got '{user_type}'")
-        return None
 
-    user_id = payload.get('user_id')
-    if not user_id:
-        logger.warning("No user_id in JWT payload")
-        return None
+def send_order_status_update_email(user_email: str, user_name: str, order_number: str, new_status: str):
+    """
+    Send order status update email to customer
+    
+    Args:
+        user_email: Customer email address
+        user_name: Customer name
+        order_number: Order number
+        new_status: New order status (unpaid, awaiting_shipment, in_transit, delivered)
+    """
+    try:
+        # Define status-specific messages
+        status_messages = {
+            'unpaid': {
+                'subject': '【重要】お支払いの確認が取れませんでした',
+                'body': f'''
+{user_name} 様
 
-    logger.info(f"Extracted user_id from JWT: {user_id}")
-    return user_id
+いつもご利用いただきありがとうございます。
+
+ご注文番号: {order_number}
+
+大変申し訳ございませんが、お支払いの確認が取れませんでした。
+お手数ですが、お支払い方法を更新していただきますようお願いいたします。
+
+マイページよりお支払い方法を更新してください。
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+今後ともよろしくお願いいたします。
+'''
+            },
+            'awaiting_shipment': {
+                'subject': 'お支払いを確認いたしました',
+                'body': f'''
+{user_name} 様
+
+いつもご利用いただきありがとうございます。
+
+ご注文番号: {order_number}
+
+お支払いを確認いたしました。
+配送準備を開始いたしますので、今しばらくお待ちください。
+
+商品の発送が完了次第、改めてご連絡させていただきます。
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+今後ともよろしくお願いいたします。
+'''
+            },
+            'in_transit': {
+                'subject': '商品を発送いたしました',
+                'body': f'''
+{user_name} 様
+
+いつもご利用いただきありがとうございます。
+
+ご注文番号: {order_number}
+
+商品の配送を開始いたしました。
+到着までしばらくお待ちください。
+
+配送状況につきましては、配送業者の追跡サービスをご利用ください。
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+今後ともよろしくお願いいたします。
+'''
+            },
+            'delivered': {
+                'subject': '商品が到着いたしました',
+                'body': f'''
+{user_name} 様
+
+いつもご利用いただきありがとうございます。
+
+ご注文番号: {order_number}
+
+商品が無事に到着いたしました。
+
+万が一、商品に不備がございましたら、お早めにお問い合わせください。
+
+この度はご利用いただき、誠にありがとうございました。
+またのご利用を心よりお待ちしております。
+
+今後ともよろしくお願いいたします。
+'''
+            },
+            'cancelled_customer': {
+                'subject': '【確認】ご注文がキャンセルされました',
+                'body': f'''
+{user_name} 様
+
+いつもご利用いただきありがとうございます。
+
+ご注文番号: {order_number}
+
+ご注文がキャンセルされました。
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+今後ともよろしくお願いいたします。
+'''
+            },
+            'cancelled_internal': {
+                'subject': '【確認】ご注文がキャンセルされました',
+                'body': f'''
+{user_name} 様
+
+いつもご利用いただきありがとうございます。
+
+ご注文番号: {order_number}
+
+ご注文がキャンセルされました。
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+今後ともよろしくお願いいたします。
+'''
+            }
+        }
+        
+        # Get message for the status
+        message_data = status_messages.get(new_status)
+        if not message_data:
+            logger.warning(f"No email template for status: {new_status}")
+            return
+        
+        # Send email
+        result = send_email(
+            to_addresses=[user_email],
+            subject=message_data['subject'],
+            body_text=message_data['body'],
+            from_email=ORDER_FROM_EMAIL
+        )
+        
+        if result.get('success'):
+            logger.info(f"Status update email sent successfully to {user_email} for order {order_number}")
+        else:
+            logger.error(f"Failed to send status update email: {result.get('error')}")
+            
+    except Exception as e:
+        logger.error(f"Error sending order status update email: {str(e)}")
+
+
+def send_refund_completed_email(user_email: str, user_name: str, order_number: str, payment_method: str, refund_amount: int):
+    """
+    Send refund completed notification email to customer
+    
+    Args:
+        user_email: Customer email address
+        user_name: Customer name
+        order_number: Order number
+        payment_method: Payment method (credit_card, bank_transfer, etc.)
+        refund_amount: Refund amount in yen
+    """
+    try:
+        payment_method_labels = {
+            'credit_card': 'クレジットカード',
+            'apple_pay': 'Apple Pay',
+            'google_pay': 'Google Pay',
+            'bank_transfer': '銀行振込'
+        }
+        
+        payment_label = payment_method_labels.get(payment_method, payment_method)
+        
+        subject = '【返金完了】ご注文の返金処理が完了しました'
+        body = f'''
+{user_name} 様
+
+いつもご利用いただきありがとうございます。
+
+ご注文番号: {order_number}
+返金金額: ¥{refund_amount:,}
+お支払い方法: {payment_label}
+
+上記注文の返金処理が完了いたしました。
+
+【返金方法について】
+'''
+        
+        if payment_method in ['credit_card', 'apple_pay', 'google_pay']:
+            body += '''
+クレジットカード・電子決済でのお支払い分は、ご利用のカード会社を通じて返金されます。
+返金のタイミングはカード会社により異なりますので、詳細はカード会社にお問い合わせください。
+'''
+        elif payment_method == 'bank_transfer':
+            body += '''
+銀行振込でのお支払い分は、ご指定の口座へ返金いたしました。
+お振込み完了までに数営業日かかる場合がございます。
+'''
+        
+        body += '''
+
+ご不明な点がございましたら、お気軽にお問い合わせください。
+
+今後ともよろしくお願いいたします。
+'''
+        
+        # Send email
+        result = send_email(
+            to_addresses=[user_email],
+            subject=subject,
+            body_text=body,
+            from_email=ORDER_FROM_EMAIL
+        )
+        
+        if result.get('success'):
+            logger.info(f"Refund completed email sent successfully to {user_email} for order {order_number}")
+        else:
+            logger.error(f"Failed to send refund completed email: {result.get('error')}")
+            
+    except Exception as e:
+        logger.error(f"Error sending refund completed email: {str(e)}")
+
+
+def process_square_refund(payment_id: str, amount_money: dict, reason: str = "Requested by customer") -> dict:
+    """
+    Process refund via Square API
+    
+    Args:
+        payment_id: Square payment ID (squareTransactionId)
+        amount_money: Amount to refund {"amount": cents, "currency": "JPY"}
+        reason: Refund reason
+        
+    Returns:
+        {"success": bool, "refund_id": str, "error": str}
+    """
+    try:
+        import uuid
+        
+        refund_body = {
+            "idempotency_key": str(uuid.uuid4()),
+            "payment_id": payment_id,
+            "amount_money": amount_money,
+            "reason": reason
+        }
+        
+        logger.info(f"Processing Square refund: payment_id={payment_id}, amount={amount_money}")
+        
+        response = requests.post(
+            f"{SQUARE_API_BASE_URL}/v2/refunds",
+            headers=SQUARE_HEADERS,
+            json=refund_body,
+            timeout=30
+        )
+        
+        logger.info(f"Square refund response status: {response.status_code}")
+        logger.info(f"Square refund response: {response.text}")
+        
+        if response.status_code in [200, 201]:
+            result = response.json()
+            refund = result.get('refund', {})
+            refund_id = refund.get('id')
+            
+            if refund_id:
+                logger.info(f"Successfully processed refund: {refund_id}")
+                return {
+                    "success": True,
+                    "refund_id": refund_id,
+                    "error": None
+                }
+        
+        error_message = response.text
+        logger.error(f"Failed to process Square refund: {error_message}")
+        return {
+            "success": False,
+            "refund_id": None,
+            "error": error_message
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in process_square_refund: {str(e)}")
+        return {
+            "success": False,
+            "refund_id": None,
+            "error": str(e)
+        }
 
 
 @require_auth_handler
@@ -111,18 +437,21 @@ def get_orders(event, context):
     try:
         logger.info(f"Get orders event: {event}")
 
-        # Get user ID from token
-        user_id = extract_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+        
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }, ensure_ascii=False),
             }
 
@@ -179,6 +508,8 @@ def get_orders(event, context):
                 "couponCode": item.get('couponCode', ''),
                 "couponDiscount": safe_amount_conversion(item.get('couponDiscount', 0), 0),
                 "items": order_items,
+                "isCancelRequest": item.get('isCancelRequest', False),
+                "refundAt": item.get('refundAt'),
             })
 
         logger.info(f"Retrieved {len(orders)} orders for user {user_id}")
@@ -245,18 +576,21 @@ def get_order_detail(event, context):
                 }, ensure_ascii=False),
             }
         
-        # Get user ID from token
-        user_id = extract_user_id_from_token(event)
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+        
         if not user_id:
+            logger.error("No user_id in user_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }, ensure_ascii=False),
             }
         
@@ -362,6 +696,10 @@ def get_order_detail(event, context):
             "items": items,
             "paymentAt": order_data.get('paymentAt'),
             "deliveryAt": order_data.get('deliveryAt'),
+            "isCancelRequest": order_data.get('isCancelRequest', False),
+            "cancelReason": order_data.get('cancelReason'),
+            "cancelRequestAt": order_data.get('cancelRequestAt'),
+            "refundAt": order_data.get('refundAt'),
         }
         
         # ⭐ Removed old incorrect subtotal calculation
@@ -411,6 +749,23 @@ def cancel_order(event, context):
     try:
         logger.info(f"Cancel order event: {event}")
         
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+        
+        if not user_id:
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Unauthorized"
+                }, ensure_ascii=False),
+            }
+        
         # Get order ID from path parameters
         order_id = event.get('pathParameters', {}).get('id')
         if not order_id:
@@ -428,7 +783,7 @@ def cancel_order(event, context):
         
         # Get request body
         body = json.loads(event.get('body', '{}'))
-        reason = body.get('reason', '')
+        reason = body.get('reason', '').strip()
         
         if not reason:
             return {
@@ -443,11 +798,76 @@ def cancel_order(event, context):
                 }, ensure_ascii=False),
             }
         
-        # TODO: Update order status in database
-        # TODO: Send cancellation email to customer
-        # TODO: Process any refunds if payment was made
+        table = get_users_table()
         
-        logger.info(f"Order {order_id} cancelled. Reason: {reason}")
+        # Query the order to get order details
+        response = table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk)",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{user_id}",
+                ":sk": f"ORDER#{order_id}"
+            }
+        )
+        
+        orders = response.get('Items', [])
+        if not orders:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Order not found"
+                }, ensure_ascii=False),
+            }
+        
+        order = orders[0]
+        order_number = order.get('orderNumber', order_id)
+        user_name = order.get('userName', '')
+        user_email = order.get('userEmail', '')
+        
+        # Get current timestamp
+        current_time = datetime.utcnow().isoformat() + 'Z'
+        
+        # Update order with cancel request information
+        update_expression = (
+            "SET isCancelRequest = :true, "
+            "cancelReason = :reason, "
+            "cancelRequestAt = :timestamp, "
+            "updatedAt = :timestamp"
+        )
+        
+        expression_attribute_values = {
+            ":true": True,
+            ":reason": reason,
+            ":timestamp": current_time
+        }
+        
+        table.update_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": f"ORDER#{order_id}"
+            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values
+        )
+        
+        # Send notification email to all admins
+        admin_emails = get_admin_emails()
+        if admin_emails:
+            send_cancel_request_notification_email(
+                order_number=order_number,
+                user_name=user_name,
+                user_email=user_email,
+                cancel_reason=reason,
+                admin_emails=admin_emails
+            )
+        else:
+            logger.warning("No admin emails found for cancel request notification")
+        
+        logger.info(f"Order {order_id} cancel request submitted. Reason: {reason}")
         
         return {
             "statusCode": 200,
@@ -457,17 +877,17 @@ def cancel_order(event, context):
             },
             "body": json.dumps({
                 "success": True,
-                "message": "Order cancelled successfully",
+                "message": "Order cancellation request submitted successfully",
                 "data": {
                     "orderId": order_id,
-                    "status": "cancelled",
+                    "status": "cancel_requested",
                     "cancelRequestSent": True
                 }
             }, ensure_ascii=False),
         }
     
     except Exception as e:
-        logger.error(f"Error cancelling order: {str(e)}")
+        logger.error(f"Error submitting cancel order request: {str(e)}")
         return {
             "statusCode": 500,
             "headers": {
@@ -476,7 +896,154 @@ def cancel_order(event, context):
             },
             "body": json.dumps({
                 "success": False,
-                "message": f"Failed to cancel order: {str(e)}"
+                "message": f"Failed to submit cancellation request: {str(e)}"
+            }, ensure_ascii=False),
+        }
+
+
+
+@require_auth_handler
+def revoke_cancel_request(event, context):
+    """
+    Revoke cancel request - Requires authentication
+    
+    Args:
+        event: Lambda event
+        context: Lambda context
+    
+    Returns:
+        API response
+    """
+    try:
+        logger.info(f"Revoke cancel request event: {event}")
+        
+        # Get user ID from payload injected by decorator
+        user_payload = event.get('user_payload', {})
+        user_id = user_payload.get('user_id')
+        
+        if not user_id:
+            return {
+                "statusCode": 401,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Unauthorized"
+                }, ensure_ascii=False),
+            }
+        
+        # Get order ID from path parameters
+        order_id = event.get('pathParameters', {}).get('id')
+        if not order_id:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Order ID is required"
+                }, ensure_ascii=False),
+            }
+        
+        table = get_users_table()
+        
+        # Query the order to verify it exists and belongs to the user
+        response = table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk)",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{user_id}",
+                ":sk": f"ORDER#{order_id}"
+            }
+        )
+        
+        orders = response.get('Items', [])
+        if not orders:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Order not found"
+                }, ensure_ascii=False),
+            }
+        
+        order = orders[0]
+        
+        # Check if cancel request is actually submitted
+        if not order.get('isCancelRequest', False):
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "No cancel request to revoke"
+                }, ensure_ascii=False),
+            }
+        
+        # Get current timestamp
+        current_time = datetime.utcnow().isoformat() + 'Z'
+        
+        # Remove cancel request information from order
+        update_expression = (
+            "SET isCancelRequest = :false, "
+            "updatedAt = :timestamp "
+            "REMOVE cancelReason, cancelRequestAt"
+        )
+        
+        expression_attribute_values = {
+            ":false": False,
+            ":timestamp": current_time
+        }
+        
+        table.update_item(
+            Key={
+                "PK": f"USER#{user_id}",
+                "SK": f"ORDER#{order_id}"
+            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values
+        )
+        
+        logger.info(f"Order {order_id} cancel request revoked by user {user_id}")
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": True,
+                "message": "Cancel request revoked successfully",
+                "data": {
+                    "orderId": order_id,
+                    "status": order.get('status', 'unknown'),
+                    "cancelRequestSent": False
+                }
+            }, ensure_ascii=False),
+        }
+    
+    except Exception as e:
+        logger.error(f"Error revoking cancel request: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": False,
+                "message": f"Failed to revoke cancel request: {str(e)}"
             }, ensure_ascii=False),
         }
 
@@ -519,42 +1086,47 @@ def save_order(event, context):
         from src.utils.dynamodb import get_users_table
         from src.utils.jwt import verify_token
         
-        logger.error(f"[ORDER] SAVE_ORDER called with event body: {event.get('body', '{}')}")
+        # Log the raw request body first
+        raw_body = event.get('body', '{}')
+        logger.info(f"[ORDER_SAVE] Raw body received: {raw_body[:200]}...")
         
-        # Get user ID from token
-        headers = event.get('headers', {})
-        auth_header = (
-            headers.get('Authorization', '') or 
-            headers.get('authorization', '') or
-            headers.get('AUTHORIZATION', '')
-        )
+        body = json.loads(raw_body)
         
-        logger.error(f"[ORDER] Auth header present: {bool(auth_header)}")
-        
+        # Get user_id - try from Authorization header first, then from body token
         user_id = None
+        
+        # Try to get token from Authorization header
+        headers = event.get('headers', {})
+        auth_header = headers.get('Authorization') or headers.get('authorization')
+        
         if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header[7:]
-            is_valid, payload, error = verify_token(token)
-            logger.error(f"[ORDER] Token verification: is_valid={is_valid}, payload={bool(payload)}")
-            if is_valid and payload:
-                user_id = payload.get('user_id')
-                logger.error(f"[ORDER] Extracted user_id: {user_id}")
+            token = auth_header.replace('Bearer ', '')
+            try:
+                is_valid, payload, error_msg = verify_token(token)
+                if is_valid:
+                    user_id = payload.get('user_id')
+                    logger.info(f"[ORDER_SAVE] Got user_id from Authorization header: {user_id}")
+                else:
+                    logger.warning(f"[ORDER_SAVE] Token verification failed: {error_msg}")
+            except Exception as token_error:
+                logger.warning(f"[ORDER_SAVE] Token verification error: {str(token_error)}")
         
+        # Fallback to body token if header token failed
         if not user_id:
-            logger.error(f"[ORDER] No user_id found")
-            return {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Unauthorized"
-                }, ensure_ascii=False),
-            }
+            token = body.get('token')
+            if token:
+                try:
+                    is_valid, payload, error_msg = verify_token(token)
+                    if is_valid:
+                        user_id = payload.get('user_id')
+                        logger.info(f"[ORDER_SAVE] Got user_id from body token: {user_id}")
+                except Exception as token_error:
+                    logger.warning(f"[ORDER_SAVE] Token verification failed: {str(token_error)}")
         
-        body = json.loads(event.get('body', '{}'))
+        # If still no user_id, create guest user
+        if not user_id:
+            user_id = f"GUEST_{uuid.uuid4().hex[:8]}"
+            logger.info(f"[ORDER_SAVE] No valid token, using guest ID: {user_id}")
         
         # Validate required fields
         order_id = body.get('orderId') or f"ORDER_{uuid.uuid4().hex[:8]}"
@@ -580,10 +1152,29 @@ def save_order(event, context):
         table = get_users_table()
         now = datetime.utcnow().isoformat() + 'Z'
         
+        # Get user information from request body
+        user_email = body.get('userEmail')
+        user_name = body.get('userName', 'お客様')
+        
+        # If not in body, try to get from shippingAddress
+        if not user_email:
+            shipping_address = body.get('shippingAddress', {})
+            user_email = shipping_address.get('email')
+        
+        if not user_name or user_name == 'お客様':
+            shipping_address = body.get('shippingAddress', {})
+            given_name = shipping_address.get('givenName', '')
+            family_name = shipping_address.get('familyName', '')
+            if given_name or family_name:
+                user_name = f"{family_name}{given_name}".strip() or 'お客様'
+        
+        logger.info(f"[ORDER_SAVE] User info - email: {user_email}, name: {user_name}")
+        
         # Create ORDER item
         order_item = {
             "PK": f"USER#{user_id}",
             "SK": f"ORDER#{order_id}",
+            "userId": user_id,
             "orderId": order_id,
             "orderNumber": order_number,
             "orderDate": now,
@@ -603,6 +1194,8 @@ def save_order(event, context):
             "expYear": int(body.get('expYear', 0)) if body.get('expYear') else None,
             "squareTransactionId": body.get('squareTransactionId'),
             "isCancelRequest": False,
+            "userEmail": user_email,
+            "userName": user_name,
             "createdAt": now,
             "updatedAt": now,
             "paymentAt": now,
@@ -641,6 +1234,159 @@ def save_order(event, context):
             table.put_item(Item=order_item_entry)
             logger.info(f"ORDER_ITEM saved: {order_item_id}")
         
+        # ===== Send emails after order is saved =====
+        logger.info("[EMAIL] Starting email notification process")
+        try:
+            from src.utils.ses import (
+                send_order_confirmation_email,
+                send_admin_order_notification_email,
+                send_bank_transfer_instructions_email
+            )
+            logger.info("[EMAIL] Email functions imported successfully")
+            
+            # Get user email and name from request body (provided by frontend)
+            user_email = body.get('userEmail')
+            user_name = body.get('userName', 'お客様')
+            
+            logger.info(f"[EMAIL] Initial user_email: {user_email}, user_name: {user_name}")
+            
+            # If not in body, try to get from shippingAddress
+            if not user_email:
+                shipping_address = body.get('shippingAddress', {})
+                user_email = shipping_address.get('email')
+                logger.info(f"[EMAIL] Got user_email from shippingAddress: {user_email}")
+            
+            if not user_name or user_name == 'お客様':
+                shipping_address = body.get('shippingAddress', {})
+                given_name = shipping_address.get('givenName', '')
+                family_name = shipping_address.get('familyName', '')
+                if given_name or family_name:
+                    user_name = f"{family_name}{given_name}".strip() or 'お客様'
+                logger.info(f"[EMAIL] Updated user_name: {user_name}")
+            
+            if not user_email:
+                logger.warning(f"[EMAIL] No user email provided for order {order_id}, skipping email notifications")
+            else:
+                logger.info(f"[EMAIL] Proceeding with email sending to: {user_email}, name: {user_name}")
+                # Prepare order items for email
+                email_items = []
+                for item in items:
+                    email_items.append({
+                        'productName': item.get('productName', 'Unknown Product'),
+                        'quantity': int(item.get('quantity', 1)),
+                        'unitPrice': int(item.get('amount', 0))
+                    })
+                
+                logger.info(f"[EMAIL] Prepared {len(email_items)} items for email")
+                
+                total_amount = int(body.get('totalAmount', 0))
+                tax = int(body.get('tax', 0))
+                shipping_cost = int(body.get('shippingCost', 0))
+                discount = int(body.get('discount', 0))
+                coupon_discount = int(body.get('couponDiscount', 0))
+                payment_method = body.get('paymentMethod', 'credit_card')
+                
+                logger.info(f"[EMAIL] Order details - total: {total_amount}, tax: {tax}, payment: {payment_method}")
+                
+                # 1. Send order confirmation email to customer
+                logger.info(f"[EMAIL] Step 1: Sending order confirmation email to {user_email}")
+                try:
+                    confirmation_result = send_order_confirmation_email(
+                        user_email=user_email,
+                        user_name=user_name,
+                        order_number=order_number,
+                        order_items=email_items,
+                        total_amount=total_amount,
+                        tax=tax,
+                        shipping_cost=shipping_cost,
+                        discount=discount,
+                        coupon_discount=coupon_discount,
+                        payment_method=payment_method
+                    )
+                    
+                    if confirmation_result.get('success'):
+                        logger.info(f"[EMAIL] Order confirmation email sent successfully: {confirmation_result.get('message_id')}")
+                    else:
+                        logger.error(f"[EMAIL] Failed to send order confirmation email: {confirmation_result.get('error')}")
+                except Exception as conf_error:
+                    logger.error(f"[EMAIL] Exception sending confirmation email: {str(conf_error)}", exc_info=True)
+                
+                # 2. Get all admin emails and send notification
+                logger.info("[EMAIL] Step 2: Fetching all admin emails for order notification")
+                admin_emails = []
+                
+                # Query Admin table for all admin profiles
+                try:
+                    import os
+                    import boto3
+                    
+                    # Get Admin table
+                    dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
+                    admin_table_name = os.environ.get('ADMIN_TABLE_NAME', 'Admin')
+                    admin_table = dynamodb.Table(admin_table_name)
+                    
+                    logger.info(f"[EMAIL] Scanning {admin_table_name} table for admin profiles")
+                    
+                    # Scan all items in Admin table
+                    admin_scan_response = admin_table.scan()
+                    
+                    total_scanned = len(admin_scan_response.get('Items', []))
+                    logger.info(f"[EMAIL] Total items scanned from Admin table: {total_scanned}")
+                    
+                    for admin_item in admin_scan_response.get('Items', []):
+                        # Get admin email
+                        admin_email = admin_item.get('email')
+                        admin_id = admin_item.get('PK', '')
+                        
+                        logger.info(f"[EMAIL] Found admin - ID: {admin_id}, email: {admin_email}")
+                        
+                        if admin_email:
+                            admin_emails.append(admin_email)
+                            logger.info(f"[EMAIL] Added admin email to list: {admin_email}")
+                    
+                    logger.info(f"[EMAIL] Total admin emails collected: {len(admin_emails)} - {admin_emails}")
+                    
+                except Exception as scan_error:
+                    logger.error(f"[EMAIL] Error scanning Admin table for admins: {str(scan_error)}", exc_info=True)
+                
+                if admin_emails:
+                    logger.info(f"[EMAIL] Sending order notification to {len(admin_emails)} admins")
+                    admin_notification_result = send_admin_order_notification_email(
+                        admin_emails=admin_emails,
+                        order_number=order_number,
+                        user_email=user_email,
+                        order_items=email_items,
+                        total_amount=total_amount,
+                        payment_method=payment_method
+                    )
+                    
+                    if admin_notification_result.get('success'):
+                        logger.info(f"Admin order notification sent successfully: {admin_notification_result.get('message_id')}")
+                    else:
+                        logger.error(f"Failed to send admin order notification: {admin_notification_result.get('error')}")
+                else:
+                    logger.warning("No admin emails found for order notification")
+                
+                # 3. Send bank transfer instructions if payment method is bank_transfer
+                if payment_method == 'bank_transfer':
+                    logger.info(f"Sending bank transfer instructions to {user_email}")
+                    bank_transfer_result = send_bank_transfer_instructions_email(
+                        user_email=user_email,
+                        user_name=user_name,
+                        order_number=order_number,
+                        total_amount=total_amount
+                    )
+                    
+                    if bank_transfer_result.get('success'):
+                        logger.info(f"Bank transfer instructions sent successfully: {bank_transfer_result.get('message_id')}")
+                    else:
+                        logger.error(f"Failed to send bank transfer instructions: {bank_transfer_result.get('error')}")
+        
+        except Exception as email_error:
+            # Log error but don't fail the order creation
+            logger.error(f"Error sending order emails: {str(email_error)}")
+        # ===== End email sending =====
+        
         return {
             "statusCode": 201,
             "headers": {
@@ -673,10 +1419,10 @@ def save_order(event, context):
         }
 
 
-@require_auth_handler
+@require_admin_auth
 def get_all_orders(event, context):
     """
-    Get all orders for admin - Requires authentication
+    Get all orders for admin - Requires admin authentication
     
     Args:
         event: Lambda event
@@ -688,18 +1434,21 @@ def get_all_orders(event, context):
     try:
         logger.info(f"Get all orders event: {event}")
         
-        # Check if user is admin
-        user_id = extract_user_id_from_token(event)
-        if not user_id:
+        # Get admin ID from payload injected by decorator
+        admin_payload = event.get('admin_payload', {})
+        admin_id = admin_payload.get('user_id')
+        
+        if not admin_id:
+            logger.error("No admin_id in admin_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }, ensure_ascii=False),
             }
         
@@ -744,6 +1493,8 @@ def get_all_orders(event, context):
                         "status": item.get('status', 'unpaid'),
                         "totalAmount": item.get('totalAmount') or Decimal(0),
                         "shippingAddress": item.get('shippingAddress'),
+                        "isCancelRequest": item.get('isCancelRequest', False),
+                        "refundAt": item.get('refundAt'),
                         "items": []
                     }
             
@@ -762,6 +1513,8 @@ def get_all_orders(event, context):
                             "status": item.get('status', 'unpaid'),
                             "totalAmount": Decimal(0),
                             "shippingAddress": item.get('shippingAddress'),
+                            "isCancelRequest": item.get('isCancelRequest', False),
+                            "refundAt": item.get('refundAt'),
                             "items": []
                         }
                     
@@ -782,14 +1535,16 @@ def get_all_orders(event, context):
         all_orders = list(all_orders_dict.values())
         logger.info(f"Total orders found: {len(all_orders)}")
         
-        # Sort orders based on sortBy parameter
-        if sort_by == 'status':
-            status_order = {'unpaid': 0, 'awaiting_shipment': 1, 'in_transit': 2, 'delivered': 3}
-            all_orders.sort(key=lambda x: (status_order.get(x.get('status', 'unpaid'), 4), x.get('orderDate', '')), reverse=True)
-        elif sort_by == 'date':
-            all_orders.sort(key=lambda x: x.get('orderDate', ''), reverse=True)
-        elif sort_by == 'amount':
-            all_orders.sort(key=lambda x: x.get('totalAmount', 0), reverse=True)
+        # Sort orders: 1. isCancelRequest (True first), 2. status priority (unpaid/awaiting_shipment first), 3. orderDate (newest first)
+        status_priority = {'unpaid': 0, 'awaiting_shipment': 1, 'in_transit': 2, 'delivered': 3}
+        
+        all_orders.sort(
+            key=lambda x: (
+                not x.get('isCancelRequest', False),  # False=0 (cancel requests first), True=1
+                status_priority.get(x.get('status', 'unpaid'), 4),  # Status priority
+                -(datetime.fromisoformat(x.get('orderDate', '2000-01-01T00:00:00').replace('Z', '+00:00')).timestamp() if x.get('orderDate') else 0)  # Newest first (negative for reverse)
+            )
+        )
         
         return {
             "statusCode": 200,
@@ -818,10 +1573,10 @@ def get_all_orders(event, context):
         }
 
 
-@require_auth_handler
+@require_admin_auth
 def update_order_status(event, context):
     """
-    Update order status - Requires authentication
+    Update order status - Requires admin authentication
     
     Args:
         event: Lambda event
@@ -833,18 +1588,21 @@ def update_order_status(event, context):
     try:
         logger.info(f"Update order status event: {event}")
         
-        # Check if user is admin
-        user_id = extract_user_id_from_token(event)
-        if not user_id:
+        # Get admin ID from payload injected by decorator
+        admin_payload = event.get('admin_payload', {})
+        admin_id = admin_payload.get('user_id')
+        
+        if not admin_id:
+            logger.error("No admin_id in admin_payload")
             return {
-                "statusCode": 401,
+                "statusCode": 500,
                 "headers": {
                     "Content-Type": "application/json",
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Unauthorized"
+                    "message": "Internal server error"
                 }, ensure_ascii=False),
             }
         
@@ -854,7 +1612,7 @@ def update_order_status(event, context):
         new_status = body.get('status')
         
         # Validate input
-        valid_statuses = ['unpaid', 'awaiting_shipment', 'in_transit', 'delivered']
+        valid_statuses = ['unpaid', 'awaiting_shipment', 'in_transit', 'delivered', 'cancelled_customer', 'cancelled_internal']
         if not order_id or not new_status:
             return {
                 "statusCode": 400,
@@ -909,21 +1667,111 @@ def update_order_status(event, context):
         order_item = items[0]
         user_id_from_item = order_item.get('PK')  # Adjusted to use PK
         sk_value = order_item.get('SK')  # Ensure correct sort key is used
+        user_email = order_item.get('userEmail')
+        user_name = order_item.get('userName', '')
+        order_number = order_item.get('orderNumber', order_id)
+        payment_method = order_item.get('paymentMethod')
+        square_transaction_id = order_item.get('squareTransactionId')
+        total_amount = order_item.get('totalAmount')
+        
+        logger.info(f"Order item details - userEmail: {user_email}, userName: {user_name}, orderNumber: {order_number}, paymentMethod: {payment_method}")
+
+        # Process refund if status is being changed to cancelled
+        refund_at = None
+        is_cancelled_status = new_status in ['cancelled_customer', 'cancelled_internal']
+        
+        if is_cancelled_status:
+            logger.info(f"Order {order_id} is being cancelled. Checking refund eligibility...")
+            
+            # Credit card payment: Automatic refund via Square API
+            # Only process if we have a valid Square Payment ID (not TXN_ placeholder)
+            if (payment_method in ['credit_card', 'apple_pay', 'google_pay'] and 
+                square_transaction_id and 
+                not square_transaction_id.startswith('TXN_')):
+                
+                logger.info(f"Processing Square refund for payment_id: {square_transaction_id}, payment_method: {payment_method}")
+                
+                # Convert amount to cents for Square API
+                amount_cents = int(safe_amount_conversion(total_amount, 0))
+                
+                refund_result = process_square_refund(
+                    payment_id=square_transaction_id,
+                    amount_money={
+                        "amount": amount_cents,
+                        "currency": "JPY"
+                    },
+                    reason=f"Order cancelled: {new_status}"
+                )
+                
+                if refund_result.get('success'):
+                    refund_at = datetime.utcnow().isoformat() + 'Z'
+                    logger.info(f"Square refund successful. refundAt: {refund_at}")
+                    
+                    # Send refund completed email
+                    if user_email:
+                        try:
+                            send_refund_completed_email(
+                                user_email=user_email,
+                                user_name=user_name,
+                                order_number=order_number,
+                                payment_method=payment_method,
+                                refund_amount=amount_cents
+                            )
+                            logger.info(f"Refund completed email sent to {user_email}")
+                        except Exception as email_error:
+                            logger.error(f"Failed to send refund completed email: {str(email_error)}")
+                else:
+                    logger.error(f"Square refund failed: {refund_result.get('error')}")
+                    # Continue with status update even if refund fails
+            
+            elif payment_method in ['credit_card', 'apple_pay', 'google_pay'] and square_transaction_id and square_transaction_id.startswith('TXN_'):
+                # Non-Square payment with placeholder ID - skip Square refund
+                logger.info(f"Skipping Square refund - non-Square payment ID: {square_transaction_id}")
+            
+            # Bank transfer: Manual refund required (refundAt will be null)
+            elif payment_method == 'bank_transfer':
+                logger.info(f"Bank transfer payment - manual refund required for order {order_id}")
+                # refund_at remains None - admin will manually process later
+
+        # Build update expression
+        update_expression_parts = ['SET #status = :status', 'updatedAt = :updatedAt']
+        expression_attribute_names = {'#status': 'status'}
+        expression_attribute_values = {
+            ':status': new_status,
+            ':updatedAt': datetime.utcnow().isoformat() + 'Z'
+        }
+        
+        # Add refundAt if applicable
+        if refund_at is not None:
+            update_expression_parts.append('refundAt = :refundAt')
+            expression_attribute_values[':refundAt'] = refund_at
 
         table.update_item(
             Key={
                 'PK': user_id_from_item,  # Correct partition key
                 'SK': sk_value  # Correct sort key
             },
-            UpdateExpression='SET #status = :status, updatedAt = :updatedAt',
-            ExpressionAttributeNames={
-                '#status': 'status'
-            },
-            ExpressionAttributeValues={
-                ':status': new_status,
-                ':updatedAt': datetime.utcnow().isoformat() + 'Z'
-            }
+            UpdateExpression=', '.join(update_expression_parts),
+            ExpressionAttributeNames=expression_attribute_names,
+            ExpressionAttributeValues=expression_attribute_values
         )
+        
+        # Send status update email to customer
+        if user_email:
+            logger.info(f"Attempting to send status update email to {user_email} for order {order_number}, status: {new_status}")
+            try:
+                send_order_status_update_email(
+                    user_email=user_email,
+                    user_name=user_name,
+                    order_number=order_number,
+                    new_status=new_status
+                )
+                logger.info(f"Status update email sent successfully to {user_email}")
+            except Exception as email_error:
+                logger.error(f"Failed to send status update email: {str(email_error)}")
+                # Continue processing even if email fails
+        else:
+            logger.warning(f"No user email found for order {order_id}, skipping status update email")
         
         return {
             "statusCode": 200,
@@ -951,5 +1799,179 @@ def update_order_status(event, context):
             "body": json.dumps({
                 "success": False,
                 "message": f"Failed to update order status: {str(e)}"
+            }, ensure_ascii=False),
+        }
+
+
+@require_admin_auth
+def get_admin_order_detail(event, context):
+    """
+    Get order detail for admin - Requires admin authentication
+    
+    Args:
+        event: Lambda event
+        context: Lambda context
+    
+    Returns:
+        API response with order detail
+    """
+    try:
+        logger.info(f"Get admin order detail event: {event}")
+        
+        # Get order ID from path parameters
+        order_id = event.get('pathParameters', {}).get('id')
+        
+        if not order_id:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Order ID is required"
+                }, ensure_ascii=False),
+            }
+        
+        # Get admin ID from payload injected by decorator
+        admin_payload = event.get('admin_payload', {})
+        admin_id = admin_payload.get('user_id')
+        
+        if not admin_id:
+            logger.error("No admin_id in admin_payload")
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Internal server error"
+                }, ensure_ascii=False),
+            }
+        
+        table = get_users_table()
+        
+        # Scan to find the order
+        scan_response = table.scan(
+            FilterExpression="begins_with(SK, :order_prefix) AND (squareTransactionId = :txn_id OR orderId = :order_id)",
+            ExpressionAttributeValues={
+                ":order_prefix": "ORDER#",
+                ":txn_id": order_id,
+                ":order_id": order_id
+            }
+        )
+        
+        logger.info(f"Scan response: {scan_response}")
+        
+        order_items = scan_response.get('Items', [])
+        
+        if not order_items:
+            logger.info(f"Order not found with direct scan")
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Order not found"
+                }, ensure_ascii=False),
+            }
+        
+        order_data = order_items[0]
+        logger.info(f"Order data: {order_data}")
+        
+        # Get the user ID from the order data
+        order_user_id = order_data.get('userId')
+        if not order_user_id:
+            pk = order_data.get('PK', '')
+            logger.info(f"Extracted PK from order: {pk}")
+            if pk.startswith('USER#'):
+                order_user_id = pk.replace('USER#', '')
+        
+        logger.info(f"Order user ID determined as: {order_user_id}")
+        
+        # Get ORDER_ITEM entries for this specific order
+        items_response = table.query(
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :sk)",
+            ExpressionAttributeValues={
+                ":pk": f"USER#{order_user_id}",
+                ":sk": f"ORDER_ITEM#{order_id}"
+            }
+        )
+        
+        logger.info(f"ORDER_ITEM query response: {items_response}")
+        
+        items = []
+        for item in items_response.get('Items', []):
+            total_amount = safe_amount_conversion(item.get('totalAmount', 0), 0)
+            items.append({
+                "orderItemId": item.get('orderItemId') or item.get('itemId'),
+                "productId": item.get('productId'),
+                "productName": item.get('productName', 'Unknown Product'),
+                "quantity": safe_amount_conversion(item.get('quantity', 0), 0),
+                "unitPrice": safe_amount_conversion(item.get('amount') or item.get('unitPrice', 0), 0),
+                "totalAmount": total_amount,
+            })
+        
+        # Build order detail response
+        total_amount = safe_amount_conversion(order_data.get('totalAmount', 0), 0)
+        tax = safe_amount_conversion(order_data.get('tax', 0), 0)
+        shipping_cost = safe_amount_conversion(order_data.get('shippingCost', 0), 0)
+        discount = safe_amount_conversion(order_data.get('discount', 0), 0)
+        coupon_discount = safe_amount_conversion(order_data.get('couponDiscount', 0), 0)
+        
+        order_detail = {
+            "id": order_data.get('orderId'),
+            "orderNumber": order_data.get('orderNumber'),
+            "orderDate": order_data.get('orderDate'),
+            "status": order_data.get('status', 'unpaid'),
+            "subtotal": total_amount - tax - shipping_cost + discount + coupon_discount,
+            "tax": tax,
+            "shippingCost": shipping_cost,
+            "discount": discount,
+            "couponDiscount": coupon_discount,
+            "couponCode": order_data.get('couponCode'),
+            "totalAmount": total_amount,
+            "paymentMethod": order_data.get('paymentMethod'),
+            "paymentBrand": order_data.get('paymentBrand'),
+            "last4": order_data.get('last4'),
+            "shippingAddress": order_data.get('shippingAddress'),
+            "billingAddress": order_data.get('billingAddress'),
+            "items": items,
+            "paymentAt": order_data.get('paymentAt'),
+            "deliveryAt": order_data.get('deliveryAt'),
+            "cancelRequestSent": order_data.get('isCancelRequest', False),
+            "refundAt": order_data.get('refundAt'),
+        }
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": True,
+                "message": "Order detail retrieved successfully",
+                "data": order_detail
+            }, ensure_ascii=False, default=convert_decimal),
+        }
+    
+    except Exception as e:
+        logger.error(f"Error getting admin order detail: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": False,
+                "message": f"Failed to get order detail: {str(e)}"
             }, ensure_ascii=False),
         }

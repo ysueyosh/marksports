@@ -9,7 +9,7 @@ import base64
 from decimal import Decimal
 from datetime import datetime
 from src.utils.dynamodb import get_commerce_table, PRODUCT_PK
-from src.utils.jwt import verify_token
+from src.utils.auth import require_admin_auth
 from src.utils.s3 import upload_image_to_s3
 
 logger = logging.getLogger()
@@ -24,80 +24,7 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def verify_admin_token(event):
-    """
-    Verify admin JWT token from Authorization header
-    
-    Args:
-        event: Lambda event
-    
-    Returns:
-        tuple: (admin_info, error_response) - One will be None
-    """
-    auth_header = event.get('headers', {}).get('Authorization', '')
-    
-    if not auth_header.startswith('Bearer '):
-        return None, {
-            "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": False,
-                "message": "Authorization header missing or invalid"
-            }, cls=DecimalEncoder),
-        }
-    
-    token = auth_header[7:]  # Remove 'Bearer ' prefix
-    
-    try:
-        is_valid, payload, error = verify_token(token)
-        
-        if not is_valid:
-            return None, {
-                "statusCode": 401,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": error or "Invalid token"
-                }, cls=DecimalEncoder),
-            }
-        
-        # Check if token is for admin
-        if payload.get('user_type') != 'admin':
-            return None, {
-                "statusCode": 403,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-                "body": json.dumps({
-                    "success": False,
-                    "message": "Only admin users can access this resource"
-                }, cls=DecimalEncoder),
-            }
-        
-        return payload, None
-    
-    except Exception as e:
-        logger.error(f"Token verification failed: {str(e)}")
-        return None, {
-            "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": False,
-                "message": "Invalid or expired token"
-            }, cls=DecimalEncoder),
-        }
-
-
+@require_admin_auth
 def create_product(event, context):
     """
     Create a new product
@@ -123,10 +50,8 @@ def create_product(event, context):
         API response
     """
     try:
-        # Verify admin token
-        admin_info, error = verify_admin_token(event)
-        if error:
-            return error
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Parse request body
         body = json.loads(event.get("body", "{}"))
@@ -242,6 +167,7 @@ def create_product(event, context):
         }
 
 
+@require_admin_auth
 def update_product(event, context):
     """
     Update an existing product
@@ -264,10 +190,8 @@ def update_product(event, context):
         API response
     """
     try:
-        # Verify admin token
-        admin_info, error = verify_admin_token(event)
-        if error:
-            return error
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get product ID from path parameter
         product_id = event.get("pathParameters", {}).get("productId")
@@ -475,6 +399,7 @@ def update_product(event, context):
         }
 
 
+@require_admin_auth
 def delete_product(event, context):
     """
     Delete a product (soft delete - set isActive to False)
@@ -490,10 +415,8 @@ def delete_product(event, context):
         API response
     """
     try:
-        # Verify admin token
-        admin_info, error = verify_admin_token(event)
-        if error:
-            return error
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         # Get product ID from path parameter
         product_id = event.get("pathParameters", {}).get("productId")
@@ -578,6 +501,7 @@ def delete_product(event, context):
         }
 
 
+@require_admin_auth
 def get_all_products(event, context):
     """
     Get all products (admin view - includes inactive products)
@@ -594,10 +518,8 @@ def get_all_products(event, context):
         API response
     """
     try:
-        # Verify admin token
-        admin_info, error = verify_admin_token(event)
-        if error:
-            return error
+        # Admin info is available in event['admin_payload']
+        admin_info = event.get('admin_payload', {})
         
         query_params = event.get("queryStringParameters") or {}
         page = int(query_params.get("page", "1"))
