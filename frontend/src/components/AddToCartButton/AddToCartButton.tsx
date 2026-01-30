@@ -1,10 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Stack,
+  Typography,
+  IconButton,
+  TextField,
+  Button,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import { useCart } from '@/context/CartContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { checkProductExists } from '@/api/products';
-import styles from './AddToCartButton.module.css';
 
 interface Props {
   id: string | number;
@@ -44,39 +52,35 @@ export default function AddToCartButton({ id, name, price, image }: Props) {
   };
 
   return (
-    <div className={styles.container}>
-      <label className={styles.quantityLabel}>数量</label>
-      <div className={styles.quantityControl}>
-        <button
-          className={styles.quantityButton}
-          onClick={decrease}
-          disabled={isLoading}
-        >
-          −
-        </button>
-        <input
+    <Stack spacing={2} alignItems="flex-start">
+      <Typography variant="subtitle2" color="text.secondary">
+        数量
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <IconButton onClick={decrease} disabled={isLoading}>
+          <RemoveIcon />
+        </IconButton>
+        <TextField
           type="number"
           value={qty}
           onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-          className={styles.quantityInput}
+          size="small"
+          inputProps={{ min: 1 }}
+          sx={{ width: 80 }}
           disabled={isLoading}
         />
-        <button
-          className={styles.quantityButton}
-          onClick={increase}
-          disabled={isLoading}
-        >
-          +
-        </button>
-      </div>
+        <IconButton onClick={increase} disabled={isLoading}>
+          <AddIcon />
+        </IconButton>
+      </Stack>
 
-      <button
-        className={styles.addToCartButton}
+      <Button
+        variant="contained"
         onClick={handleAddToCart}
         disabled={isLoading}
       >
         {isLoading ? 'チェック中...' : 'カートに追加'}
-      </button>
-    </div>
+      </Button>
+    </Stack>
   );
 }

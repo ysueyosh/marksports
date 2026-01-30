@@ -9,10 +9,17 @@ import {
   updateAdminSettings,
   AdminSettings,
 } from '@/api/admin';
-import sharedStyles from '../admin-shared.module.css';
-import pageStyles from './settings.module.css';
-
-const styles = { ...sharedStyles, ...pageStyles };
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Stack,
+  Alert,
+  Tabs,
+  Tab,
+  TextField,
+} from '@mui/material';
 
 export default function AdminSettingsPage() {
   const router = useRouter();
@@ -145,191 +152,96 @@ export default function AdminSettingsPage() {
     setError('');
   };
 
-  const tabStyles = {
-    tabContainer: {
-      display: 'flex',
-      borderBottom: '1px solid #e5e7eb',
-      marginBottom: '20px',
-      gap: '0',
-    },
-    tab: (isActive: boolean) => ({
-      padding: '12px 20px',
-      fontSize: '14px',
-      fontWeight: isActive ? '600' : '500',
-      color: isActive ? '#3b82f6' : '#6b7280',
-      border: 'none',
-      borderBottom: isActive ? '2px solid #3b82f6' : 'none',
-      cursor: 'pointer',
-      backgroundColor: 'transparent',
-      transition: 'all 0.2s',
-    }),
-  };
-
   return (
     <>
       {isLoading && <LoadingSpinner />}
-      <div className={styles.container}>
-        <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-          <Link href="/admin/home">
-            <button className={styles.secondaryButton}>← 戻る</button>
-          </Link>
-        </div>
-
-        <h1 className={styles.title}>管理者設定</h1>
-
-        {error && (
-          <div
-            style={{
-              backgroundColor: '#fee',
-              border: '1px solid #f00',
-              color: '#c00',
-              padding: '12px',
-              borderRadius: '4px',
-              marginBottom: '20px',
-            }}
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+        <Stack spacing={2}>
+          <Button
+            component={Link}
+            href="/admin/home"
+            variant="outlined"
+            sx={{ width: 'fit-content' }}
           >
-            {error}
-          </div>
-        )}
+            ← 戻る
+          </Button>
 
-        {success && (
-          <div
-            style={{
-              backgroundColor: '#efe',
-              border: '1px solid #0f0',
-              color: '#060',
-              padding: '12px',
-              borderRadius: '4px',
-              marginBottom: '20px',
-            }}
-          >
-            {success}
-          </div>
-        )}
+          <Typography variant="h4" fontWeight={700}>
+            管理者設定
+          </Typography>
 
-        <div
-          style={{
-            backgroundColor: 'white',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            overflow: 'hidden',
-          }}
-        >
-          {/* タブナビゲーション */}
-          <div style={tabStyles.tabContainer}>
-            <button
-              style={tabStyles.tab(activeTab === 'info') as React.CSSProperties}
-              onClick={() => {
-                setActiveTab('info');
+          {error && <Alert severity="error">{error}</Alert>}
+          {success && <Alert severity="success">{success}</Alert>}
+
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_, value) => {
+                setActiveTab(value);
                 setShowEditForm(false);
               }}
             >
-              管理者情報
-            </button>
-            <button
-              style={
-                tabStyles.tab(activeTab === 'password') as React.CSSProperties
-              }
-              onClick={() => {
-                setActiveTab('password');
-                setShowEditForm(false);
-              }}
-            >
-              パスワード変更
-            </button>
-          </div>
+              <Tab value="info" label="管理者情報" />
+              <Tab value="password" label="パスワード変更" />
+            </Tabs>
 
-          <div style={{ padding: '20px' }}>
-            {/* 管理者情報タブ */}
-            {activeTab === 'info' && (
-              <>
-                {!showEditForm && adminInfo && (
-                  <div>
-                    <h2
-                      style={{
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        marginBottom: '15px',
-                      }}
-                    >
-                      管理者プロフィール
-                    </h2>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns:
-                          'repeat(auto-fit, minmax(260px, 1fr))',
-                        gap: '15px',
-                        marginBottom: '20px',
-                      }}
-                    >
-                      <div>
-                        <p
-                          style={{
-                            fontSize: '12px',
-                            color: '#6b7280',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          名前
-                        </p>
-                        <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                          {adminInfo.name}
-                        </p>
-                      </div>
-                      <div>
-                        <p
-                          style={{
-                            fontSize: '12px',
-                            color: '#6b7280',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          個人メールアドレス
-                        </p>
-                        <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                          {adminInfo.email}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      className={styles.primaryButton}
-                      onClick={handleEditClick}
-                    >
-                      編集
-                    </button>
-                  </div>
-                )}
+            <Box sx={{ pt: 3 }}>
+              {activeTab === 'info' && (
+                <Stack spacing={2}>
+                  {!showEditForm && adminInfo && (
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="subtitle1" fontWeight={700} mb={2}>
+                        管理者プロフィール
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns:
+                            'repeat(auto-fit, minmax(260px, 1fr))',
+                          gap: 2,
+                          mb: 2,
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            名前
+                          </Typography>
+                          <Typography fontWeight={600}>
+                            {adminInfo.name}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            個人メールアドレス
+                          </Typography>
+                          <Typography fontWeight={600}>
+                            {adminInfo.email}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Button variant="contained" onClick={handleEditClick}>
+                        編集
+                      </Button>
+                    </Paper>
+                  )}
 
-                {showEditForm && editingAdmin && (
-                  <div>
-                    <h2
-                      style={{
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        marginBottom: '15px',
-                      }}
-                    >
-                      管理者情報を編集
-                    </h2>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleSaveAdmin();
-                      }}
-                    >
-                      <div style={{ marginBottom: '15px' }}>
-                        <label
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          名前 *
-                        </label>
-                        <input
-                          type="text"
+                  {showEditForm && editingAdmin && (
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="subtitle1" fontWeight={700} mb={2}>
+                        管理者情報を編集
+                      </Typography>
+                      <Box
+                        component="form"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSaveAdmin();
+                        }}
+                        display="flex"
+                        flexDirection="column"
+                        gap={2}
+                      >
+                        <TextField
+                          label="名前"
                           value={editingAdmin.name}
                           onChange={(e) =>
                             setEditingAdmin({
@@ -337,30 +249,11 @@ export default function AdminSettingsPage() {
                               name: e.target.value,
                             })
                           }
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            boxSizing: 'border-box',
-                          }}
                           required
                           disabled={isSaving}
                         />
-                      </div>
-
-                      <div style={{ marginBottom: '20px' }}>
-                        <span
-                          style={{
-                            display: 'block',
-                            fontSize: '14px',
-                            marginBottom: '5px',
-                          }}
-                        >
-                          個人メールアドレス *
-                        </span>
-                        <input
+                        <TextField
+                          label="個人メールアドレス"
                           type="email"
                           value={editingAdmin.email}
                           onChange={(e) =>
@@ -369,71 +262,48 @@ export default function AdminSettingsPage() {
                               email: e.target.value,
                             })
                           }
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            boxSizing: 'border-box',
-                          }}
                           required
                           disabled={isSaving}
                         />
-                      </div>
+                        <Stack direction="row" spacing={2}>
+                          <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={isSaving}
+                          >
+                            {isSaving ? '保存中...' : '保存'}
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            onClick={handleCancelEdit}
+                            disabled={isSaving}
+                          >
+                            キャンセル
+                          </Button>
+                        </Stack>
+                      </Box>
+                    </Paper>
+                  )}
+                </Stack>
+              )}
 
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                          type="submit"
-                          className={styles.primaryButton}
-                          disabled={isSaving}
-                        >
-                          {isSaving ? '保存中...' : '保存'}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.secondaryButton}
-                          onClick={handleCancelEdit}
-                          disabled={isSaving}
-                        >
-                          キャンセル
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* パスワード変更タブ */}
-            {activeTab === 'password' && (
-              <div>
-                <h2
-                  style={{
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    marginBottom: '15px',
-                  }}
-                >
-                  パスワード変更
-                </h2>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handlePasswordChange();
-                  }}
-                >
-                  <div style={{ marginBottom: '15px' }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '14px',
-                        marginBottom: '5px',
-                      }}
-                    >
-                      現在のパスワード *
-                    </label>
-                    <input
+              {activeTab === 'password' && (
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" fontWeight={700} mb={2}>
+                    パスワード変更
+                  </Typography>
+                  <Box
+                    component="form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handlePasswordChange();
+                    }}
+                    display="flex"
+                    flexDirection="column"
+                    gap={2}
+                  >
+                    <TextField
+                      label="現在のパスワード"
                       type="password"
                       value={passwordForm.currentPassword}
                       onChange={(e) =>
@@ -442,29 +312,10 @@ export default function AdminSettingsPage() {
                           currentPassword: e.target.value,
                         })
                       }
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
                       required
                     />
-                  </div>
-
-                  <div style={{ marginBottom: '15px' }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '14px',
-                        marginBottom: '5px',
-                      }}
-                    >
-                      新しいパスワード *
-                    </label>
-                    <input
+                    <TextField
+                      label="新しいパスワード"
                       type="password"
                       value={passwordForm.newPassword}
                       onChange={(e) =>
@@ -473,29 +324,10 @@ export default function AdminSettingsPage() {
                           newPassword: e.target.value,
                         })
                       }
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
                       required
                     />
-                  </div>
-
-                  <div style={{ marginBottom: '20px' }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '14px',
-                        marginBottom: '5px',
-                      }}
-                    >
-                      パスワード確認(新しいパスワード) *
-                    </label>
-                    <input
+                    <TextField
+                      label="パスワード確認(新しいパスワード)"
                       type="password"
                       value={passwordForm.confirmPassword}
                       onChange={(e) =>
@@ -504,27 +336,18 @@ export default function AdminSettingsPage() {
                           confirmPassword: e.target.value,
                         })
                       }
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box',
-                      }}
                       required
                     />
-                  </div>
-
-                  <button type="submit" className={styles.primaryButton}>
-                    パスワードを変更
-                  </button>
-                </form>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+                    <Button type="submit" variant="contained">
+                      パスワードを変更
+                    </Button>
+                  </Box>
+                </Paper>
+              )}
+            </Box>
+          </Paper>
+        </Stack>
+      </Box>
     </>
   );
 }

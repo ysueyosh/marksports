@@ -13,7 +13,19 @@ import {
   setDefaultCard,
   SavedCard,
 } from '@/api/payment';
-import styles from './payment.module.css';
+import {
+  Box,
+  Breadcrumbs,
+  Typography,
+  Stack,
+  Button,
+  Paper,
+  Chip,
+  Divider,
+  Link as MuiLink,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -65,15 +77,19 @@ export default function PaymentPage() {
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>お支払方法管理</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+          <Paper sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack spacing={2} alignItems="flex-start">
+              <Typography variant="h4" fontWeight={700}>
+                お支払方法管理
+              </Typography>
+              <Alert severity="info">ログインしていません</Alert>
+              <Button variant="outlined" component={Link} href="/">
+                ホームへ戻る
+              </Button>
+            </Stack>
+          </Paper>
+        </Box>
       </MainLayout>
     );
   }
@@ -130,106 +146,139 @@ export default function PaymentPage() {
     return `${String(month).padStart(2, '0')}/${String(year).slice(-2)}`;
   };
 
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedCards = cards.slice(startIndex, endIndex);
+
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/account">アカウント</Link>
-          <span>/</span>
-          <span>お支払方法管理</span>
-        </div>
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+        <Stack spacing={3}>
+          <Breadcrumbs>
+            <MuiLink
+              component={Link}
+              href="/"
+              underline="hover"
+              color="inherit"
+            >
+              ホーム
+            </MuiLink>
+            <MuiLink
+              component={Link}
+              href="/account"
+              underline="hover"
+              color="inherit"
+            >
+              アカウント
+            </MuiLink>
+            <Typography color="text.secondary">お支払方法管理</Typography>
+          </Breadcrumbs>
 
-        <div className={styles.header}>
-          <h1>お支払方法管理</h1>
-        </div>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={2}
+          >
+            <Typography variant="h4" fontWeight={700}>
+              お支払方法管理
+            </Typography>
+            <Button variant="contained" component={Link} href="/payment/add">
+              + 新しいカードを追加
+            </Button>
+          </Stack>
 
-        <div className={styles.addCardSection}>
-          <Link href="/payment/add" className={styles.addCardButton}>
-            + 新しいカードを追加
-          </Link>
-        </div>
-
-        <div className={styles.cardsList}>
           {isLoading ? (
-            <p className={styles.loadingMessage}>読み込み中...</p>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
           ) : cards.length === 0 ? (
-            <div className={styles.noCards}>
-              <p>登録されているカードはありません</p>
-              <div className={styles.noCardsActions}>
-                <Link href="/payment/add" className={styles.addCardButton}>
+            <Paper sx={{ p: { xs: 2, md: 3 } }}>
+              <Stack spacing={2}>
+                <Typography>登録されているカードはありません</Typography>
+                <Button
+                  variant="contained"
+                  component={Link}
+                  href="/payment/add"
+                >
                   カードを追加
-                </Link>
-              </div>
-            </div>
+                </Button>
+              </Stack>
+            </Paper>
           ) : (
-            (() => {
-              const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-              const endIndex = startIndex + ITEMS_PER_PAGE;
-              const paginatedCards = cards.slice(startIndex, endIndex);
-
-              return (
-                <>
-                  {paginatedCards.map((card) => (
-                    <div key={card.id} className={styles.card}>
-                      <div className={styles.cardHeader}>
-                        <div className={styles.cardInfo}>
-                          <div className={styles.cardDetails}>
-                            <p className={styles.cardType}>{card.cardType}</p>
-                            <p className={styles.cardNumbers}>
-                              **** **** **** {card.lastFourDigits}
-                            </p>
-                            <p className={styles.cardholderName}>
-                              {card.cardholderName}
-                            </p>
-                          </div>
-                        </div>
+            <Stack spacing={3}>
+              <Stack spacing={2}>
+                {paginatedCards.map((card) => (
+                  <Paper key={card.id} variant="outlined" sx={{ p: 2 }}>
+                    <Stack spacing={2}>
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        justifyContent="space-between"
+                        alignItems={{ xs: 'flex-start', sm: 'center' }}
+                        spacing={2}
+                      >
+                        <Stack spacing={0.5}>
+                          <Typography variant="subtitle1" fontWeight={700}>
+                            {card.cardType}
+                          </Typography>
+                          <Typography color="text.secondary">
+                            **** **** **** {card.lastFourDigits}
+                          </Typography>
+                          <Typography color="text.secondary">
+                            {card.cardholderName}
+                          </Typography>
+                        </Stack>
                         {card.isDefault && (
-                          <span className={styles.defaultBadge}>メイン</span>
+                          <Chip label="メイン" color="primary" />
                         )}
-                      </div>
+                      </Stack>
 
-                      <div className={styles.cardFooter}>
-                        <p className={styles.expiryDate}>
+                      <Divider />
+
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        justifyContent="space-between"
+                        alignItems={{ xs: 'flex-start', sm: 'center' }}
+                        spacing={2}
+                      >
+                        <Typography color="text.secondary">
                           有効期限:{' '}
                           {formatExpiryDate(card.expiryMonth, card.expiryYear)}
-                        </p>
-                        <div className={styles.cardActions}>
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
                           {!card.isDefault && (
-                            <button
-                              className={styles.defaultButton}
+                            <Button
+                              variant="outlined"
                               onClick={() => handleSetDefaultCard(card.id)}
                             >
                               メインに設定
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            className={styles.deleteButton}
+                          <Button
+                            variant="text"
+                            color="error"
                             onClick={() => handleDeleteCard(card.id)}
                           >
                             削除
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                  />
-                </>
-              );
-            })()
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+
+              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              </Box>
+            </Stack>
           )}
-        </div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      </div>
+        </Stack>
+      </Box>
     </MainLayout>
   );
 }

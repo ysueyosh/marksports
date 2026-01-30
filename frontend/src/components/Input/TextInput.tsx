@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import styles from './TextInput.module.css';
+import {
+  TextField,
+  IconButton,
+  InputAdornment,
+  FormHelperText,
+  Box,
+  Typography,
+} from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 interface TextInputProps {
   name: string;
@@ -7,7 +16,7 @@ interface TextInputProps {
   onChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   placeholder?: string;
   label?: string;
@@ -60,7 +69,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   const isTextarea = inputType === 'textarea';
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const inputValue = e.target.value;
     let filteredValue = inputValue;
@@ -99,96 +108,65 @@ export const TextInput: React.FC<TextInputProps> = ({
   };
 
   return (
-    <div className={styles.container} style={containerStyle}>
+    <Box sx={containerStyle}>
       {label && (
-        <label className={styles.label} htmlFor={name}>
+        <Typography variant="subtitle2" gutterBottom>
           {label}
-          {required && <span className={styles.required}>*</span>}
-        </label>
+          {required && (
+            <Box component="span" sx={{ color: 'error.main', ml: 0.5 }}>
+              *
+            </Box>
+          )}
+        </Typography>
       )}
-      <div className={isPassword ? styles.passwordContainer : undefined}>
-        {isTextarea ? (
-          <textarea
-            id={name}
-            name={name}
-            value={value}
-            onChange={handleChange}
-            placeholder={placeholder}
-            maxLength={maxLength}
-            disabled={disabled}
-            required={required}
-            rows={rows}
-            className={className || styles.input}
-            style={{
-              ...inputStyle,
-              borderColor: error ? '#e74c3c' : undefined,
-              resize: 'vertical',
-            }}
-          />
-        ) : (
-          <>
-            <input
-              id={name}
-              type={isPassword ? (showPassword ? 'text' : 'password') : 'text'}
-              name={name}
-              value={value}
-              onChange={handleChange}
-              placeholder={placeholder}
-              disabled={disabled}
-              required={required}
-              className={className || styles.input}
-              style={{
-                ...inputStyle,
-                borderColor: error ? '#e74c3c' : undefined,
-              }}
-              autoComplete={autoComplete}
-            />
-            {isPassword && (
-              <button
-                type="button"
-                className={styles.passwordToggle}
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={disabled}
-                title={showPassword ? 'パスワードを非表示' : 'パスワードを表示'}
-              >
-                {showPassword ? (
-                  // VisibilityOff icon (非表示にするボタン)
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                ) : (
-                  // Visibility icon (表示するボタン)
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                )}
-              </button>
-            )}
-          </>
-        )}
-      </div>
+      <TextField
+        id={name}
+        name={name}
+        value={value}
+        onChange={handleChange}
+        placeholder={placeholder}
+        type={isPassword ? (showPassword ? 'text' : 'password') : 'text'}
+        disabled={disabled}
+        required={required}
+        fullWidth
+        size="small"
+        multiline={isTextarea}
+        rows={isTextarea ? rows : undefined}
+        inputProps={{ maxLength }}
+        autoComplete={autoComplete}
+        error={Boolean(error)}
+        sx={inputStyle}
+        InputProps={
+          isPassword
+            ? {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={disabled}
+                      edge="end"
+                      aria-label={
+                        showPassword ? 'パスワードを非表示' : 'パスワードを表示'
+                      }
+                    >
+                      {showPassword ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }
+            : undefined
+        }
+      />
       {error && (
-        <div style={{ color: '#e74c3c', fontSize: '12px', marginTop: '4px' }}>
+        <FormHelperText error sx={{ mt: 0.5 }}>
           {error}
-        </div>
+        </FormHelperText>
       )}
-    </div>
+    </Box>
   );
 };
 

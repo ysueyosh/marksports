@@ -4,9 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/Admin/LoadingSpinner';
-import AdminTable, { TableColumn } from '@/components/Admin/AdminTable';
-import styles from './admin-home.module.css';
-import sharedStyles from '../admin-shared.module.css';
+import AdminTable from '@/components/Admin/AdminTable';
+import { Box, Typography, Paper, Chip, Stack, Button } from '@mui/material';
 
 interface Order {
   id: number;
@@ -156,99 +155,138 @@ export default function AdminHomePage() {
   return (
     <>
       {isLoading && <LoadingSpinner />}
-      <div className={styles.container}>
-        <h1 className={sharedStyles.title}>ダッシュボード</h1>
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+        <Stack spacing={4}>
+          <Typography variant="h4" fontWeight={700}>
+            ダッシュボード
+          </Typography>
 
-        {/* 未配送の注文 */}
-        <div className={styles.unshippedOrdersSection}>
-          <h2 className={styles.sectionTitle}>未配送の注文（上位5件）</h2>
-          <AdminTable
-            columns={[
-              { key: 'id', label: '注文ID', width: '100px' },
-              { key: 'customerName', label: '顧客名', width: '150px' },
-              { key: 'orderDate', label: '注文日', width: '120px' },
-              { key: 'amount', label: '金額', width: '120px' },
-              {
-                key: 'paymentStatus',
-                label: '決済状況',
-                render: (value: string) => (
-                  <span
-                    className={`${styles.paymentStatus} ${
-                      value === 'completed' ? styles.completed : styles.pending
-                    }`}
-                  >
-                    {value === 'completed' ? '決済済' : '決済待ち'}
-                  </span>
-                ),
-              },
-            ]}
-            data={unshippedOrders.map((order) => ({
-              id: `#${order.id}`,
-              customerName: order.customerName,
-              orderDate: order.orderDate,
-              amount: `¥${order.amount.toLocaleString()}`,
-              paymentStatus: order.paymentStatus,
-            }))}
-            rowKey="id"
-            onRowClick={(row) => {
-              const orderId = row.id.replace('#', '');
-              router.push(`/admin/orders/detail?id=${orderId}`);
-            }}
-            emptyMessage="未配送の注文はありません"
-          />
-          <Link href="/admin/orders" className={styles.viewAllLink}>
-            すべての注文を見る →
-          </Link>
-        </div>
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                未配送の注文（上位5件）
+              </Typography>
+              <AdminTable
+                columns={[
+                  { key: 'id', label: '注文ID', width: '100px' },
+                  { key: 'customerName', label: '顧客名', width: '150px' },
+                  { key: 'orderDate', label: '注文日', width: '120px' },
+                  { key: 'amount', label: '金額', width: '120px' },
+                  {
+                    key: 'paymentStatus',
+                    label: '決済状況',
+                    render: (value: string) => (
+                      <Chip
+                        size="small"
+                        label={value === 'completed' ? '決済済' : '決済待ち'}
+                        color={value === 'completed' ? 'success' : 'warning'}
+                        variant="outlined"
+                      />
+                    ),
+                  },
+                ]}
+                data={unshippedOrders.map((order) => ({
+                  id: `#${order.id}`,
+                  customerName: order.customerName,
+                  orderDate: order.orderDate,
+                  amount: `¥${order.amount.toLocaleString()}`,
+                  paymentStatus: order.paymentStatus,
+                }))}
+                rowKey="id"
+                onRowClick={(row) => {
+                  const orderId = row.id.replace('#', '');
+                  router.push(`/admin/orders/detail?id=${orderId}`);
+                }}
+                emptyMessage="未配送の注文はありません"
+              />
+              <Button
+                component={Link}
+                href="/admin/orders"
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                すべての注文を見る →
+              </Button>
+            </Stack>
+          </Paper>
 
-        {/* 操作メニュー */}
-        <div className={styles.statsSection}>
-          <h2 className={sharedStyles.title}>管理メニュー</h2>
-          <div className={styles.statsGrid}>
-            <Link href="/admin/products" className={styles.menuCard}>
-              <div className={styles.menuIcon}>📦</div>
-              <h3>商品管理</h3>
-              <p className={styles.menuDescription}>
-                商品情報の追加・編集・削除
-              </p>
-            </Link>
-
-            <Link href="/admin/orders" className={styles.menuCard}>
-              <div className={styles.menuIcon}>📋</div>
-              <h3>注文管理</h3>
-              <p className={styles.menuDescription}>受注確認・配送状況管理</p>
-            </Link>
-
-            <Link href="/admin/coupons" className={styles.menuCard}>
-              <div className={styles.menuIcon}>🎟️</div>
-              <h3>クーポン管理</h3>
-              <p className={styles.menuDescription}>割引クーポンの作成・管理</p>
-            </Link>
-
-            <Link href="/admin/users" className={styles.menuCard}>
-              <div className={styles.menuIcon}>👥</div>
-              <h3>ユーザー管理</h3>
-              <p className={styles.menuDescription}>
-                ユーザー情報・ステータス管理
-              </p>
-            </Link>
-
-            <Link href="/admin/notifications" className={styles.menuCard}>
-              <div className={styles.menuIcon}>📢</div>
-              <h3>お知らせ配信</h3>
-              <p className={styles.menuDescription}>
-                メール・サイト内通知の配信
-              </p>
-            </Link>
-
-            <Link href="/admin/settings" className={styles.menuCard}>
-              <div className={styles.menuIcon}>⚙️</div>
-              <h3>設定</h3>
-              <p className={styles.menuDescription}>管理者情報・システム設定</p>
-            </Link>
-          </div>
-        </div>
-      </div>
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Typography variant="h6" fontWeight={700} mb={2}>
+              管理メニュー
+            </Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: '1fr 1fr',
+                  md: 'repeat(3, 1fr)',
+                },
+                gap: 2,
+              }}
+            >
+              {[
+                {
+                  href: '/admin/products',
+                  icon: '📦',
+                  title: '商品管理',
+                  desc: '商品情報の追加・編集・削除',
+                },
+                {
+                  href: '/admin/orders',
+                  icon: '📋',
+                  title: '注文管理',
+                  desc: '受注確認・配送状況管理',
+                },
+                {
+                  href: '/admin/coupons',
+                  icon: '🎟️',
+                  title: 'クーポン管理',
+                  desc: '割引クーポンの作成・管理',
+                },
+                {
+                  href: '/admin/users',
+                  icon: '👥',
+                  title: 'ユーザー管理',
+                  desc: 'ユーザー情報・ステータス管理',
+                },
+                {
+                  href: '/admin/notifications',
+                  icon: '📢',
+                  title: 'お知らせ配信',
+                  desc: 'メール・サイト内通知の配信',
+                },
+                {
+                  href: '/admin/settings',
+                  icon: '⚙️',
+                  title: '設定',
+                  desc: '管理者情報・システム設定',
+                },
+              ].map((item) => (
+                <Paper
+                  key={item.href}
+                  component={Link}
+                  href={item.href}
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    '&:hover': { borderColor: 'primary.main', boxShadow: 2 },
+                  }}
+                >
+                  <Typography fontSize="1.5rem">{item.icon}</Typography>
+                  <Typography fontWeight={700} mt={1}>
+                    {item.title}
+                  </Typography>
+                  <Typography color="text.secondary" variant="body2">
+                    {item.desc}
+                  </Typography>
+                </Paper>
+              ))}
+            </Box>
+          </Paper>
+        </Stack>
+      </Box>
     </>
   );
 }

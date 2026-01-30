@@ -3,15 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import AdminTable, { TableColumn } from '@/components/Admin/AdminTable';
+import AdminTable from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
 import LoadingSpinner from '@/components/Admin/LoadingSpinner';
 import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
 import { getAllOrders, AdminOrder } from '@/api/admin-orders';
-import sharedStyles from '../admin-shared.module.css';
-import pageStyles from './orders.module.css';
-
-const styles = { ...sharedStyles, ...pageStyles };
+import {
+  Box,
+  Typography,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Stack,
+  Chip,
+  Paper,
+} from '@mui/material';
 
 interface Order extends AdminOrder {
   customerName?: string;
@@ -127,133 +134,109 @@ export default function AdminOrdersPage() {
   return (
     <>
       {isLoading && <LoadingSpinner />}
-      <div className={styles.container}>
-        <h1 className={styles.title}>受注管理</h1>
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+        <Stack spacing={2}>
+          <Typography variant="h4" fontWeight={700}>
+            受注管理
+          </Typography>
 
-        <div className={styles.searchBox}>
-          <input
-            type="text"
-            placeholder="注文IDまたは顧客名で検索..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
-
-        <div className={styles.filterBox}>
-          <select
-            value={filterPaymentStatus}
-            onChange={(e) => setFilterPaymentStatus(e.target.value as any)}
-            className={styles.filterSelect}
-          >
-            <option value="all">ステータス: すべて</option>
-            <option value="unpaid">決済待ち</option>
-            <option value="awaiting_shipment">配送待ち</option>
-            <option value="in_transit">配送中</option>
-            <option value="delivered">配送完了</option>
-          </select>
-        </div>
-
-        <AdminTable
-          columns={[
-            {
-              key: 'id',
-              label: '注文ID',
-              width: '80px',
-              render: (v) => `#${v}`,
-            },
-            {
-              key: 'totalAmount',
-              label: '金額',
-              render: (v) => `¥${(v || 0).toLocaleString()}`,
-              hide: { mobile: true },
-            },
-            {
-              key: 'status',
-              label: 'ステータス',
-              render: (v, row: Order) => (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                  }}
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                placeholder="注文IDまたは顧客名で検索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                fullWidth
+              />
+              <FormControl sx={{ minWidth: 200 }}>
+                <Select
+                  value={filterPaymentStatus}
+                  onChange={(e) =>
+                    setFilterPaymentStatus(e.target.value as any)
+                  }
                 >
-                  {row.isCancelRequest &&
-                    v !== 'cancelled_customer' &&
-                    v !== 'cancelled_internal' && (
-                      <span
-                        style={{
-                          backgroundColor: '#ef4444',
-                          color: 'white',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        キャンセル申請中
-                      </span>
-                    )}
-                  {row.refundAt && (
-                    <span
-                      style={{
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      返金処理完了
-                    </span>
-                  )}
-                  <OrderStatusChip
-                    status={
-                      v as
-                        | 'unpaid'
-                        | 'awaiting_shipment'
-                        | 'in_transit'
-                        | 'delivered'
-                    }
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'orderDate',
-              label: '注文日',
-              hide: { mobile: true },
-              render: (v) => new Date(v).toLocaleDateString('ja-JP'),
-            },
-          ]}
-          data={paginatedOrders}
-          rowKey="id"
-          actions={[
-            {
-              label: '詳細表示',
-              onClick: (row) =>
-                router.push(`/admin/orders/detail?id=${row.id}`),
-              variant: 'secondary',
-            },
-          ]}
-          rowClassName={(row) =>
-            row.status === 'awaiting_shipment' ? styles.pendingShipping : ''
-          }
-          emptyMessage="注文が見つかりません"
-        />
+                  <MenuItem value="all">ステータス: すべて</MenuItem>
+                  <MenuItem value="unpaid">決済待ち</MenuItem>
+                  <MenuItem value="awaiting_shipment">配送待ち</MenuItem>
+                  <MenuItem value="in_transit">配送中</MenuItem>
+                  <MenuItem value="delivered">配送完了</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+          </Paper>
 
-        <div className={styles.pagination}>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
+          <AdminTable
+            columns={[
+              {
+                key: 'id',
+                label: '注文ID',
+                width: '80px',
+                render: (v) => `#${v}`,
+              },
+              {
+                key: 'totalAmount',
+                label: '金額',
+                render: (v) => `¥${(v || 0).toLocaleString()}`,
+                hide: { mobile: true },
+              },
+              {
+                key: 'status',
+                label: 'ステータス',
+                render: (v, row: Order) => (
+                  <Stack spacing={1} alignItems="flex-start">
+                    {row.isCancelRequest &&
+                      v !== 'cancelled_customer' &&
+                      v !== 'cancelled_internal' && (
+                        <Chip
+                          size="small"
+                          label="キャンセル申請中"
+                          color="error"
+                        />
+                      )}
+                    {row.refundAt && (
+                      <Chip size="small" label="返金処理完了" color="success" />
+                    )}
+                    <OrderStatusChip
+                      status={
+                        v as
+                          | 'unpaid'
+                          | 'awaiting_shipment'
+                          | 'in_transit'
+                          | 'delivered'
+                      }
+                    />
+                  </Stack>
+                ),
+              },
+              {
+                key: 'orderDate',
+                label: '注文日',
+                hide: { mobile: true },
+                render: (v) => new Date(v).toLocaleDateString('ja-JP'),
+              },
+            ]}
+            data={paginatedOrders}
+            rowKey="id"
+            actions={[
+              {
+                label: '詳細表示',
+                onClick: (row) =>
+                  router.push(`/admin/orders/detail?id=${row.id}`),
+                variant: 'secondary',
+              },
+            ]}
+            emptyMessage="注文が見つかりません"
           />
-        </div>
-      </div>
+
+          <Box display="flex" justifyContent="center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </Box>
+        </Stack>
+      </Box>
     </>
   );
 }

@@ -5,11 +5,22 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import MainLayout from '@/components/Layout/MainLayout';
-import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import { TextInput } from '@/components/Input/TextInput';
 import Link from 'next/link';
 import { addAddress, searchAddressByPostalCode } from '@/api/address';
-import styles from './add.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  Stack,
+} from '@mui/material';
 
 interface AddressFormData {
   postalCode: string;
@@ -73,7 +84,7 @@ const prefectureMap: Record<string, string> = prefectureOptions.reduce(
     acc[opt.label] = opt.id;
     return acc;
   },
-  {} as Record<string, string>
+  {} as Record<string, string>,
 );
 
 export default function AddAddressPage() {
@@ -86,22 +97,22 @@ export default function AddAddressPage() {
     address: '',
     option: '',
   });
-  const [isPrefectureDropdownOpen, setIsPrefectureDropdownOpen] =
-    useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>配送先住所追加</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box textAlign="center" py={6}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            配送先住所追加
+          </Typography>
+          <Typography color="text.secondary" gutterBottom>
+            ログインしていません
+          </Typography>
+          <Button variant="outlined" component={Link} href="/">
+            ホームへ戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
@@ -133,7 +144,9 @@ export default function AddAddressPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
   ) => {
     const { name, value } = e.target;
 
@@ -173,7 +186,7 @@ export default function AddAddressPage() {
 
       if (response.success && response.data) {
         const prefectureId = Object.entries(prefectureMap).find(
-          ([key, val]) => key === response.data?.prefecture
+          ([key, val]) => key === response.data?.prefecture,
         )?.[1];
 
         setFormData((prev) => ({
@@ -220,118 +233,93 @@ export default function AddAddressPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/account">アカウント</Link>
-          <span>/</span>
-          <Link href="/address">配送先住所管理</Link>
-          <span>/</span>
-          <span>追加</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <MuiLink component={Link} href="/account" color="inherit">
+            アカウント
+          </MuiLink>
+          <MuiLink component={Link} href="/address" color="inherit">
+            配送先住所管理
+          </MuiLink>
+          <Typography color="text.primary">追加</Typography>
+        </Breadcrumbs>
 
-        <h1 className={styles.title}>新しい配送先住所を追加</h1>
+        <Typography variant="h4" fontWeight={700}>
+          新しい配送先住所を追加
+        </Typography>
 
-        <form className={styles.form}>
-          <div className={styles.formGroup}>
-            <div
-              style={{
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'flex-end',
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <TextInput
-                  label="郵便番号"
-                  name="postalCode"
-                  value={formData.postalCode}
-                  onChange={handleInputChange}
-                  placeholder="1234567"
-                  inputType="number"
-                  maxLength={7}
-                  error={fieldErrors.postalCode}
-                />
-              </div>
-              <button
-                type="button"
-                className={styles.searchButton}
-                onClick={handleSearchPostalCode}
-              >
-                検索
-              </button>
-            </div>
-          </div>
+        <Box component="form" display="flex" flexDirection="column" gap={2}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems="flex-end"
+          >
+            <Box flex={1}>
+              <TextInput
+                label="郵便番号"
+                name="postalCode"
+                value={formData.postalCode}
+                onChange={handleInputChange}
+                placeholder="1234567"
+                inputType="number"
+                maxLength={7}
+                error={fieldErrors.postalCode}
+              />
+            </Box>
+            <Button variant="outlined" onClick={handleSearchPostalCode}>
+              検索
+            </Button>
+          </Stack>
 
-          <div className={styles.formGroup}>
-            <label className={styles.label}>
-              都道府県 <span className={styles.required}>*</span>
-            </label>
-            <Dropdown
-              isOpen={isPrefectureDropdownOpen}
-              onToggle={() =>
-                setIsPrefectureDropdownOpen(!isPrefectureDropdownOpen)
-              }
-              onClose={() => setIsPrefectureDropdownOpen(false)}
-              buttonText={
-                prefectureOptions.find((opt) => opt.id === formData.prefecture)
-                  ?.label || '選択してください'
+          <FormControl fullWidth error={Boolean(fieldErrors.prefecture)}>
+            <InputLabel id="prefecture-label">都道府県</InputLabel>
+            <Select
+              labelId="prefecture-label"
+              label="都道府県"
+              value={formData.prefecture}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  prefecture: String(e.target.value),
+                }))
               }
             >
               {prefectureOptions.map((option) => (
-                <div
-                  key={option.id}
-                  className={styles.dropdownOption}
-                  onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      prefecture: option.id,
-                    }));
-                    setIsPrefectureDropdownOpen(false);
-                  }}
-                >
-                  <span>{option.label}</span>
-                </div>
+                <MenuItem key={option.id} value={option.id}>
+                  {option.label}
+                </MenuItem>
               ))}
-            </Dropdown>
+            </Select>
             {fieldErrors.prefecture && (
-              <span className={styles.fieldError}>
-                {fieldErrors.prefecture}
-              </span>
+              <FormHelperText>{fieldErrors.prefecture}</FormHelperText>
             )}
-          </div>
+          </FormControl>
 
-          <div className={styles.formGroup}>
-            <TextInput
-              label="住所"
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-              placeholder="例：東京都渋谷区1-2-3"
-              error={fieldErrors.address}
-            />
-          </div>
+          <TextInput
+            label="住所"
+            name="address"
+            value={formData.address}
+            onChange={handleInputChange}
+            placeholder="例：東京都渋谷区1-2-3"
+            error={fieldErrors.address}
+          />
 
-          <div className={styles.formGroup}>
-            <TextInput
-              label="建物名・部屋番号（オプション）"
-              name="option"
-              value={formData.option || ''}
-              onChange={handleInputChange}
-              placeholder="例：○○ビル 101号室"
-            />
-          </div>
+          <TextInput
+            label="建物名・部屋番号（オプション）"
+            name="option"
+            value={formData.option || ''}
+            onChange={handleInputChange}
+            placeholder="例：○○ビル 101号室"
+          />
 
-          <button
-            type="button"
-            className={styles.submitButton}
-            onClick={handleSubmit}
-          >
+          <Button variant="contained" onClick={handleSubmit}>
             追加する
-          </button>
-        </form>
-      </div>
+          </Button>
+        </Box>
+      </Box>
     </MainLayout>
   );
 }

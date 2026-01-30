@@ -10,6 +10,8 @@ import { CategoryProvider } from '@/context/CategoryContext';
 import { SearchProvider } from '@/context/SearchContext';
 import { SidebarProvider } from '@/context/SidebarContext';
 import GlobalLoadingSpinner from '@/components/GlobalLoadingSpinner';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import theme from '@/theme';
 import './globals.css';
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -41,22 +43,25 @@ export default function RootLayout({
         ></script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <LoadingProvider>
-          <GlobalLoadingSpinner />
-          <SnackbarProvider>
-            <AuthProvider>
-              <NotificationProvider>
-                <CartProvider>
-                  <CategoryProvider>
-                    <SearchProvider>
-                      <SidebarProvider>{children}</SidebarProvider>
-                    </SearchProvider>
-                  </CategoryProvider>
-                </CartProvider>
-              </NotificationProvider>
-            </AuthProvider>
-          </SnackbarProvider>
-        </LoadingProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <LoadingProvider>
+            <GlobalLoadingSpinner />
+            <SnackbarProvider>
+              <AuthProvider>
+                <NotificationProvider>
+                  <CartProvider>
+                    <CategoryProvider>
+                      <SearchProvider>
+                        <SidebarProvider>{children}</SidebarProvider>
+                      </SearchProvider>
+                    </CategoryProvider>
+                  </CartProvider>
+                </NotificationProvider>
+              </AuthProvider>
+            </SnackbarProvider>
+          </LoadingProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

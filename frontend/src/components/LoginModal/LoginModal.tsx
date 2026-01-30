@@ -2,12 +2,22 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Alert,
+  Link as MuiLink,
+} from '@mui/material';
 import { useAuth } from '@/context/AuthContext';
 import { useLoading } from '@/context/LoadingContext';
 import { useCart } from '@/context/CartContext';
 import { login as apiLogin } from '@/api/auth';
-import Overlay from '@/components/Common/Overlay';
-import styles from './LoginModal.module.css';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -37,10 +47,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         // APIから返されたユーザー情報をAuthContextに保存
         const userData = response.data;
 
-        loginWithUserData(userData);
+        if (userData) {
+          loginWithUserData(userData);
 
-        // ログインユーザーのカートに切り替える
-        setUserIdentifier(userData.userId);
+          // ログインユーザーのカートに切り替える
+          setUserIdentifier(userData.userId);
+        }
         try {
           await fetchCart();
         } catch (cartError) {
@@ -68,97 +80,70 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   if (!isOpen) return null;
 
   return (
-    <>
-      <Overlay isOpen={isOpen} onClick={onClose} zIndex="modal" />
-      <div className={styles.modal}>
-        <div className={styles.header}>
-          <h2>ログイン</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            ✕
-          </button>
-        </div>
+    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>ログイン</DialogTitle>
+      <Box component="form" onSubmit={handleSubmit}>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
+          <TextField
+            type="email"
+            label="メールアドレス"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={isLoading}
+            placeholder="example@example.com"
+            fullWidth
+          />
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formGroup}>
-            <label htmlFor="email" className={styles.label}>
-              メールアドレス
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-              className={styles.input}
-              placeholder="example@example.com"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <div className={styles.passwordLabelWrapper}>
-              <label htmlFor="password" className={styles.label}>
-                パスワード
-              </label>
-              <a
-                href="/forgot-password"
-                className={styles.forgotLink}
-                onClick={(e) => {
-                  e.preventDefault();
-                  onClose();
-                  router.push('/forgot-password');
-                }}
-              >
-                パスワードを忘れた方
-              </a>
-            </div>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-              className={styles.input}
-              placeholder="パスワード"
-            />
-          </div>
-
-          {error && (
-            <div
-              style={{
-                color: '#dc2626',
-                fontSize: '14px',
-                marginBottom: '16px',
-                padding: '8px',
-                backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                borderRadius: '4px',
-                border: '1px solid rgba(220, 38, 38, 0.3)',
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Typography variant="subtitle2">パスワード</Typography>
+            <MuiLink
+              component="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onClose();
+                router.push('/forgot-password');
               }}
+              sx={{ fontSize: 12 }}
             >
-              {error}
-            </div>
-          )}
+              パスワードを忘れた方
+            </MuiLink>
+          </Box>
+          <TextField
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={isLoading}
+            placeholder="パスワード"
+            fullWidth
+          />
 
-          <button
+          {error && <Alert severity="error">{error}</Alert>}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, flexDirection: 'column', gap: 1 }}>
+          <Button
             type="submit"
-            className={styles.submitButton}
+            variant="contained"
+            fullWidth
             disabled={isLoading}
           >
             {isLoading ? 'ログイン中...' : 'ログイン'}
-          </button>
-        </form>
-
-        <div className={styles.footer}>
-          <p>
+          </Button>
+          <Typography variant="body2" color="text.secondary">
             アカウントをお持ちでない方は{' '}
-            <a href="/register" className={styles.link}>
-              こちら
-            </a>
+            <MuiLink href="/register">こちら</MuiLink>
             から登録してください
-          </p>
-        </div>
-      </div>
-    </>
+          </Typography>
+        </DialogActions>
+      </Box>
+    </Dialog>
   );
 }

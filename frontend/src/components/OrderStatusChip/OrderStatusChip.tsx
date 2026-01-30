@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './OrderStatusChip.module.css';
+import { Chip } from '@mui/material';
 
 interface OrderStatusChipProps {
   status:
@@ -31,12 +31,15 @@ const statusLabels: Record<string, string> = {
 
 const OrderStatusChip: React.FC<OrderStatusChipProps> = ({ status }) => {
   return (
-    <span
-      className={styles.chip}
-      style={{ backgroundColor: statusColors[status] }}
-    >
-      {statusLabels[status]}
-    </span>
+    <Chip
+      label={statusLabels[status]}
+      sx={{
+        bgcolor: statusColors[status],
+        color: '#fff',
+        fontWeight: 700,
+      }}
+      size="small"
+    />
   );
 };
 

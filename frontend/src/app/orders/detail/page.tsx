@@ -8,7 +8,22 @@ import CancelOrderModal from '@/components/CancelOrderModal/CancelOrderModal';
 import { getOrderDetail, OrderDetail } from '@/api/orders';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
 import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
-import styles from '../orders.module.css';
+import {
+  Box,
+  Stack,
+  Typography,
+  Paper,
+  Button,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Divider,
+  Alert,
+  CircularProgress,
+  Link as MuiLink,
+} from '@mui/material';
 
 export default function OrderDetailPage() {
   const searchParams = useSearchParams();
@@ -47,11 +62,12 @@ export default function OrderDetailPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            読み込み中...
-          </div>
-        </div>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 6 }}>
+          <Stack alignItems="center" spacing={2}>
+            <CircularProgress />
+            <Typography color="text.secondary">読み込み中...</Typography>
+          </Stack>
+        </Box>
       </MainLayout>
     );
   }
@@ -59,14 +75,16 @@ export default function OrderDetailPage() {
   if (error || !order) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div style={{ padding: '40px', color: '#ef4444' }}>
-            {error || '注文情報が見つかりません'}
-          </div>
-          <Link href="/orders" style={{ marginLeft: '20px', color: '#3b82f6' }}>
-            注文履歴に戻る
-          </Link>
-        </div>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+          <Stack spacing={2}>
+            <Alert severity="error">
+              {error || '注文情報が見つかりません'}
+            </Alert>
+            <Button component={Link} href="/orders" variant="outlined">
+              注文履歴に戻る
+            </Button>
+          </Stack>
+        </Box>
       </MainLayout>
     );
   }
@@ -100,44 +118,52 @@ export default function OrderDetailPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <Link
-          href="/orders"
-          style={{
-            marginBottom: '20px',
-            display: 'inline-block',
-            color: '#3b82f6',
-          }}
-        >
-          ← 注文履歴に戻る
-        </Link>
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+        <Stack spacing={4}>
+          <Button component={Link} href="/orders" variant="text">
+            ← 注文履歴に戻る
+          </Button>
 
-        <div className={styles.detailContainer}>
-          <h1 className={styles.title}>注文詳細</h1>
+          <Typography variant="h4" fontWeight={700}>
+            注文詳細
+          </Typography>
 
           {/* 注文情報 */}
-          <div className={styles.detailSection}>
-            <h2 className={styles.sectionTitle}>注文情報</h2>
-            <div className={styles.detailGrid}>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>注文番号</span>
-                <span className={styles.detailValue}>{order.orderNumber}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>注文日</span>
-                <span className={styles.detailValue}>
-                  {new Date(order.orderDate).toLocaleDateString('ja-JP', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>ステータス</span>
-                <span className={styles.detailValue}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                注文情報
+              </Typography>
+              <Divider />
+              <Stack spacing={1.5}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  justifyContent="space-between"
+                >
+                  <Typography color="text.secondary">注文番号</Typography>
+                  <Typography fontWeight={700}>{order.orderNumber}</Typography>
+                </Stack>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  justifyContent="space-between"
+                >
+                  <Typography color="text.secondary">注文日</Typography>
+                  <Typography>
+                    {new Date(order.orderDate).toLocaleDateString('ja-JP', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Typography>
+                </Stack>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                >
+                  <Typography color="text.secondary">ステータス</Typography>
                   <OrderStatusChip
                     status={
                       order.status as
@@ -147,158 +173,202 @@ export default function OrderDetailPage() {
                         | 'delivered'
                     }
                   />
-                </span>
-              </div>
-            </div>
-          </div>
+                </Stack>
+              </Stack>
+            </Stack>
+          </Paper>
 
-          {/* 注文商品と金額詳細 */}
-          <div className={styles.detailSection}>
-            <h2 className={styles.sectionTitle}>注文内容</h2>
-            <div className={styles.itemsTable}>
-              <div className={styles.itemsHeader}>
-                <div className={styles.itemName}>商品名</div>
-                <div className={styles.itemQuantity}>数量</div>
-                <div className={styles.itemPrice}>単価</div>
-                <div className={styles.itemSubtotal}>小計</div>
-              </div>
-              {(order.items || []).map((item) => (
-                <div key={item.orderItemId} className={styles.itemsRow}>
-                  <div className={styles.itemName}>
-                    {item.productName || '不明な商品'}
-                  </div>
-                  <div className={styles.itemQuantity}>
-                    {item.quantity || 0}
-                  </div>
-                  <div className={styles.itemPrice}>
-                    ¥{item.unitPrice ? item.unitPrice.toLocaleString() : '0'}
-                  </div>
-                  <div className={styles.itemSubtotal}>
+          {/* 注文内容 */}
+          <Paper
+            variant="outlined"
+            sx={{ p: { xs: 2, md: 3 }, overflow: 'auto' }}
+          >
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                注文内容
+              </Typography>
+              <Divider />
+              <Box sx={{ overflowX: 'auto' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f9fafb' }}>
+                      <TableCell>商品名</TableCell>
+                      <TableCell align="right">数量</TableCell>
+                      <TableCell align="right">単価</TableCell>
+                      <TableCell align="right">小計</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(order.items || []).map((item) => (
+                      <TableRow key={item.orderItemId}>
+                        <TableCell>
+                          {item.productName || '不明な商品'}
+                        </TableCell>
+                        <TableCell align="right">
+                          {item.quantity || 0}
+                        </TableCell>
+                        <TableCell align="right">
+                          ¥
+                          {item.unitPrice
+                            ? item.unitPrice.toLocaleString()
+                            : '0'}
+                        </TableCell>
+                        <TableCell align="right">
+                          ¥
+                          {item.unitPrice && item.quantity
+                            ? (item.unitPrice * item.quantity).toLocaleString()
+                            : '0'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Box>
+
+              <Divider />
+
+              <Stack spacing={1}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  textAlign="right"
+                >
+                  <Typography>小計</Typography>
+                  <Typography>
+                    ¥{order.subtotal ? order.subtotal.toLocaleString() : '0'}
+                  </Typography>
+                </Stack>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  textAlign="right"
+                >
+                  （内消費税 ¥{order.tax ? order.tax.toLocaleString() : '0'}）
+                </Typography>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  textAlign="right"
+                >
+                  <Typography>送料</Typography>
+                  <Typography>
                     ¥
-                    {item.unitPrice && item.quantity
-                      ? (item.unitPrice * item.quantity).toLocaleString()
+                    {order.shippingCost
+                      ? order.shippingCost.toLocaleString()
                       : '0'}
-                  </div>
-                </div>
-              ))}
-
-              {/* 合計行 */}
-              <div className={styles.itemsFooter}></div>
-            </div>
-
-            {/* 金額詳細 */}
-            <div className={styles.summaryContainer}>
-              <div className={styles.summaryRow}>
-                <span>小計</span>
-                <span>
-                  ¥{order.subtotal ? order.subtotal.toLocaleString() : '0'}
-                </span>
-              </div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  marginBottom: '8px',
-                  textAlign: 'right',
-                }}
-              >
-                （内消費税 ¥{order.tax ? order.tax.toLocaleString() : '0'}）
-              </div>
-              <div className={styles.summaryRow}>
-                <span>送料</span>
-                <span>
-                  ¥
-                  {order.shippingCost
-                    ? order.shippingCost.toLocaleString()
-                    : '0'}
-                </span>
-              </div>
-              {order.discount > 0 && (
-                <div className={styles.summaryRow}>
-                  <span>割引</span>
-                  <span>-¥{order.discount.toLocaleString()}</span>
-                </div>
-              )}
-            </div>
-            <div className={styles.summaryRow}>
-              <span style={{ fontWeight: 'bold' }}>合計</span>
-              <span>
-                ¥{order.totalAmount ? order.totalAmount.toLocaleString() : '0'}
-              </span>
-            </div>
-          </div>
+                  </Typography>
+                </Stack>
+                {order.discount > 0 && (
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    textAlign="right"
+                  >
+                    <Typography>割引</Typography>
+                    <Typography>-¥{order.discount.toLocaleString()}</Typography>
+                  </Stack>
+                )}
+                <Divider />
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  textAlign="right"
+                >
+                  <Typography fontWeight={700}>合計</Typography>
+                  <Typography fontWeight={700}>
+                    ¥
+                    {order.totalAmount
+                      ? order.totalAmount.toLocaleString()
+                      : '0'}
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Stack>
+          </Paper>
 
           {/* 配送先情報 */}
-          <div className={styles.detailSection}>
-            <h2 className={styles.sectionTitle}>配送先情報</h2>
-            <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-              <div>
+          <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                配送先情報
+              </Typography>
+              <Divider />
+              <Typography>
                 {order.shippingAddress?.lastName || ''}{' '}
                 {order.shippingAddress?.firstName || ''}
-              </div>
-              <div>〒{order.shippingAddress?.postalCode || ''}</div>
-              {order.shippingAddress?.prefecture || ''}
-              {order.shippingAddress?.address || ''}
+              </Typography>
+              <Typography>
+                〒{order.shippingAddress?.postalCode || ''}
+              </Typography>
+              <Typography>
+                {order.shippingAddress?.prefecture || ''}
+                {order.shippingAddress?.address || ''}
+              </Typography>
               {order.shippingAddress?.building && (
-                <div>{order.shippingAddress.building}</div>
+                <Typography>{order.shippingAddress.building}</Typography>
               )}
-            </div>
-          </div>
+            </Stack>
+          </Paper>
 
           {/* 支払い情報 */}
-          <div className={styles.detailSection}>
-            <h2 className={styles.sectionTitle}>支払い情報</h2>
-            <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                支払い情報
+              </Typography>
+              <Divider />
               {typeof order.paymentMethod === 'string' ? (
                 <>
                   {order.paymentMethod === 'credit_card' && (
-                    <>
-                      <div>クレジットカード</div>
-                      <div>****{order.paymentMethod}</div>
-                    </>
+                    <Typography>クレジットカード</Typography>
                   )}
                   {order.paymentMethod === 'bank_transfer' && (
-                    <>
-                      <div>銀行振込</div>
+                    <Stack spacing={1}>
+                      <Typography>銀行振込</Typography>
                       <BankTransferDetails />
-                    </>
+                    </Stack>
                   )}
-                  {order.paymentMethod === 'apple_pay' && <div>Apple Pay</div>}
+                  {order.paymentMethod === 'apple_pay' && (
+                    <Typography>Apple Pay</Typography>
+                  )}
                   {order.paymentMethod === 'google_pay' && (
-                    <div>Google Pay</div>
+                    <Typography>Google Pay</Typography>
                   )}
                 </>
               ) : order.paymentMethod?.cardType === 'credit_card' ? (
-                <>
-                  <div>クレジットカード</div>
-                  <div>****{order.paymentMethod.lastFourDigits}</div>
-                </>
+                <Typography>
+                  クレジットカード ****{order.paymentMethod.lastFourDigits}
+                </Typography>
               ) : (
-                <div>不明な支払い方法</div>
+                <Typography>不明な支払い方法</Typography>
               )}
-            </div>
-          </div>
+            </Stack>
+          </Paper>
 
           {/* アクション */}
-          <div className={styles.detailActions}>
-            <Link
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Button
+              variant="contained"
+              component={Link}
               href={`/receipt/detail?orderId=${order.id}`}
-              className={styles.detailButton}
             >
               領収証を表示
-            </Link>
-            {order.status !== 'cancelled' && order.status !== 'delivered' && (
-              <button
-                onClick={() => setIsCancelModalOpen(true)}
-                className={styles.detailButton}
-                style={{ backgroundColor: '#ef4444', color: 'white' }}
-              >
-                注文をキャンセル
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+            </Button>
+            {order.status !== 'cancelled' &&
+              order.status !== 'delivered' &&
+              order.status !== 'cancelled_customer' &&
+              order.status !== 'cancelled_internal' && (
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => setIsCancelModalOpen(true)}
+                >
+                  注文をキャンセル
+                </Button>
+              )}
+          </Stack>
+        </Stack>
+      </Box>
 
       <CancelOrderModal
         isOpen={isCancelModalOpen}

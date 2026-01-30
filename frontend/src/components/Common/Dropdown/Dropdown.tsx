@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
-import styles from './Dropdown.module.css';
+import React, { useRef } from 'react';
+import { Button, Popover, Box } from '@mui/material';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 
 interface DropdownProps {
   isOpen: boolean;
@@ -20,52 +21,29 @@ export default function Dropdown({
   children,
   containerClassName,
 }: DropdownProps) {
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // ドロップダウン外クリックで閉じる
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
+  const anchorRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div
-      className={containerClassName || styles.dropdownContainer}
-      ref={dropdownRef}
-    >
-      <button
-        type="button"
-        className={styles.dropdownButton}
+    <Box className={containerClassName}>
+      <Button
+        ref={anchorRef}
+        variant="outlined"
         onClick={onToggle}
+        endIcon={<ArrowDropDownIcon />}
+        sx={{ justifyContent: 'space-between', width: '100%' }}
       >
-        <span className={styles.dropdownButtonText}>{buttonText}</span>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className={`${styles.dropdownArrow} ${isOpen ? styles.open : ''}`}
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {isOpen && <div className={styles.dropdownMenu}>{children}</div>}
-    </div>
+        {buttonText}
+      </Button>
+      <Popover
+        open={isOpen}
+        onClose={onClose}
+        anchorEl={anchorRef.current}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{ sx: { p: 2, minWidth: 260 } }}
+      >
+        {children}
+      </Popover>
+    </Box>
   );
 }

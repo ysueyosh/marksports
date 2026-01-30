@@ -3,11 +3,39 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
 import { getOrderDetail, OrderDetail } from '@/api/orders';
 import { updateOrderStatus } from '@/api/admin-orders';
-import styles from '../orders.module.css';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
+import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
+import {
+  Box,
+  Stack,
+  Typography,
+  Paper,
+  Button,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Divider,
+  Alert,
+  CircularProgress,
+  Link as MuiLink,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+} from '@mui/material';
+
+const ORDER_STATUSES = [
+  { value: 'unpaid', label: '未払い' },
+  { value: 'awaiting_shipment', label: '発送待ち' },
+  { value: 'in_transit', label: '配送中' },
+  { value: 'delivered', label: '配送済み' },
+  { value: 'cancelled_customer', label: 'キャンセル（顧客）' },
+  { value: 'cancelled_internal', label: 'キャンセル（内部）' },
+] as const;
 
 export default function AdminOrderDetailPage() {
   const searchParams = useSearchParams();
@@ -16,9 +44,7 @@ export default function AdminOrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<
-    'unpaid' | 'awaiting_shipment' | 'in_transit' | 'delivered'
-  >('unpaid');
+  const [selectedStatus, setSelectedStatus] = useState<string>('unpaid');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
@@ -30,7 +56,7 @@ export default function AdminOrderDetailPage() {
         const response = await getOrderDetail(orderId);
         if (response.success && response.data) {
           setOrder(response.data);
-          setSelectedStatus(response.data.status);
+          setSelectedStatus(response.data.status || 'unpaid');
         } else {
           setError('注文情報の取得に失敗しました');
         }
@@ -48,29 +74,32 @@ export default function AdminOrderDetailPage() {
   }, [orderId]);
 
   const handleStatusChange = async () => {
-    if (!order || selectedStatus === order.status) {
-      return;
-    }
+    if (!order) return;
 
     setIsUpdating(true);
     setUpdateSuccess(false);
 
     try {
       const response = await updateOrderStatus({
-        orderId: order.id,
-        status: selectedStatus,
+        orderId,
+        status: selectedStatus as
+          | 'unpaid'
+          | 'awaiting_shipment'
+          | 'in_transit'
+          | 'delivered'
+          | 'cancelled_customer'
+          | 'cancelled_internal',
       });
-
       if (response.success) {
-        setOrder((prev) => (prev ? { ...prev, status: selectedStatus } : null));
+        setOrder({ ...order, status: selectedStatus });
         setUpdateSuccess(true);
         setTimeout(() => setUpdateSuccess(false), 3000);
       } else {
-        setError(response.message || 'ステータスの更新に失敗しました');
+        setError('ステータスの更新に失敗しました');
       }
     } catch (err) {
       console.error('Error updating status:', err);
-      setError('ステータスの更新中にエラーが発生しました');
+      setError('ステータスの更新に失敗しました');
     } finally {
       setIsUpdating(false);
     }
@@ -78,260 +107,189 @@ export default function AdminOrderDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>読み込み中...</div>
+      <Box display="flex" justifyContent="center" py={6}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   if (error || !order) {
     return (
-      <div>
-        <div style={{ padding: '40px', color: '#ef4444' }}>
-          {error || '注文情報が見つかりません'}
-        </div>
-        <Link
-          href="/admin/orders"
-          style={{ marginLeft: '20px', color: '#3b82f6' }}
-        >
-          注文管理に戻る
-        </Link>
-      </div>
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error">{error || '注文が見つかりません'}</Alert>
+      </Box>
     );
   }
 
-  return (
-    <>
-      <Link
-        href="/admin/orders"
-        style={{
-          marginBottom: '20px',
-          display: 'inline-block',
-          color: '#3b82f6',
-        }}
-      >
-        ← 注文管理に戻る
-      </Link>
+  const paymentMethodLabel =
+    typeof order.paymentMethod === 'string'
+      ? order.paymentMethod === 'bank_transfer'
+        ? '銀行振込'
+        : order.paymentMethod === 'card'
+          ? 'クレジットカード'
+          : 'その他'
+      : 'クレジットカード';
 
-      <div className={styles.detailContainer}>
-        <h1 className={styles.title}>注文詳細（管理画面）</h1>
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
+      <Stack spacing={3}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            注文詳細
+          </Typography>
+          <Typography color="text.secondary">注文ID: {order.id}</Typography>
+        </Box>
 
         {updateSuccess && (
-          <div
-            style={{
-              backgroundColor: '#d1fae5',
-              border: '1px solid #6ee7b7',
-              borderRadius: '4px',
-              padding: '12px',
-              marginBottom: '20px',
-              color: '#047857',
-            }}
-          >
-            ✓ ステータスを更新しました
-          </div>
+          <Alert severity="success">ステータスを更新しました</Alert>
         )}
 
-        {/* 注文情報 */}
-        <div className={styles.detailSection}>
-          <h2 className={styles.sectionTitle}>注文情報</h2>
-          <div className={styles.detailGrid}>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>注文番号</span>
-              <span className={styles.detailValue}>{order.orderNumber}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>注文日</span>
-              <span className={styles.detailValue}>
-                {new Date(order.orderDate).toLocaleDateString('ja-JP', {
-                  year: 'numeric',
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>ステータス</span>
-              <span className={styles.detailValue}>
-                <OrderStatusChip status={order.status} />
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ステータス変更セクション */}
-        <div className={styles.detailSection}>
-          <h2 className={styles.sectionTitle}>ステータス変更</h2>
-          <div
-            style={{
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-end',
-            }}
-          >
-            <div style={{ flex: 1 }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  marginBottom: '6px',
-                }}
-              >
-                新しいステータス
-              </label>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value as any)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                }}
-              >
-                <option value="unpaid">未払い</option>
-                <option value="awaiting_shipment">配送待ち</option>
-                <option value="in_transit">配送中</option>
-                <option value="delivered">配送済</option>
-              </select>
-            </div>
-            <button
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  ステータス
+                </Typography>
+                <OrderStatusChip
+                  status={
+                    order.status as
+                      | 'unpaid'
+                      | 'awaiting_shipment'
+                      | 'in_transit'
+                      | 'delivered'
+                      | 'cancelled_customer'
+                      | 'cancelled_internal'
+                  }
+                />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" mb={1}>
+                  ステータス変更
+                </Typography>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel>ステータス</InputLabel>
+                  <Select
+                    value={selectedStatus}
+                    label="ステータス"
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                  >
+                    {ORDER_STATUSES.map((status) => (
+                      <MenuItem key={status.value} value={status.value}>
+                        {status.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+            <Button
+              variant="contained"
               onClick={handleStatusChange}
               disabled={isUpdating || selectedStatus === order.status}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor:
-                  isUpdating || selectedStatus === order.status
-                    ? 'not-allowed'
-                    : 'pointer',
-                opacity:
-                  isUpdating || selectedStatus === order.status ? 0.6 : 1,
-                fontSize: '14px',
-                fontWeight: '600',
-              }}
             >
-              {isUpdating ? '更新中...' : '更新'}
-            </button>
-          </div>
-        </div>
+              {isUpdating ? '更新中...' : 'ステータスを更新'}
+            </Button>
+          </Stack>
+        </Paper>
 
-        {/* 注文商品と金額詳細 */}
-        <div className={styles.detailSection}>
-          <h2 className={styles.sectionTitle}>注文内容</h2>
-          <div className={styles.itemsTable}>
-            <div className={styles.itemsHeader}>
-              <div className={styles.itemName}>商品名</div>
-              <div className={styles.itemQuantity}>数量</div>
-              <div className={styles.itemPrice}>単価</div>
-              <div className={styles.itemSubtotal}>小計</div>
-            </div>
-            {(order.items || []).map((item) => (
-              <div key={item.orderItemId} className={styles.itemsRow}>
-                <div className={styles.itemName}>
-                  {item.productName || '不明な商品'}
-                </div>
-                <div className={styles.itemQuantity}>{item.quantity || 0}</div>
-                <div className={styles.itemPrice}>
-                  ¥{item.unitPrice ? item.unitPrice.toLocaleString() : '0'}
-                </div>
-                <div className={styles.itemSubtotal}>
-                  ¥{item.totalAmount ? item.totalAmount.toLocaleString() : '0'}
-                </div>
-              </div>
-            ))}
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="h6" fontWeight={700} mb={2}>
+            注文情報
+          </Typography>
+          <Stack spacing={1}>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography color="text.secondary">注文日</Typography>
+              <Typography>
+                {new Date(order.orderDate).toLocaleDateString('ja-JP')}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography color="text.secondary">注文番号</Typography>
+              <Typography>{order.orderNumber}</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography color="text.secondary">注文金額</Typography>
+              <Typography fontWeight={700}>
+                ¥{order.totalAmount.toLocaleString()}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Paper>
 
-            {/* 合計行 */}
-            <div className={styles.itemsFooter}></div>
-          </div>
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="h6" fontWeight={700} mb={2}>
+            商品一覧
+          </Typography>
+          <Box sx={{ overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>商品名</TableCell>
+                  <TableCell align="right">単価</TableCell>
+                  <TableCell align="right">数量</TableCell>
+                  <TableCell align="right">合計</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {order.items?.map((item, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{item.productName}</TableCell>
+                    <TableCell align="right">
+                      ¥{item.unitPrice.toLocaleString()}
+                    </TableCell>
+                    <TableCell align="right">{item.quantity}</TableCell>
+                    <TableCell align="right">
+                      ¥{item.totalAmount.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        </Paper>
 
-          {/* 金額詳細 */}
-          <div className={styles.summaryContainer}>
-            <div className={styles.summaryRow}>
-              <span>小計</span>
-              <span>
-                ¥{order.subtotal ? order.subtotal.toLocaleString() : '0'}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: '12px',
-                color: '#9ca3af',
-                marginBottom: '8px',
-                textAlign: 'right',
-              }}
-            >
-              （内消費税 ¥{order.tax ? order.tax.toLocaleString() : '0'}）
-            </div>
-            <div className={styles.summaryRow}>
-              <span>送料</span>
-              <span>
-                ¥
-                {order.shippingCost ? order.shippingCost.toLocaleString() : '0'}
-              </span>
-            </div>
-            {order.discount > 0 && (
-              <div className={styles.summaryRow}>
-                <span>割引</span>
-                <span>-¥{order.discount.toLocaleString()}</span>
-              </div>
-            )}
-            <div
-              className={styles.summaryRow}
-              style={{ fontWeight: '600', fontSize: '16px' }}
-            >
-              <span>合計</span>
-              <span>
-                ¥{order.totalAmount ? order.totalAmount.toLocaleString() : '0'}
-              </span>
-            </div>
-          </div>
-        </div>
+        {order.shippingAddress && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h6" fontWeight={700} mb={2}>
+              配送先
+            </Typography>
+            <Stack spacing={1}>
+              <Typography>〒{order.shippingAddress.postalCode}</Typography>
+              <Typography>
+                {order.shippingAddress.prefecture}{' '}
+                {order.shippingAddress.address}
+              </Typography>
+            </Stack>
+          </Paper>
+        )}
 
-        {/* 配送先情報 */}
-        <div className={styles.detailSection}>
-          <h2 className={styles.sectionTitle}>配送先情報</h2>
-          <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-            <div>
-              {order.shippingAddress?.lastName || ''}{' '}
-              {order.shippingAddress?.firstName || ''}
-            </div>
-            <div>〒{order.shippingAddress?.postalCode || ''}</div>
-            {order.shippingAddress?.prefecture || ''}
-            {order.shippingAddress?.address || ''}
-            {order.shippingAddress?.building && (
-              <div>{order.shippingAddress.building}</div>
-            )}
-          </div>
-        </div>
-
-        {/* 支払い情報 */}
-        <div className={styles.detailSection}>
-          <h2 className={styles.sectionTitle}>支払い情報</h2>
-          <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-            {order.paymentMethod?.cardType === 'credit_card' && (
-              <>
-                <div>クレジットカード</div>
-                <div>{order.paymentMethod.cardType}</div>
-                <div>****{order.paymentMethod.lastFourDigits}</div>
-              </>
-            )}
-            {order.paymentMethod === 'bank_transfer' && (
-              <div>
-                <div>銀行振込</div>
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="h6" fontWeight={700} mb={2}>
+            支払い方法
+          </Typography>
+          <Stack spacing={2}>
+            <Typography>{paymentMethodLabel}</Typography>
+            {typeof order.paymentMethod === 'string' &&
+              order.paymentMethod === 'bank_transfer' && (
                 <BankTransferDetails />
-              </div>
+              )}
+            {order.last4 && (
+              <Typography variant="body2" color="text.secondary">
+                ****{order.last4}
+              </Typography>
             )}
-            {order.paymentMethod === 'apple_pay' && <div>Apple Pay</div>}
-            {order.paymentMethod === 'google_pay' && <div>Google Pay</div>}
-            {!order.paymentMethod && <div>不明な支払い方法</div>}
-          </div>
-        </div>
-      </div>
-    </>
+          </Stack>
+        </Paper>
+
+        <Button variant="outlined" component={Link} href="/admin/orders">
+          注文一覧に戻る
+        </Button>
+      </Stack>
+    </Box>
   );
 }

@@ -1,5 +1,12 @@
 import React from 'react';
-import styles from './SelectInput.module.css';
+import {
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
+  Box,
+} from '@mui/material';
 
 export interface SelectOption {
   value: string;
@@ -9,7 +16,7 @@ export interface SelectOption {
 interface SelectInputProps {
   name: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onChange: (e: any) => void;
   options: SelectOption[];
   placeholder?: string;
   label?: string;
@@ -37,31 +44,44 @@ export const SelectInput: React.FC<SelectInputProps> = ({
   selectStyle,
 }) => {
   return (
-    <div className={styles.container} style={containerStyle}>
+    <Box sx={containerStyle}>
       {label && (
-        <label className={styles.label} htmlFor={name}>
+        <Typography variant="subtitle2" gutterBottom>
           {label}
-          {required && <span className={styles.required}>*</span>}
-        </label>
+          {required && (
+            <Box component="span" sx={{ color: 'error.main', ml: 0.5 }}>
+              *
+            </Box>
+          )}
+        </Typography>
       )}
-      <select
-        id={name}
-        name={name}
-        value={value}
-        onChange={onChange}
+      <FormControl
+        fullWidth
+        size="small"
         disabled={disabled}
         required={required}
-        className={className || styles.select}
-        style={selectStyle}
       >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
+        <InputLabel id={`${name}-label`}>{placeholder}</InputLabel>
+        <Select
+          labelId={`${name}-label`}
+          id={name}
+          name={name}
+          value={value}
+          onChange={onChange}
+          label={placeholder}
+          sx={selectStyle}
+        >
+          <MenuItem value="">
+            <em>{placeholder}</em>
+          </MenuItem>
+          {options.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Box>
   );
 };
 

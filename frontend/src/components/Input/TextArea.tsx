@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './TextArea.module.css';
+import { Box, Typography, TextField } from '@mui/material';
 
 interface TextAreaProps {
   name: string;
@@ -30,50 +30,48 @@ export const TextArea: React.FC<TextAreaProps> = ({
   disabled = false,
   required = false,
   rows = 4,
-  className,
   containerStyle,
-  textareaStyle,
   error,
 }) => {
   const characterCount = value.length;
   const hasMaxLength = maxLength !== undefined;
 
   return (
-    <div
-      className={`${styles.container} ${className || ''}`}
-      style={containerStyle}
-    >
+    <Box sx={containerStyle}>
       {label && (
-        <label htmlFor={name} className={styles.label}>
+        <Typography variant="subtitle2" gutterBottom>
           {label}
-          {required && <span className={styles.required}>*</span>}
-        </label>
+          {required && (
+            <Typography component="span" color="error.main" ml={0.5}>
+              *
+            </Typography>
+          )}
+        </Typography>
       )}
-      <div className={styles.textareaWrapper}>
-        <textarea
-          id={name}
-          name={name}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          disabled={disabled}
-          rows={rows}
-          className={`${styles.textarea} ${error ? styles.error : ''} ${
-            disabled ? styles.disabled : ''
-          }`}
-          style={textareaStyle}
-        />
-      </div>
-      <div className={styles.footer}>
-        {error && <span className={styles.errorText}>{error}</span>}
+      <TextField
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={rows}
+        multiline
+        fullWidth
+        error={Boolean(error)}
+        inputProps={{ maxLength }}
+      />
+      <Box display="flex" justifyContent="space-between" mt={0.5}>
+        <Typography variant="caption" color="error.main">
+          {error || ''}
+        </Typography>
         {hasMaxLength && (
-          <span className={styles.characterCount}>
+          <Typography variant="caption" color="text.secondary">
             {characterCount}/{maxLength}
-          </span>
+          </Typography>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

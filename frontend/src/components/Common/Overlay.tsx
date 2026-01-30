@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import styles from './Overlay.module.css';
+import { Backdrop } from '@mui/material';
 
 interface OverlayProps {
   isOpen: boolean;
@@ -18,17 +18,20 @@ export default function Overlay({
 }: OverlayProps) {
   if (!isOpen) return null;
 
-  const overlayClass = `${styles.overlay} ${styles[`overlay-${zIndex}`]}`;
+  const resolvedZIndex =
+    zIndex === 'custom'
+      ? customZIndex
+      : zIndex === 'notification'
+        ? 1999
+        : zIndex === 'sidebar'
+          ? 1200
+          : 1300;
 
   return (
-    <div
-      className={overlayClass}
+    <Backdrop
+      open
       onClick={onClick}
-      style={
-        zIndex === 'custom' && customZIndex
-          ? { zIndex: customZIndex }
-          : undefined
-      }
+      sx={{ zIndex: resolvedZIndex, bgcolor: 'rgba(0,0,0,0.3)' }}
     />
   );
 }

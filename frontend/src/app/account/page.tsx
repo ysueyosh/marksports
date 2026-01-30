@@ -4,7 +4,18 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
-import styles from './account.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Card,
+  CardContent,
+  List,
+  ListItemButton,
+  ListItemText,
+  Button,
+} from '@mui/material';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -18,53 +29,62 @@ export default function AccountPage() {
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>アカウントページ</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box textAlign="center" py={6}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            アカウントページ
+          </Typography>
+          <Typography color="text.secondary" gutterBottom>
+            ログインしていません
+          </Typography>
+          <Button variant="outlined" component={Link} href="/">
+            ホームへ戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <span>アカウント</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <Typography color="text.primary">アカウント</Typography>
+        </Breadcrumbs>
 
-        <h1 className={styles.title}>アカウント</h1>
+        <Typography variant="h4" fontWeight={700}>
+          アカウント
+        </Typography>
 
-        <div className={styles.profileSection}>
-          <div className={styles.menuCard}>
-            <h2>メニュー</h2>
-            <ul className={styles.menuList}>
-              <li>
-                <Link href="/orders">注文履歴</Link>
-              </li>
-              <li>
-                <Link href="/address">配送先住所管理</Link>
-              </li>
-              <li>
-                <Link href="/payment">お支払い方法</Link>
-              </li>
-              <li>
-                <Link href="/settings">アカウント設定</Link>
-              </li>
-            </ul>
-            <button className={styles.logoutButton} onClick={handleLogout}>
+        <Card variant="outlined">
+          <CardContent>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              メニュー
+            </Typography>
+            <List>
+              {[
+                { href: '/orders', label: '注文履歴' },
+                { href: '/address', label: '配送先住所管理' },
+                { href: '/payment', label: 'お支払い方法' },
+                { href: '/settings', label: 'アカウント設定' },
+              ].map((item) => (
+                <ListItemButton
+                  key={item.href}
+                  component={Link}
+                  href={item.href}
+                >
+                  <ListItemText primary={item.label} />
+                </ListItemButton>
+              ))}
+            </List>
+            <Button variant="outlined" color="error" onClick={handleLogout}>
               ログアウト
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </CardContent>
+        </Card>
+      </Box>
     </MainLayout>
   );
 }

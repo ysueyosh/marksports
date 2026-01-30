@@ -28,7 +28,24 @@ import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
 import { CardFormComponent } from '@/components/CardFormComponent/CardFormComponent';
 import { CardAddModal } from '@/components/CardAddModal/CardAddModal';
-import styles from './checkout.module.css';
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  Stepper,
+  Step,
+  StepLabel,
+  Paper,
+  Divider,
+  Alert,
+  CircularProgress,
+  FormControlLabel,
+  Checkbox,
+  Radio,
+  RadioGroup,
+  Chip,
+} from '@mui/material';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -776,82 +793,67 @@ export default function CheckoutPage() {
   return (
     <CheckoutLayout>
       {/* Navigation Buttons */}
-      <div className={styles.navigation}>
-        <button className={styles.navButton} onClick={() => router.push('/')}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ px: { xs: 2, md: 3 }, pt: 2 }}
+      >
+        <Button variant="text" onClick={() => router.push('/')}>
           ← トップに戻る
-        </button>
+        </Button>
         {currentStep !== 4 && (
-          <button
-            className={styles.navButton}
-            onClick={() => router.push('/cart')}
-          >
+          <Button variant="text" onClick={() => router.push('/cart')}>
             ← カートに戻る
-          </button>
+          </Button>
         )}
-      </div>
+      </Stack>
 
       {currentStep !== 4 && (
-        <div className={styles.container}>
-          <div className={styles.header}>
-            <h1>注文手続き</h1>
-            <p>買い物を完成させましょう</p>
-          </div>
-
-          <div className={styles.steps}>
-            <div
-              className={`${styles.step} ${
-                currentStep >= 1 ? styles.active : ''
-              }`}
-            >
-              <span className={styles.stepNumber}>1</span>
-              <span>配送情報入力</span>
-            </div>
-            <div
-              className={`${styles.step} ${
-                currentStep >= 2 ? styles.active : ''
-              }`}
-            >
-              <span className={styles.stepNumber}>2</span>
-              <span>注文内容確認</span>
-            </div>
-            <div
-              className={`${styles.step} ${
-                currentStep >= 3 ? styles.active : ''
-              }`}
-            >
-              <span className={styles.stepNumber}>3</span>
-              <span>決済</span>
-            </div>
-          </div>
-        </div>
+        <Box sx={{ px: { xs: 2, md: 3 }, pb: 2 }}>
+          <Paper sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack spacing={1.5}>
+              <Typography variant="h4" fontWeight={700}>
+                注文手続き
+              </Typography>
+              <Typography color="text.secondary">
+                買い物を完成させましょう
+              </Typography>
+              <Stepper
+                activeStep={Math.max(currentStep - 1, 0)}
+                alternativeLabel
+              >
+                {['配送情報入力', '注文内容確認', '決済'].map((label) => (
+                  <Step key={label}>
+                    <StepLabel>{label}</StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+            </Stack>
+          </Paper>
+        </Box>
       )}
 
-      <div className={styles.container}>
+      <Box sx={{ px: { xs: 2, md: 3 }, pb: 6 }}>
         {currentStep !== 4 && (
           <>
-            <form className={styles.form} onSubmit={(e) => e.preventDefault()}>
+            <Box
+              component="form"
+              onSubmit={(e) => e.preventDefault()}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
+            >
               {paymentError && (
-                <div
-                  style={{
-                    backgroundColor: '#fee2e2',
-                    border: '1px solid #fca5a5',
-                    borderRadius: '4px',
-                    padding: '12px',
-                    marginBottom: '20px',
-                    color: '#991b1b',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.6',
-                  }}
-                >
-                  ⚠️ {paymentError}
-                </div>
+                <Alert severity="error" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {paymentError}
+                </Alert>
               )}
 
               {currentStep === 1 && (
                 <>
                   {/* Shipping Information Form (for new address or non-logged-in users) */}
-                  <fieldset className={styles.fieldset}>
-                    <legend className={styles.legend}>配送先情報</legend>
+                  <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                      配送先情報
+                    </Typography>
 
                     {/* Always show: Name, Email, Phone */}
                     <TextInput
@@ -893,7 +895,7 @@ export default function CheckoutPage() {
                     {/* For non-logged-in users or when no addresses available: show full address form */}
                     {(!isLoggedIn || userAddresses.length === 0) && (
                       <>
-                        <div className={styles.formGroup}>
+                        <Box sx={{ mb: 2 }}>
                           <div
                             style={{
                               display: 'flex',
@@ -974,7 +976,7 @@ export default function CheckoutPage() {
                               住所を検索中...
                             </div>
                           )}
-                        </div>
+                        </Box>
 
                         <div
                           style={{ marginBottom: '16px', position: 'relative' }}
@@ -1106,103 +1108,88 @@ export default function CheckoutPage() {
                         >
                           配送先住所を選択
                         </h3>
-                        <div style={{ marginBottom: '20px' }}>
+                        <Box sx={{ mb: 2.5 }}>
                           {isLoadingAddresses ? (
-                            <div style={{ textAlign: 'center', color: '#999' }}>
-                              住所を読み込み中...
-                            </div>
-                          ) : (
-                            <div
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '12px',
-                              }}
+                            <Typography
+                              color="text.secondary"
+                              textAlign="center"
                             >
-                              {userAddresses.map((address) => (
-                                <label
-                                  key={address.id}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    padding: '12px',
-                                    border:
-                                      selectedAddressId === address.id
-                                        ? '2px solid #0066cc'
-                                        : '1px solid #ddd',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    backgroundColor:
-                                      selectedAddressId === address.id
-                                        ? '#f0f7ff'
-                                        : '#fff',
-                                    transition: 'all 0.2s',
-                                  }}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="addressSelection"
+                              住所を読み込み中...
+                            </Typography>
+                          ) : (
+                            <RadioGroup
+                              value={selectedAddressId || ''}
+                              onChange={(e) =>
+                                setSelectedAddressId(e.target.value)
+                              }
+                            >
+                              <Stack spacing={1.5}>
+                                {userAddresses.map((address) => (
+                                  <FormControlLabel
+                                    key={address.id}
                                     value={address.id}
-                                    checked={selectedAddressId === address.id}
-                                    onChange={(e) =>
-                                      setSelectedAddressId(e.target.value)
-                                    }
-                                    style={{
-                                      marginRight: '12px',
-                                      marginTop: '2px',
-                                      cursor: 'pointer',
+                                    control={<Radio />}
+                                    sx={{
+                                      border:
+                                        selectedAddressId === address.id
+                                          ? '2px solid'
+                                          : '1px solid',
+                                      borderColor:
+                                        selectedAddressId === address.id
+                                          ? 'primary.main'
+                                          : 'divider',
+                                      bgcolor:
+                                        selectedAddressId === address.id
+                                          ? 'action.hover'
+                                          : 'background.paper',
+                                      borderRadius: 1,
+                                      p: 1.5,
+                                      m: 0,
+                                      transition: 'all 0.2s',
+                                      '&:hover': {
+                                        bgcolor: 'action.hover',
+                                      },
+                                      width: '100%',
                                     }}
+                                    label={
+                                      <Box flex={1}>
+                                        <Stack spacing={0.5}>
+                                          <Box
+                                            display="flex"
+                                            justifyContent="space-between"
+                                            alignItems="center"
+                                          >
+                                            <Typography fontWeight={600}>
+                                              〒{address.postalCode}{' '}
+                                              {address.prefecture}
+                                              {address.address}
+                                            </Typography>
+                                            {address.isMain && (
+                                              <Chip
+                                                label="メイン"
+                                                size="small"
+                                                color="primary"
+                                                variant="filled"
+                                              />
+                                            )}
+                                          </Box>
+                                          {address.option && (
+                                            <Typography
+                                              variant="body2"
+                                              color="text.secondary"
+                                            >
+                                              {address.option}
+                                            </Typography>
+                                          )}
+                                        </Stack>
+                                      </Box>
+                                    }
                                   />
-                                  <div style={{ flex: 1 }}>
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        marginBottom: '4px',
-                                      }}
-                                    >
-                                      <div
-                                        style={{
-                                          fontWeight: '600',
-                                          color: '#333',
-                                        }}
-                                      >
-                                        〒{address.postalCode}{' '}
-                                        {address.prefecture}
-                                        {address.address}
-                                      </div>
-                                      {address.isMain && (
-                                        <span
-                                          style={{
-                                            fontSize: '12px',
-                                            backgroundColor: '#0066cc',
-                                            color: '#fff',
-                                            padding: '2px 8px',
-                                            borderRadius: '12px',
-                                            fontWeight: '500',
-                                          }}
-                                        >
-                                          メイン
-                                        </span>
-                                      )}
-                                    </div>
-                                    {address.option && (
-                                      <div
-                                        style={{
-                                          fontSize: '14px',
-                                          color: '#666',
-                                        }}
-                                      >
-                                        {address.option}
-                                      </div>
-                                    )}
-                                  </div>
-                                </label>
-                              ))}
-                            </div>
+                                ))}
+                              </Stack>
+                            </RadioGroup>
                           )}
-                        </div>
+                        </Box>
 
                         {/* Button to add a new address */}
                         <button
@@ -1241,7 +1228,7 @@ export default function CheckoutPage() {
                         </button>
                       </div>
                     )}
-                  </fieldset>
+                  </Paper>
 
                   {/* Address Modal */}
                   {isAddressModalOpen && (
@@ -1585,8 +1572,10 @@ export default function CheckoutPage() {
               {currentStep === 2 && (
                 <>
                   {/* Order Confirmation */}
-                  <fieldset className={styles.fieldset}>
-                    <legend className={styles.legend}>注文内容確認</legend>
+                  <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                      注文内容確認
+                    </Typography>
 
                     {/* Shipping Information Display */}
                     <div
@@ -1761,193 +1750,156 @@ export default function CheckoutPage() {
                         <span>¥{priceInfo.total.toLocaleString()}</span>
                       </div>
                     </div>
-                  </fieldset>
+                  </Paper>
                 </>
               )}
 
               {currentStep === 3 && (
                 <>
                   {/* Order Summary - at the top */}
-                  <div className={styles.orderSummary}>
-                    <h2 className={styles.summaryTitle}>注文概要</h2>
+                  <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                      注文概要
+                    </Typography>
 
-                    {/* Cart Items */}
                     {cartItems.length > 0 && (
-                      <div
-                        style={{
-                          marginBottom: '20px',
-                          paddingBottom: '20px',
-                          borderBottom: '1px solid #e5e7eb',
+                      <Box
+                        sx={{
+                          mb: 2,
+                          pb: 2,
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
                         }}
                       >
-                        <h3
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            marginBottom: '10px',
-                          }}
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight={600}
+                          sx={{ mb: 1 }}
                         >
                           商品
-                        </h3>
-                        {cartItems.map((item) => (
-                          <div
-                            key={item.id}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              fontSize: '14px',
-                              marginBottom: '8px',
-                              color: '#6b7280',
-                            }}
-                          >
-                            <span>
-                              {item.name} × {item.quantity}
-                            </span>
-                            <span>
-                              ¥
-                              {(
-                                getPriceWithTax(item.price) * item.quantity
-                              ).toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                        </Typography>
+                        <Stack spacing={0.75}>
+                          {cartItems.map((item) => (
+                            <Stack
+                              key={item.id}
+                              direction="row"
+                              justifyContent="space-between"
+                              spacing={2}
+                            >
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {item.name} × {item.quantity}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                ¥
+                                {(
+                                  getPriceWithTax(item.price) * item.quantity
+                                ).toLocaleString()}
+                              </Typography>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      </Box>
                     )}
 
-                    <div className={styles.summaryItem}>
-                      <span>小計</span>
-                      <span>¥{priceInfo.subtotalWithTax.toLocaleString()}</span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: '#9ca3af',
-                        marginBottom: '8px',
-                        textAlign: 'right',
-                        paddingRight: '0',
-                      }}
-                    >
-                      （内消費税 ¥{priceInfo.tax.toLocaleString()}）
-                    </div>
-                    <div className={styles.summaryItem}>
-                      <span>送料</span>
-                      <span>¥{priceInfo.shippingFee.toLocaleString()}</span>
-                    </div>
-                    {coupon && priceInfo.discountAmount > 0 && (
-                      <div
-                        className={styles.summaryItem}
-                        style={{ color: '#e74c3c', fontWeight: 'bold' }}
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2">小計</Typography>
+                        <Typography variant="body2">
+                          ¥{priceInfo.subtotalWithTax.toLocaleString()}
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        textAlign="right"
                       >
-                        <span>割引（クーポン）</span>
-                        <span>
-                          -¥{priceInfo.discountAmount.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className={styles.summaryDivider}></div>
-
-                    <div className={styles.summaryTotal}>
-                      <span>合計</span>
-                      <span>¥{priceInfo.total.toLocaleString()}</span>
-                    </div>
-                  </div>
+                        （内消費税 ¥{priceInfo.tax.toLocaleString()}）
+                      </Typography>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2">送料</Typography>
+                        <Typography variant="body2">
+                          ¥{priceInfo.shippingFee.toLocaleString()}
+                        </Typography>
+                      </Stack>
+                      {coupon && priceInfo.discountAmount > 0 && (
+                        <Stack direction="row" justifyContent="space-between">
+                          <Typography
+                            variant="body2"
+                            color="error.main"
+                            fontWeight={700}
+                          >
+                            割引（クーポン）
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            color="error.main"
+                            fontWeight={700}
+                          >
+                            -¥{priceInfo.discountAmount.toLocaleString()}
+                          </Typography>
+                        </Stack>
+                      )}
+                      <Divider />
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          合計
+                        </Typography>
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          ¥{priceInfo.total.toLocaleString()}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Paper>
 
                   {/* Payment Information - at the bottom */}
-                  <fieldset className={styles.fieldset}>
-                    <legend className={styles.legend}>決済</legend>
+                  <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+                    <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                      決済
+                    </Typography>
 
                     {/* Payment Method Type Selection */}
-                    <div style={{ marginBottom: '20px' }}>
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          padding: '8px 0',
+                    <Box sx={{ mb: 2 }}>
+                      <RadioGroup
+                        value={paymentMode ?? ''}
+                        onChange={(event) => {
+                          const value = event.target.value as
+                            | 'credit_card'
+                            | 'bank_transfer'
+                            | 'apple_pay'
+                            | 'google_pay';
+                          setPaymentMode(value);
+                          setSelectedPaymentMethodId(null);
+                          setSavePaymentMethod(false);
                         }}
                       >
-                        <input
-                          type="radio"
-                          name="paymentMode"
+                        <FormControlLabel
                           value="bank_transfer"
-                          checked={paymentMode === 'bank_transfer'}
-                          onChange={() => {
-                            setPaymentMode('bank_transfer');
-                            setSelectedPaymentMethodId(null);
-                          }}
-                          style={{ marginRight: '12px' }}
+                          control={<Radio />}
+                          label="口座振込"
                         />
-                        口座振込
-                      </label>
-
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          padding: '8px 0',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="paymentMode"
+                        <FormControlLabel
                           value="credit_card"
-                          checked={paymentMode === 'credit_card'}
-                          onChange={() => {
-                            setPaymentMode('credit_card');
-                            setSelectedPaymentMethodId(null);
-                            setSavePaymentMethod(false);
-                          }}
-                          style={{ marginRight: '12px' }}
+                          control={<Radio />}
+                          label="クレジットカード"
                         />
-                        クレジットカード
-                      </label>
-
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          padding: '8px 0',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="paymentMode"
+                        <FormControlLabel
                           value="apple_pay"
-                          checked={paymentMode === 'apple_pay'}
-                          onChange={() => {
-                            setPaymentMode('apple_pay');
-                            setSelectedPaymentMethodId(null);
-                          }}
-                          style={{ marginRight: '12px' }}
+                          control={<Radio />}
+                          label="Apple Pay"
                         />
-                        Apple Pay
-                      </label>
-
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                          padding: '8px 0',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="paymentMode"
+                        <FormControlLabel
                           value="google_pay"
-                          checked={paymentMode === 'google_pay'}
-                          onChange={() => {
-                            setPaymentMode('google_pay');
-                            setSelectedPaymentMethodId(null);
-                          }}
-                          style={{ marginRight: '12px' }}
+                          control={<Radio />}
+                          label="Google Pay"
                         />
-                        Google Pay
-                      </label>
-                    </div>
+                      </RadioGroup>
+                    </Box>
 
                     {/* Credit Card Payment */}
                     {paymentMode === 'credit_card' && (
@@ -2051,156 +2003,134 @@ export default function CheckoutPage() {
 
                               {/* Saved Cards List */}
                               {!isLoadingCards && savedCards.length > 0 && (
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '10px',
-                                    marginBottom: '15px',
-                                  }}
+                                <RadioGroup
+                                  value={selectedPaymentMethodId || ''}
+                                  onChange={(e) =>
+                                    setSelectedPaymentMethodId(e.target.value)
+                                  }
+                                  sx={{ mb: 1.5 }}
                                 >
-                                  {savedCards.map((card) => (
-                                    <label
-                                      key={card.id}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        cursor: 'pointer',
-                                        padding: '8px',
-                                        backgroundColor:
-                                          selectedPaymentMethodId === card.id
-                                            ? '#f0f9ff'
-                                            : 'transparent',
-                                        borderRadius: '4px',
-                                        border:
-                                          selectedPaymentMethodId === card.id
-                                            ? '1px solid #0284c7'
-                                            : '1px solid #e5e7eb',
-                                      }}
-                                    >
-                                      <input
-                                        type="radio"
-                                        name="saved_card"
+                                  <Stack spacing={1}>
+                                    {savedCards.map((card) => (
+                                      <FormControlLabel
+                                        key={card.id}
                                         value={card.id}
-                                        checked={
-                                          selectedPaymentMethodId === card.id
-                                        }
-                                        onChange={(e) =>
-                                          setSelectedPaymentMethodId(
-                                            e.target.value,
-                                          )
-                                        }
-                                        style={{ marginRight: '10px' }}
-                                      />
-                                      <div
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '12px',
+                                        control={<Radio />}
+                                        sx={{
+                                          border:
+                                            selectedPaymentMethodId === card.id
+                                              ? '1px solid'
+                                              : '1px solid',
+                                          borderColor:
+                                            selectedPaymentMethodId === card.id
+                                              ? 'primary.main'
+                                              : 'divider',
+                                          bgcolor:
+                                            selectedPaymentMethodId === card.id
+                                              ? 'action.hover'
+                                              : 'transparent',
+                                          borderRadius: 1,
+                                          p: 1,
+                                          m: 0,
                                         }}
-                                      >
-                                        <span>
-                                          •••• •••• •••• {card.lastFourDigits} (
-                                          {card.cardType})
-                                        </span>
-                                        <span
-                                          style={{
-                                            fontSize: '13px',
-                                            color: '#9ca3af',
-                                          }}
-                                        >
-                                          有効期限:{' '}
-                                          {String(card.expiryMonth).padStart(
-                                            2,
-                                            '0',
-                                          )}
-                                          /{String(card.expiryYear).slice(-2)}
-                                        </span>
-                                        {card.isDefault && (
-                                          <span
-                                            style={{
-                                              fontSize: '11px',
-                                              padding: '2px 6px',
-                                              backgroundColor: '#dbeafe',
-                                              color: '#0284c7',
-                                              borderRadius: '3px',
-                                              fontWeight: '500',
-                                            }}
-                                          >
-                                            メインカード
-                                          </span>
-                                        )}
-                                      </div>
-                                    </label>
-                                  ))}
-                                </div>
+                                        label={
+                                          <Stack spacing={0.5} ml={1} flex={1}>
+                                            <Typography>
+                                              •••• •••• ••••{' '}
+                                              {card.lastFourDigits} (
+                                              {card.cardType})
+                                            </Typography>
+                                            <Box
+                                              display="flex"
+                                              alignItems="center"
+                                              gap={1}
+                                            >
+                                              <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                              >
+                                                有効期限:{' '}
+                                                {String(
+                                                  card.expiryMonth,
+                                                ).padStart(2, '0')}
+                                                /
+                                                {String(card.expiryYear).slice(
+                                                  -2,
+                                                )}
+                                              </Typography>
+                                              {card.isDefault && (
+                                                <Chip
+                                                  label="メインカード"
+                                                  size="small"
+                                                  color="info"
+                                                  variant="outlined"
+                                                />
+                                              )}
+                                            </Box>
+                                          </Stack>
+                                        }
+                                      />
+                                    ))}
+                                  </Stack>
+                                </RadioGroup>
                               )}
 
                               {/* "New Card" Option */}
-                              <label
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  cursor: 'pointer',
-                                  padding: '8px',
-                                  backgroundColor:
-                                    selectedPaymentMethodId === 'new_card'
-                                      ? '#f0f9ff'
-                                      : 'transparent',
-                                  borderRadius: '4px',
+                              <FormControlLabel
+                                control={<Radio />}
+                                value="new_card"
+                                checked={selectedPaymentMethodId === 'new_card'}
+                                onChange={() =>
+                                  setSelectedPaymentMethodId('new_card')
+                                }
+                                sx={{
                                   border:
                                     selectedPaymentMethodId === 'new_card'
-                                      ? '1px solid #0284c7'
-                                      : '1px solid #e5e7eb',
-                                }}
-                              >
-                                <input
-                                  type="radio"
-                                  name="saved_card"
-                                  value="new_card"
-                                  checked={
+                                      ? '1px solid'
+                                      : '1px solid',
+                                  borderColor:
                                     selectedPaymentMethodId === 'new_card'
-                                  }
-                                  onChange={(e) =>
-                                    setSelectedPaymentMethodId(e.target.value)
-                                  }
-                                  style={{ marginRight: '10px' }}
-                                />
-                                <span>新しいカードを追加</span>
-                              </label>
+                                      ? 'primary.main'
+                                      : 'divider',
+                                  bgcolor:
+                                    selectedPaymentMethodId === 'new_card'
+                                      ? 'action.hover'
+                                      : 'transparent',
+                                  borderRadius: 1,
+                                  p: 1,
+                                  m: 0,
+                                  mb: 1,
+                                }}
+                                label="新しいカードを追加"
+                              />
 
                               {/* "One-time Payment" Option (No Save) */}
-                              <label
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  cursor: 'pointer',
-                                  padding: '8px',
-                                  backgroundColor:
-                                    selectedPaymentMethodId === 'one_time'
-                                      ? '#f0f9ff'
-                                      : 'transparent',
-                                  borderRadius: '4px',
+                              <FormControlLabel
+                                control={<Radio />}
+                                value="one_time"
+                                checked={selectedPaymentMethodId === 'one_time'}
+                                onChange={() =>
+                                  setSelectedPaymentMethodId('one_time')
+                                }
+                                sx={{
                                   border:
                                     selectedPaymentMethodId === 'one_time'
-                                      ? '1px solid #0284c7'
-                                      : '1px solid #e5e7eb',
-                                }}
-                              >
-                                <input
-                                  type="radio"
-                                  name="saved_card"
-                                  value="one_time"
-                                  checked={
+                                      ? '1px solid'
+                                      : '1px solid',
+                                  borderColor:
                                     selectedPaymentMethodId === 'one_time'
-                                  }
-                                  onChange={(e) =>
-                                    setSelectedPaymentMethodId(e.target.value)
-                                  }
-                                  style={{ marginRight: '10px' }}
-                                />
-                                <span>別のカードで支払い</span>
-                              </label>
+                                      ? 'primary.main'
+                                      : 'divider',
+                                  bgcolor:
+                                    selectedPaymentMethodId === 'one_time'
+                                      ? 'action.hover'
+                                      : 'transparent',
+                                  borderRadius: 1,
+                                  p: 1,
+                                  m: 0,
+                                }}
+                                label="別のカードで支払い"
+                              />
                             </div>
                           )}
 
@@ -2542,75 +2472,64 @@ export default function CheckoutPage() {
 
                     {/* Purchase Button - only for bank transfer */}
                     {paymentMode === 'bank_transfer' && (
-                      <div style={{ marginTop: '20px' }}>
-                        <button
+                      <Box sx={{ mt: 2 }}>
+                        <Button
                           type="button"
-                          className={styles.nextButton}
+                          variant="contained"
                           onClick={() => handlePayment()}
                           disabled={isProcessing}
-                          style={{
-                            opacity: isProcessing ? 0.6 : 1,
-                            cursor: isProcessing ? 'not-allowed' : 'pointer',
-                            width: '100%',
-                          }}
+                          fullWidth
                         >
                           {isProcessing ? '処理中...' : '購入する'}
-                        </button>
-                      </div>
+                        </Button>
+                      </Box>
                     )}
-                  </fieldset>
+                  </Paper>
                 </>
               )}
 
               {/* Buttons */}
-              <div className={styles.buttonGroup}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                justifyContent="space-between"
+              >
                 {currentStep === 1 && (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.nextButton}
-                      onClick={handleNextStep}
-                    >
-                      注文内容確認へ進む →
-                    </button>
-                  </>
+                  <Button variant="contained" onClick={handleNextStep}>
+                    注文内容確認へ進む →
+                  </Button>
                 )}
 
                 {currentStep === 2 && (
                   <>
-                    <button
-                      type="button"
-                      className={styles.backButton}
+                    <Button
+                      variant="outlined"
                       onClick={() => setCurrentStep(1)}
                       disabled={isProcessing}
                     >
                       ← 戻る
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.nextButton}
+                    </Button>
+                    <Button
+                      variant="contained"
                       onClick={handleConfirmStep}
                       disabled={isProcessing}
                     >
                       決済へ進む →
-                    </button>
+                    </Button>
                   </>
                 )}
 
                 {currentStep === 3 && (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.backButton}
-                      onClick={() => setCurrentStep(2)}
-                      disabled={isProcessing}
-                    >
-                      ← 戻る
-                    </button>
-                  </>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setCurrentStep(2)}
+                    disabled={isProcessing}
+                  >
+                    ← 戻る
+                  </Button>
                 )}
-              </div>
-            </form>
+              </Stack>
+            </Box>
           </>
         )}
 
@@ -2685,18 +2604,13 @@ export default function CheckoutPage() {
                     marginBottom: '30px',
                   }}
                 >
-                  <button
-                    type="button"
-                    className={styles.nextButton}
+                  <Button
+                    variant="contained"
+                    fullWidth
                     onClick={() => router.push('/orders')}
-                    style={{
-                      width: '100%',
-                      padding: '12px 24px',
-                      fontSize: '16px',
-                    }}
                   >
                     注文履歴を確認する →
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -2718,7 +2632,7 @@ export default function CheckoutPage() {
             squareCustomerId={squareCustomerId || ''}
           />
         )}
-      </div>
+      </Box>
     </CheckoutLayout>
   );
 }

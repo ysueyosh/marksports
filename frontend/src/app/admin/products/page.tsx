@@ -3,15 +3,35 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '@/components/Admin/AdminModal';
-import AdminTable, { TableColumn } from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
-import sharedStyles from '../admin-shared.module.css';
-import pageStyles from './products.module.css';
 import { adminProductAPI } from '@/api/admin-products';
 import { adminCategoryAPI, type Category } from '@/api/admin-categories';
 import { adminImageAPI } from '@/api/admin-images';
-
-const styles = { ...sharedStyles, ...pageStyles };
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Stack,
+  Paper,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Checkbox,
+  FormControlLabel,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import {
   LineChart,
   Line,
@@ -68,7 +88,7 @@ export default function AdminProductsPage() {
   const [selectedParentCategoryId, setSelectedParentCategoryId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [sortByPrice, setSortByPrice] = useState<'none' | 'asc' | 'desc'>(
-    'none'
+    'none',
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [showNewProductForm, setShowNewProductForm] = useState(false);
@@ -176,7 +196,7 @@ export default function AdminProductsPage() {
               subImages: subImages,
               stock: p.stock || 0,
             };
-          }
+          },
         );
         setProducts(loadedProducts);
       }
@@ -195,7 +215,7 @@ export default function AdminProductsPage() {
   // 子カテゴリー一覧（選択された親カテゴリーの子のみ）
   const childCategoryList = selectedParentCategoryId
     ? categories.filter(
-        (cat) => cat.parentCategoryId === selectedParentCategoryId
+        (cat) => cat.parentCategoryId === selectedParentCategoryId,
       )
     : [];
 
@@ -230,7 +250,7 @@ export default function AdminProductsPage() {
       : Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = filteredProducts.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const handleTogglePublish = (id: number) => {
@@ -238,8 +258,8 @@ export default function AdminProductsPage() {
       products.map((product) =>
         product.id === id
           ? { ...product, published: !product.published }
-          : product
-      )
+          : product,
+      ),
     );
   };
 
@@ -296,7 +316,7 @@ export default function AdminProductsPage() {
           try {
             await adminProductAPI.updateProduct(
               editingProduct.productId,
-              updateRequest
+              updateRequest,
             );
 
             // 成功後、リストをリロード
@@ -327,9 +347,8 @@ export default function AdminProductsPage() {
 
         try {
           console.log('API呼び出し開始: createProduct');
-          const createResponse = await adminProductAPI.createProduct(
-            createRequest
-          );
+          const createResponse =
+            await adminProductAPI.createProduct(createRequest);
           console.log('API応答:', createResponse);
 
           if (createResponse.success) {
@@ -348,7 +367,7 @@ export default function AdminProductsPage() {
           alert(
             `商品の作成に失敗しました: ${
               error instanceof Error ? error.message : String(error)
-            }`
+            }`,
           );
         }
       }
@@ -499,131 +518,134 @@ export default function AdminProductsPage() {
 
   return (
     <>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>商品管理</h1>
-          <div className={styles.headerButtons}>
-            <button
-              className={styles.primaryButton}
-              onClick={() => {
-                if (showNewProductForm) {
-                  setShowNewProductForm(false);
-                  resetForm();
-                } else {
-                  setShowNewProductForm(true);
-                }
-              }}
-            >
-              {showNewProductForm ? 'キャンセル' : '新規商品登録'}
-            </button>
-            <button
-              className={styles.secondaryButton}
-              onClick={() => setShowCategoryForm(!showCategoryForm)}
-            >
-              {showCategoryForm ? 'キャンセル' : 'カテゴリ追加'}
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.searchBox}>
-          <input
-            type="text"
-            placeholder="商品名で検索..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
-
-        <div className={styles.filterBox}>
-          <select
-            value={selectedParentCategoryId}
-            onChange={(e) => {
-              setSelectedParentCategoryId(e.target.value);
-              setSelectedCategoryId('');
-              setCurrentPage(1);
-            }}
-            className={styles.filterSelect}
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+        <Stack spacing={2}>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            flexWrap="wrap"
+            gap={2}
           >
-            <option value="">すべての大カテゴリ</option>
-            {parentCategoryList.map((cat) => (
-              <option key={cat.categoryId} value={cat.categoryId}>
-                {cat.categoryName}
-              </option>
-            ))}
-          </select>
-          {selectedParentCategoryId && (
-            <select
-              value={selectedCategoryId}
-              onChange={(e) => {
-                setSelectedCategoryId(e.target.value);
-                setCurrentPage(1);
-              }}
-              className={styles.filterSelect}
-            >
-              <option value="">すべての小カテゴリ</option>
-              {childCategoryList.map((cat) => (
-                <option key={cat.categoryId} value={cat.categoryId}>
-                  {cat.categoryName}
-                </option>
-              ))}
-            </select>
-          )}
-          <select
-            value={sortByPrice}
-            onChange={(e) => setSortByPrice(e.target.value as any)}
-            className={styles.filterSelect}
-          >
-            <option value="none">価格でソート</option>
-            <option value="asc">安い順</option>
-            <option value="desc">高い順</option>
-          </select>
-        </div>
-
-        <AdminModal
-          isOpen={showCategoryForm}
-          onClose={() => {
-            setShowCategoryForm(false);
-            setCategoryFormData({
-              categoryName: '',
-              parentCategoryId: '',
-            });
-          }}
-          title="カテゴリを追加"
-          buttons={
-            <div
-              style={{
-                display: 'flex',
-                gap: '10px',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <button
-                className={styles.secondaryButton}
+            <Typography variant="h4" fontWeight={700}>
+              商品管理
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant={showNewProductForm ? 'outlined' : 'contained'}
                 onClick={() => {
-                  setShowCategoryForm(false);
-                  setCategoryFormData({
-                    categoryName: '',
-                    parentCategoryId: '',
-                  });
+                  if (showNewProductForm) {
+                    setShowNewProductForm(false);
+                    resetForm();
+                  } else {
+                    setShowNewProductForm(true);
+                  }
                 }}
               >
-                キャンセル
-              </button>
-              <button
-                className={styles.primaryButton}
-                onClick={handleAddCategory}
+                {showNewProductForm ? 'キャンセル' : '新規商品登録'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setShowCategoryForm(!showCategoryForm)}
               >
-                追加
-              </button>
-            </div>
-          }
-        >
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>カテゴリ名</label>
-              <input
-                type="text"
+                {showCategoryForm ? 'キャンセル' : 'カテゴリ追加'}
+              </Button>
+            </Stack>
+          </Box>
+
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <TextField
+              fullWidth
+              placeholder="商品名で検索..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </Paper>
+
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <FormControl fullWidth>
+                <Select
+                  value={selectedParentCategoryId}
+                  onChange={(e) => {
+                    setSelectedParentCategoryId(e.target.value);
+                    setSelectedCategoryId('');
+                    setCurrentPage(1);
+                  }}
+                  displayEmpty
+                >
+                  <MenuItem value="">すべての大カテゴリ</MenuItem>
+                  {parentCategoryList.map((cat) => (
+                    <MenuItem key={cat.categoryId} value={cat.categoryId}>
+                      {cat.categoryName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {selectedParentCategoryId && (
+                <FormControl fullWidth>
+                  <Select
+                    value={selectedCategoryId}
+                    onChange={(e) => {
+                      setSelectedCategoryId(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    displayEmpty
+                  >
+                    <MenuItem value="">すべての小カテゴリ</MenuItem>
+                    {childCategoryList.map((cat) => (
+                      <MenuItem key={cat.categoryId} value={cat.categoryId}>
+                        {cat.categoryName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+              <FormControl fullWidth>
+                <Select
+                  value={sortByPrice}
+                  onChange={(e) => setSortByPrice(e.target.value as any)}
+                >
+                  <MenuItem value="none">価格でソート</MenuItem>
+                  <MenuItem value="asc">安い順</MenuItem>
+                  <MenuItem value="desc">高い順</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+          </Paper>
+
+          <AdminModal
+            isOpen={showCategoryForm}
+            onClose={() => {
+              setShowCategoryForm(false);
+              setCategoryFormData({
+                categoryName: '',
+                parentCategoryId: '',
+              });
+            }}
+            title="カテゴリを追加"
+            buttons={
+              <Stack direction="row" spacing={2} justifyContent="flex-end">
+                <Button
+                  onClick={() => {
+                    setShowCategoryForm(false);
+                    setCategoryFormData({
+                      categoryName: '',
+                      parentCategoryId: '',
+                    });
+                  }}
+                >
+                  キャンセル
+                </Button>
+                <Button variant="contained" onClick={handleAddCategory}>
+                  追加
+                </Button>
+              </Stack>
+            }
+          >
+            <Stack spacing={2}>
+              <TextField
+                label="カテゴリ名"
                 value={categoryFormData.categoryName}
                 onChange={(e) =>
                   setCategoryFormData({
@@ -632,575 +654,471 @@ export default function AdminProductsPage() {
                   })
                 }
                 placeholder="例：スポーツ用品"
+                fullWidth
               />
-            </div>
-            <div className={styles.formGroup}>
-              <label>親カテゴリ（オプション）</label>
-              <select
-                value={categoryFormData.parentCategoryId}
-                onChange={(e) =>
-                  setCategoryFormData({
-                    ...categoryFormData,
-                    parentCategoryId: e.target.value,
-                  })
-                }
-              >
-                <option value="">なし（親カテゴリとして登録）</option>
-                {categories
-                  .filter((cat) => !cat.parentCategoryId)
-                  .map((cat) => (
-                    <option key={cat.categoryId} value={cat.categoryId}>
-                      {cat.categoryName}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        </AdminModal>
+              <FormControl fullWidth>
+                <Select
+                  value={categoryFormData.parentCategoryId}
+                  onChange={(e) =>
+                    setCategoryFormData({
+                      ...categoryFormData,
+                      parentCategoryId: e.target.value,
+                    })
+                  }
+                  displayEmpty
+                >
+                  <MenuItem value="">なし（親カテゴリとして登録）</MenuItem>
+                  {categories
+                    .filter((cat) => !cat.parentCategoryId)
+                    .map((cat) => (
+                      <MenuItem key={cat.categoryId} value={cat.categoryId}>
+                        {cat.categoryName}
+                      </MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+            </Stack>
+          </AdminModal>
 
-        <AdminModal
-          isOpen={showNewProductForm}
-          onClose={() => {
-            setShowNewProductForm(false);
-            resetForm();
-            setIsDeleteConfirming(false);
-            setDeleteInputValue('');
-          }}
-          title={editingId !== null ? '商品を編集' : '新規商品登録'}
-          shouldScrollToTop={isDeleteConfirming}
-          buttons={
-            <div
-              className={styles.formActions}
-              style={{
-                display: 'flex',
-                gap: '10px',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: 0,
-              }}
-            >
-              <div style={{ display: 'flex' }}>
-                {editingId !== null && !isDeleteConfirming && (
-                  <button
-                    className={`${styles.secondaryButton} ${styles.danger}`}
-                    onClick={handleStartDelete}
+          <AdminModal
+            isOpen={showNewProductForm}
+            onClose={() => {
+              setShowNewProductForm(false);
+              resetForm();
+              setIsDeleteConfirming(false);
+              setDeleteInputValue('');
+            }}
+            title={editingId !== null ? '商品を編集' : '新規商品登録'}
+            shouldScrollToTop={isDeleteConfirming}
+            buttons={
+              <Stack direction="row" spacing={2} justifyContent="space-between">
+                <Box>
+                  {editingId !== null && !isDeleteConfirming && (
+                    <Button
+                      color="error"
+                      variant="outlined"
+                      onClick={handleStartDelete}
+                    >
+                      削除
+                    </Button>
+                  )}
+                </Box>
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    onClick={() => {
+                      setShowNewProductForm(false);
+                      resetForm();
+                      setIsDeleteConfirming(false);
+                      setDeleteInputValue('');
+                    }}
                   >
-                    削除
-                  </button>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  className={styles.secondaryButton}
-                  onClick={() => {
-                    setShowNewProductForm(false);
-                    resetForm();
-                    setIsDeleteConfirming(false);
-                    setDeleteInputValue('');
-                  }}
+                    キャンセル
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      console.log('登録ボタンがクリックされました');
+                      handleAddProduct();
+                    }}
+                  >
+                    {editingId !== null ? '更新' : '登録'}
+                  </Button>
+                </Stack>
+              </Stack>
+            }
+          >
+            <Stack spacing={2}>
+              {isDeleteConfirming && editingProduct && (
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 2, borderColor: 'error.main' }}
                 >
-                  キャンセル
-                </button>
-                <button
-                  className={styles.primaryButton}
-                  onClick={() => {
-                    console.log('登録ボタンがクリックされました');
-                    handleAddProduct();
-                  }}
-                >
-                  {editingId !== null ? '更新' : '登録'}
-                </button>
-              </div>
-            </div>
-          }
-        >
-          {isDeleteConfirming && editingProduct && (
-            <div
-              style={{
-                marginBottom: '20px',
-                padding: '12px',
-                backgroundColor: '#fee2e2',
-                border: '1px solid #fca5a5',
-                borderRadius: '4px',
-              }}
-            >
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontWeight: '600',
-                  color: '#991b1b',
-                }}
-              >
-                ⚠️ 確認: 以下の商品を削除します
-              </label>
-              <p
-                style={{
-                  margin: '8px 0',
-                  fontSize: '14px',
-                  color: '#1f2937',
-                }}
-              >
-                <strong>商品名:</strong> {editingProduct.name}
-              </p>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '4px',
-                  marginTop: '12px',
-                }}
-              >
-                削除を確認するには、商品名を入力してください
-              </label>
-              <input
-                type="text"
-                value={deleteInputValue}
-                onChange={(e) => setDeleteInputValue(e.target.value)}
-                placeholder={`「${editingProduct.name}」と入力`}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #fca5a5',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  backgroundColor: '#fff',
-                }}
-              />
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <button
-                  onClick={handleConfirmDelete}
-                  disabled={deleteInputValue !== editingProduct.name}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    backgroundColor:
-                      deleteInputValue === editingProduct.name
-                        ? '#dc2626'
-                        : '#f3f4f6',
-                    color:
-                      deleteInputValue === editingProduct.name
-                        ? 'white'
-                        : '#9ca3af',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor:
-                      deleteInputValue === editingProduct.name
-                        ? 'pointer'
-                        : 'not-allowed',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                  }}
-                >
-                  削除
-                </button>
-                <button
-                  onClick={handleCancelDelete}
-                  style={{
-                    flex: 1,
-                    padding: '8px',
-                    backgroundColor: '#f3f4f6',
-                    color: '#1f2937',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                  }}
-                >
-                  キャンセル
-                </button>
-              </div>
-            </div>
-          )}
+                  <Typography color="error" fontWeight={700} mb={1}>
+                    ⚠️ 確認: 以下の商品を削除します
+                  </Typography>
+                  <Typography variant="body2" mb={2}>
+                    <strong>商品名:</strong> {editingProduct.name}
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    label="削除確認"
+                    value={deleteInputValue}
+                    onChange={(e) => setDeleteInputValue(e.target.value)}
+                    placeholder={`「${editingProduct.name}」と入力`}
+                  />
+                  <Stack direction="row" spacing={1} mt={2}>
+                    <Button
+                      color="error"
+                      variant="contained"
+                      fullWidth
+                      onClick={handleConfirmDelete}
+                      disabled={deleteInputValue !== editingProduct.name}
+                    >
+                      削除
+                    </Button>
+                    <Button fullWidth onClick={handleCancelDelete}>
+                      キャンセル
+                    </Button>
+                  </Stack>
+                </Paper>
+              )}
 
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>商品名</label>
-              <input
-                type="text"
+              <TextField
+                label="商品名"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
                 placeholder="商品名を入力"
+                fullWidth
               />
-            </div>
-          </div>
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>大カテゴリ</label>
-              <select
-                value={formData.parentCategoryId}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    parentCategoryId: e.target.value,
-                    categoryId: '',
-                  });
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                  gap: 2,
                 }}
               >
-                <option value="">選択してください</option>
-                {parentCategoryList.map((cat) => (
-                  <option key={cat.categoryId} value={cat.categoryId}>
-                    {cat.categoryName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className={styles.formGroup}>
-              <label>小カテゴリ</label>
-              <select
-                value={formData.categoryId}
-                onChange={(e) => {
-                  setFormData({
-                    ...formData,
-                    categoryId: e.target.value,
-                  });
-                }}
-                disabled={!formData.parentCategoryId}
-              >
-                <option value="">選択してください</option>
-                {formData.parentCategoryId &&
-                  parentCategoryList
-                    .find((cat) => cat.categoryId === formData.parentCategoryId)
-                    ?.children?.map((cat) => (
-                      <option key={cat.categoryId} value={cat.categoryId}>
-                        {cat.categoryName}
-                      </option>
-                    ))}
-              </select>
-            </div>
-          </div>
-          <div className={styles.formRow}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-              }}
-            >
-              <input
-                type="checkbox"
-                id="isSpecial"
-                checked={formData.isSpecial}
-                onChange={(e) =>
-                  setFormData({ ...formData, isSpecial: e.target.checked })
-                }
-              />
-              <label
-                htmlFor="isSpecial"
-                style={{ fontSize: '14px', margin: 0 }}
-              >
-                特別商品
-              </label>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>価格</label>
-            <input
-              type="number"
-              value={formData.price}
-              onChange={(e) =>
-                setFormData({ ...formData, price: e.target.value })
-              }
-              placeholder="価格を入力"
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>説明</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              placeholder="商品説明を入力"
-              rows={4}
-            />
-          </div>
-          {formData.isSpecial && (
-            <div className={styles.formGroup}>
-              <label>遷移先URL</label>
-              <input
-                type="text"
-                value={formData.redirectUrl}
-                onChange={(e) =>
-                  setFormData({ ...formData, redirectUrl: e.target.value })
-                }
-                placeholder="https://example.com/product/123"
-              />
-            </div>
-          )}
-          <div className={styles.formGroup}>
-            <label>公開状況</label>
-            <select
-              value={formData.published ? 'public' : 'private'}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  published: e.target.value === 'public',
-                })
-              }
-            >
-              <option value="public">公開</option>
-              <option value="private">非公開</option>
-            </select>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label>メイン画像</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleMainImageUpload}
-              className={styles.fileInput}
-            />
-            {formData.mainImage && (
-              <div className={styles.imagePreview}>
-                <img src={formData.mainImage} alt="メイン画像プレビュー" />
-              </div>
-            )}
-          </div>
-          <div className={styles.formGroup}>
-            <label>サブ画像（最大5枚）</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleSubImageUpload}
-              className={styles.fileInput}
-              disabled={formData.subImages.length >= 5}
-            />
-            {formData.subImages.length > 0 && (
-              <div className={styles.subImagesContainer}>
-                {formData.subImages.map((img, index) => (
-                  <div key={index} className={styles.subImageWrapper}>
-                    <img src={img} alt={`サブ画像 ${index + 1}`} />
-                    <button
-                      type="button"
-                      className={styles.removeButton}
-                      onClick={() => handleRemoveSubImage(index)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </AdminModal>
-
-        <div className={styles.tableContainer}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>商品名</th>
-                <th>価格</th>
-                <th>説明</th>
-                <th>公開状態</th>
-                <th>作成日</th>
-                <th>アクション</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedProducts.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    style={{
-                      textAlign: 'center',
-                      padding: '60px 20px',
-                      fontSize: '16px',
-                      color: '#999',
+                <FormControl fullWidth>
+                  <Select
+                    value={formData.parentCategoryId}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        parentCategoryId: e.target.value,
+                        categoryId: '',
+                      });
                     }}
+                    displayEmpty
                   >
-                    商品が存在しません。
-                  </td>
-                </tr>
-              ) : (
-                paginatedProducts.map((product, index) => (
-                  <React.Fragment key={product.id}>
-                    <tr
-                      data-product-id={product.id}
-                      className={`${styles.productRow} ${
-                        index % 2 === 0 ? styles.oddProduct : styles.evenProduct
-                      }`}
-                      onMouseEnter={(e) => {
-                        const productId =
-                          e.currentTarget.getAttribute('data-product-id');
-                        document
-                          .querySelectorAll(`[data-product-id="${productId}"]`)
-                          .forEach((el) => {
-                            el.classList.add(styles.hovered);
-                          });
-                      }}
-                      onMouseLeave={(e) => {
-                        const productId =
-                          e.currentTarget.getAttribute('data-product-id');
-                        document
-                          .querySelectorAll(`[data-product-id="${productId}"]`)
-                          .forEach((el) => {
-                            el.classList.remove(styles.hovered);
-                          });
-                      }}
-                      style={
-                        {
-                          backgroundColor:
-                            editingId === product.id ? '#dbeafe' : null,
-                        } as any
-                      }
-                    >
-                      <td>{product.id}</td>
-                      <td>{product.name}</td>
-                      <td>¥{product.price.toLocaleString()}</td>
-                      <td className={styles.descriptionCell}>
-                        {product.description}
-                      </td>
-                      <td>
-                        <span
-                          className={`${styles.badge} ${
-                            product.published ? styles.active : styles.suspended
-                          }`}
-                        >
-                          {product.published ? '公開' : '非公開'}
-                        </span>
-                      </td>
-                      <td>{product.createdDate}</td>
-                      <td rowSpan={2}>
-                        <button
-                          className={styles.secondaryButton}
-                          onClick={() => {
-                            // API通信をシミュレート
-                            setTimeout(() => {
-                              setSelectedProductForStats(product);
-                              setShowAccessStatsModal(true);
-                            }, 1000);
+                    <MenuItem value="">選択してください</MenuItem>
+                    {parentCategoryList.map((cat) => (
+                      <MenuItem key={cat.categoryId} value={cat.categoryId}>
+                        {cat.categoryName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                  <Select
+                    value={formData.categoryId}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        categoryId: e.target.value,
+                      });
+                    }}
+                    disabled={!formData.parentCategoryId}
+                    displayEmpty
+                  >
+                    <MenuItem value="">選択してください</MenuItem>
+                    {formData.parentCategoryId &&
+                      parentCategoryList
+                        .find(
+                          (cat) => cat.categoryId === formData.parentCategoryId,
+                        )
+                        ?.children?.map((cat) => (
+                          <MenuItem key={cat.categoryId} value={cat.categoryId}>
+                            {cat.categoryName}
+                          </MenuItem>
+                        ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.isSpecial}
+                    onChange={(e) =>
+                      setFormData({ ...formData, isSpecial: e.target.checked })
+                    }
+                  />
+                }
+                label="特別商品"
+              />
+              <TextField
+                label="価格"
+                type="number"
+                value={formData.price}
+                onChange={(e) =>
+                  setFormData({ ...formData, price: e.target.value })
+                }
+                placeholder="価格を入力"
+                fullWidth
+              />
+              <TextField
+                label="説明"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="商品説明を入力"
+                rows={4}
+                multiline
+                fullWidth
+              />
+              {formData.isSpecial && (
+                <TextField
+                  label="遷移先URL"
+                  value={formData.redirectUrl}
+                  onChange={(e) =>
+                    setFormData({ ...formData, redirectUrl: e.target.value })
+                  }
+                  placeholder="https://example.com/product/123"
+                  fullWidth
+                />
+              )}
+              <FormControl fullWidth>
+                <Select
+                  value={formData.published ? 'public' : 'private'}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      published: e.target.value === 'public',
+                    })
+                  }
+                >
+                  <MenuItem value="public">公開</MenuItem>
+                  <MenuItem value="private">非公開</MenuItem>
+                </Select>
+              </FormControl>
+
+              <Box>
+                <Typography variant="subtitle2" mb={1}>
+                  メイン画像
+                </Typography>
+                <Box
+                  component="label"
+                  sx={{
+                    display: 'block',
+                    padding: '12px 16px',
+                    border: '2px dashed #ccc',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    '&:hover': { borderColor: '#999' },
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleMainImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                  ファイルを選択
+                </Box>
+                {formData.mainImage && (
+                  <Box sx={{ mt: 1 }}>
+                    <img
+                      src={formData.mainImage}
+                      alt="メイン画像プレビュー"
+                      style={{ maxWidth: '100%', borderRadius: 8 }}
+                    />
+                  </Box>
+                )}
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" mb={1}>
+                  サブ画像（最大5枚）
+                </Typography>
+                <Box
+                  component="label"
+                  sx={{
+                    display: 'block',
+                    padding: '12px 16px',
+                    border: '2px dashed #ccc',
+                    borderRadius: '4px',
+                    textAlign: 'center',
+                    cursor:
+                      formData.subImages.length >= 5
+                        ? 'not-allowed'
+                        : 'pointer',
+                    opacity: formData.subImages.length >= 5 ? 0.5 : 1,
+                    '&:hover': {
+                      borderColor:
+                        formData.subImages.length >= 5 ? '#ccc' : '#999',
+                    },
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleSubImageUpload}
+                    disabled={formData.subImages.length >= 5}
+                    style={{ display: 'none' }}
+                  />
+                  ファイルを選択
+                </Box>
+                {formData.subImages.length > 0 && (
+                  <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
+                    {formData.subImages.map((img, index) => (
+                      <Box key={index} sx={{ position: 'relative' }}>
+                        <img
+                          src={img}
+                          alt={`サブ画像 ${index + 1}`}
+                          style={{
+                            width: 80,
+                            height: 80,
+                            objectFit: 'cover',
+                            borderRadius: 6,
+                          }}
+                        />
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveSubImage(index)}
+                          sx={{
+                            position: 'absolute',
+                            top: -8,
+                            right: -8,
+                            minWidth: 'auto',
+                            p: 0.5,
                           }}
                         >
-                          統計
-                        </button>
-                        <button
-                          className={styles.secondaryButton}
-                          onClick={() => handleEditProduct(product)}
-                        >
-                          編集
-                        </button>
-                      </td>
-                    </tr>
-                    <tr
-                      data-product-id={product.id}
-                      className={`${styles.categoryRow} ${
-                        index % 2 === 0 ? styles.oddProduct : styles.evenProduct
-                      }`}
-                      onMouseEnter={(e) => {
-                        const productId =
-                          e.currentTarget.getAttribute('data-product-id');
-                        document
-                          .querySelectorAll(`[data-product-id="${productId}"]`)
-                          .forEach((el) => {
-                            el.classList.add(styles.hovered);
-                          });
-                      }}
-                      onMouseLeave={(e) => {
-                        const productId =
-                          e.currentTarget.getAttribute('data-product-id');
-                        document
-                          .querySelectorAll(`[data-product-id="${productId}"]`)
-                          .forEach((el) => {
-                            el.classList.remove(styles.hovered);
-                          });
-                      }}
-                    >
-                      <td colSpan={6} className={styles.categoryCell}>
-                        {categories.find(
-                          (c) => c.categoryId === product.parentCategoryId
-                        )?.categoryName || '親'}{' '}
-                        &gt;{' '}
-                        {categories.find(
-                          (c) => c.categoryId === product.categoryId
-                        )?.categoryName || '子'}
-                      </td>
-                    </tr>
-                  </React.Fragment>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                          ×
+                        </Button>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+            </Stack>
+          </AdminModal>
 
-        {showAccessStatsModal && selectedProductForStats && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-            }}
-            onClick={() => setShowAccessStatsModal(false)}
-          >
-            <div
-              style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '8px',
-                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
-                maxWidth: '800px',
-                maxHeight: '90vh',
-                overflow: 'auto',
-                padding: '30px',
-                width: '90%',
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>商品名</TableCell>
+                  <TableCell>価格</TableCell>
+                  <TableCell>説明</TableCell>
+                  <TableCell>公開状態</TableCell>
+                  <TableCell>作成日</TableCell>
+                  <TableCell>アクション</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paginatedProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7}>
+                      <Typography
+                        textAlign="center"
+                        color="text.secondary"
+                        py={4}
+                      >
+                        商品が存在しません。
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedProducts.map((product) => (
+                    <React.Fragment key={product.id}>
+                      <TableRow hover selected={editingId === product.id}>
+                        <TableCell>{product.id}</TableCell>
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>¥{product.price.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {product.description}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={product.published ? '公開' : '非公開'}
+                            color={product.published ? 'success' : 'default'}
+                          />
+                        </TableCell>
+                        <TableCell>{product.createdDate}</TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                setTimeout(() => {
+                                  setSelectedProductForStats(product);
+                                  setShowAccessStatsModal(true);
+                                }, 1000);
+                              }}
+                            >
+                              統計
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleEditProduct(product)}
+                            >
+                              編集
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={7}>
+                          <Typography variant="caption" color="text.secondary">
+                            {categories.find(
+                              (c) => c.categoryId === product.parentCategoryId,
+                            )?.categoryName || '親'}{' '}
+                            &gt;{' '}
+                            {categories.find(
+                              (c) => c.categoryId === product.categoryId,
+                            )?.categoryName || '子'}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Paper>
+
+          {showAccessStatsModal && selectedProductForStats && (
+            <Dialog
+              open={showAccessStatsModal}
+              onClose={() => setShowAccessStatsModal(false)}
+              maxWidth="md"
+              fullWidth
+              PaperProps={{
+                sx: {
+                  maxHeight: '90vh',
+                  overflow: 'auto',
+                },
               }}
-              onClick={(e) => e.stopPropagation()}
             >
-              <div
-                style={{
+              <DialogTitle
+                sx={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '20px',
                 }}
               >
-                <h2
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: '700',
-                    color: '#1f2937',
-                  }}
-                >
-                  アクセス統計 - {selectedProductForStats.name}
-                </h2>
-                <button
+                アクセス統計 - {selectedProductForStats.name}
+                <IconButton
                   onClick={() => setShowAccessStatsModal(false)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    fontSize: '24px',
-                    cursor: 'pointer',
-                    color: '#6b7280',
-                  }}
+                  size="small"
                 >
-                  ×
-                </button>
-              </div>
-              <AccessStatsDisplay product={selectedProductForStats} />
-            </div>
-          </div>
-        )}
+                  <CloseIcon />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent>
+                <AccessStatsDisplay product={selectedProductForStats} />
+              </DialogContent>
+            </Dialog>
+          )}
 
-        <div className={styles.pagination}>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </div>
-      </div>
+          <Box display="flex" justifyContent="center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </Box>
+        </Stack>
+      </Box>
     </>
   );
 }
@@ -1219,28 +1137,34 @@ function AccessStatsDisplay({ product }: AccessStatsDisplayProps) {
   const totalAccess = stats.reduce((sum, s) => sum + s.count, 0);
 
   // 年別アクセス数
-  const yearStats = stats.reduce((acc, stat) => {
-    const year = stat.date.split('-')[0];
-    const existing = acc.find((s) => s.name === year);
-    if (existing) {
-      existing.count += stat.count;
-    } else {
-      acc.push({ name: year, count: stat.count });
-    }
-    return acc;
-  }, [] as { name: string; count: number }[]);
+  const yearStats = stats.reduce(
+    (acc, stat) => {
+      const year = stat.date.split('-')[0];
+      const existing = acc.find((s) => s.name === year);
+      if (existing) {
+        existing.count += stat.count;
+      } else {
+        acc.push({ name: year, count: stat.count });
+      }
+      return acc;
+    },
+    [] as { name: string; count: number }[],
+  );
 
   // 月別アクセス数
-  const monthStats = stats.reduce((acc, stat) => {
-    const month = stat.date.substring(0, 7); // YYYY-MM
-    const existing = acc.find((s) => s.name === month);
-    if (existing) {
-      existing.count += stat.count;
-    } else {
-      acc.push({ name: month, count: stat.count });
-    }
-    return acc;
-  }, [] as { name: string; count: number }[]);
+  const monthStats = stats.reduce(
+    (acc, stat) => {
+      const month = stat.date.substring(0, 7); // YYYY-MM
+      const existing = acc.find((s) => s.name === month);
+      if (existing) {
+        existing.count += stat.count;
+      } else {
+        acc.push({ name: month, count: stat.count });
+      }
+      return acc;
+    },
+    [] as { name: string; count: number }[],
+  );
 
   // 日別アクセス数（最新30日）
   const dayStats = stats.slice(-30).map((stat) => ({
@@ -1272,195 +1196,127 @@ function AccessStatsDisplay({ product }: AccessStatsDisplayProps) {
   }
 
   return (
-    <div>
-      <div
-        style={{
-          backgroundColor: '#f9fafb',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          padding: '20px',
-          marginBottom: '20px',
-        }}
-      >
-        <div style={{ marginBottom: '20px' }}>
-          <h4
-            style={{
-              marginBottom: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-            }}
+    <Stack spacing={3}>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+              表示期間
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              {[
+                { value: 'all' as const, label: '全期間' },
+                { value: 'year' as const, label: '年別' },
+                { value: 'month' as const, label: '月別' },
+                { value: 'day' as const, label: '日別' },
+              ].map((option) => (
+                <Button
+                  key={option.value}
+                  onClick={() => setDisplayMode(option.value)}
+                  variant={
+                    displayMode === option.value ? 'contained' : 'outlined'
+                  }
+                  size="small"
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+              {title}
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fafafa' }}>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  {displayMode === 'all' ? (
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#3b82f6" name="アクセス数" />
+                    </BarChart>
+                  ) : (
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="name"
+                        angle={displayMode === 'day' ? -45 : 0}
+                        textAnchor={displayMode === 'day' ? 'end' : 'middle'}
+                        height={displayMode === 'day' ? 80 : 30}
+                      />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#3b82f6"
+                        name="アクセス数"
+                        dot={{ fill: '#3b82f6', r: 4 }}
+                      />
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <Typography color="text.secondary" textAlign="center" py={3}>
+                  アクセスデータがありません
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+
+          <Box
+            display="grid"
+            gridTemplateColumns="repeat(auto-fit, minmax(150px, 1fr))"
+            gap={1.5}
           >
-            表示期間
-          </h4>
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
-            {[
-              { value: 'all' as const, label: '全期間' },
-              { value: 'year' as const, label: '年別' },
-              { value: 'month' as const, label: '月別' },
-              { value: 'day' as const, label: '日別' },
-            ].map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setDisplayMode(option.value)}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '13px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  backgroundColor:
-                    displayMode === option.value ? '#3b82f6' : '#ffffff',
-                  color: displayMode === option.value ? '#ffffff' : '#000000',
-                  cursor: 'pointer',
-                }}
+            <Paper sx={{ p: 1.5, bgcolor: 'info.light', textAlign: 'center' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mb={0.5}
               >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <h4
-            style={{
-              marginBottom: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-            }}
-          >
-            {title}
-          </h4>
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              padding: '20px',
-              borderRadius: '4px',
-              border: '1px solid #e5e7eb',
-            }}
-          >
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                {displayMode === 'all' ? (
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#3b82f6" name="アクセス数" />
-                  </BarChart>
-                ) : (
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="name"
-                      angle={displayMode === 'day' ? -45 : 0}
-                      textAnchor={displayMode === 'day' ? 'end' : 'middle'}
-                      height={displayMode === 'day' ? 80 : 30}
-                    />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      stroke="#3b82f6"
-                      name="アクセス数"
-                      dot={{ fill: '#3b82f6', r: 4 }}
-                    />
-                  </LineChart>
-                )}
-              </ResponsiveContainer>
-            ) : (
-              <p style={{ textAlign: 'center', color: '#6b7280' }}>
-                アクセスデータがありません
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '12px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#dbeafe',
-              padding: '12px',
-              borderRadius: '4px',
-              textAlign: 'center',
-            }}
-          >
-            <p
-              style={{
-                fontSize: '12px',
-                color: '#6b7280',
-                marginBottom: '4px',
-              }}
-            >
-              全期間
-            </p>
-            <p
-              style={{ fontSize: '20px', fontWeight: '700', color: '#1f2937' }}
-            >
-              {totalAccess}
-            </p>
-          </div>
-          <div
-            style={{
-              backgroundColor: '#dbeafe',
-              padding: '12px',
-              borderRadius: '4px',
-              textAlign: 'center',
-            }}
-          >
-            <p
-              style={{
-                fontSize: '12px',
-                color: '#6b7280',
-                marginBottom: '4px',
-              }}
-            >
-              最大アクセス日
-            </p>
-            <p
-              style={{ fontSize: '16px', fontWeight: '700', color: '#1f2937' }}
-            >
-              {Math.max(...stats.map((s) => s.count), 0)} 回
-            </p>
-          </div>
-          <div
-            style={{
-              backgroundColor: '#dbeafe',
-              padding: '12px',
-              borderRadius: '4px',
-              textAlign: 'center',
-            }}
-          >
-            <p
-              style={{
-                fontSize: '12px',
-                color: '#6b7280',
-                marginBottom: '4px',
-              }}
-            >
-              平均アクセス/日
-            </p>
-            <p
-              style={{ fontSize: '16px', fontWeight: '700', color: '#1f2937' }}
-            >
-              {stats.length > 0 ? Math.round(totalAccess / stats.length) : 0} 回
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+                全期間
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {totalAccess}
+              </Typography>
+            </Paper>
+            <Paper sx={{ p: 1.5, bgcolor: 'info.light', textAlign: 'center' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mb={0.5}
+              >
+                最大アクセス日
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {Math.max(...stats.map((s) => s.count), 0)} 回
+              </Typography>
+            </Paper>
+            <Paper sx={{ p: 1.5, bgcolor: 'info.light', textAlign: 'center' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mb={0.5}
+              >
+                平均アクセス/日
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {stats.length > 0 ? Math.round(totalAccess / stats.length) : 0}{' '}
+                回
+              </Typography>
+            </Paper>
+          </Box>
+        </Stack>
+      </Paper>
+    </Stack>
   );
 }

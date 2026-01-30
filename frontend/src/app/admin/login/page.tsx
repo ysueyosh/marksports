@@ -3,8 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import styles from '../admin-login.module.css';
 import { adminLogin } from '@/api/admin';
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Stack,
+  CircularProgress,
+  Alert,
+  Link as MuiLink,
+} from '@mui/material';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -69,73 +79,73 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className={styles.fullScreen}>
-      <div className={styles.container}>
-        <div className={styles.loginBox}>
-          {isInitializing ? (
-            <div className={styles.loadingContainer}>
-              <div className={styles.spinner}></div>
-              <p>読み込み中...</p>
-            </div>
-          ) : (
-            <>
-              <h1 className={styles.title}>管理者ログイン</h1>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        bgcolor: 'grey.100',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2,
+      }}
+    >
+      <Paper sx={{ p: { xs: 3, md: 4 }, width: '100%', maxWidth: 420 }}>
+        {isInitializing ? (
+          <Stack spacing={2} alignItems="center">
+            <CircularProgress />
+            <Typography>読み込み中...</Typography>
+          </Stack>
+        ) : (
+          <Stack spacing={3}>
+            <Typography variant="h5" fontWeight={700}>
+              管理者ログイン
+            </Typography>
 
-              <form onSubmit={handleSubmit} className={styles.form}>
-                <div className={styles.formGroup}>
-                  <label htmlFor="email" className={styles.label}>
-                    メールアドレス
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="メールアドレス"
-                    className={styles.input}
-                    required
-                  />
-                </div>
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              display="flex"
+              flexDirection="column"
+              gap={2}
+            >
+              <TextField
+                label="メールアドレス"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="メールアドレス"
+                required
+                fullWidth
+              />
 
-                <div className={styles.formGroup}>
-                  <label htmlFor="password" className={styles.label}>
-                    パスワード
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="パスワード"
-                    className={styles.input}
-                    required
-                  />
-                </div>
+              <TextField
+                label="パスワード"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="パスワード"
+                required
+                fullWidth
+              />
 
-                {error && <div className={styles.error}>{error}</div>}
+              {error && <Alert severity="error">{error}</Alert>}
 
-                <button
-                  type="submit"
-                  className={styles.submitButton}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'ログイン中...' : 'ログイン'}
-                </button>
-              </form>
+              <Button type="submit" variant="contained" disabled={isLoading}>
+                {isLoading ? 'ログイン中...' : 'ログイン'}
+              </Button>
+            </Box>
 
-              <div className={styles.links}>
-                <Link href="/admin/create-admin" className={styles.createLink}>
-                  新規管理者ユーザーを作成
-                </Link>
-              </div>
-
-              <Link href="/" className={styles.backButton}>
+            <Stack spacing={1}>
+              <MuiLink component={Link} href="/admin/create-admin">
+                新規管理者ユーザーを作成
+              </MuiLink>
+              <MuiLink component={Link} href="/">
                 ← ホーム画面へ
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+              </MuiLink>
+            </Stack>
+          </Stack>
+        )}
+      </Paper>
+    </Box>
   );
 }

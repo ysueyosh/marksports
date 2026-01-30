@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
-import styles from './Snackbar.module.css';
+import { Snackbar as MuiSnackbar, Alert } from '@mui/material';
 
 export type SnackbarType = 'success' | 'error' | 'info' | 'warning';
 
@@ -18,17 +17,21 @@ export default function Snackbar({
   onClose,
   duration = 3000,
 }: SnackbarProps) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, duration);
-    return () => clearTimeout(timer);
-  }, [onClose, duration]);
-
   return (
-    <div className={`${styles.snackbar} ${styles[type]}`}>
-      <span className={styles.message}>{message}</span>
-      <button className={styles.closeButton} onClick={onClose}>
-        ✕
-      </button>
-    </div>
+    <MuiSnackbar
+      open
+      autoHideDuration={duration}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert
+        onClose={onClose}
+        severity={type}
+        variant="filled"
+        sx={{ width: '100%' }}
+      >
+        {message}
+      </Alert>
+    </MuiSnackbar>
   );
 }

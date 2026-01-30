@@ -3,9 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import styles from './create-admin.module.css';
 import { createAdmin } from '@/api/admin';
 import Snackbar from '@/components/Snackbar/Snackbar';
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Stack,
+  CircularProgress,
+  Link as MuiLink,
+} from '@mui/material';
 
 export default function CreateAdminPage() {
   const router = useRouter();
@@ -118,119 +127,125 @@ export default function CreateAdminPage() {
   };
 
   if (!isReady) {
-    return <div className={styles.fullScreen}>読み込み中...</div>;
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          bgcolor: 'grey.100',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
-    <div className={styles.fullScreen}>
-      <div className={styles.container}>
-        <div className={styles.formWrapper}>
-          <div className={styles.header}>
-            <h1>管理者ユーザー作成</h1>
-            <p>新しい管理者アカウントを作成します</p>
-          </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        bgcolor: 'grey.100',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2,
+      }}
+    >
+      <Paper sx={{ p: { xs: 3, md: 4 }, width: '100%', maxWidth: 560 }}>
+        <Stack spacing={3}>
+          <Box>
+            <Typography variant="h5" fontWeight={700} gutterBottom>
+              管理者ユーザー作成
+            </Typography>
+            <Typography color="text.secondary">
+              新しい管理者アカウントを作成します
+            </Typography>
+          </Box>
 
-          <form onSubmit={handleSubmit} className={styles.form}>
-            {/* Name Field */}
-            <div className={styles.formGroup}>
-              <label htmlFor="name">名前 *</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="山田太郎"
-                className={errors.name ? styles.inputError : ''}
-                disabled={loading}
-              />
-              {errors.name && (
-                <span className={styles.error}>{errors.name}</span>
-              )}
-            </div>
-
-            {/* Email Field */}
-            <div className={styles.formGroup}>
-              <label htmlFor="email">メールアドレス *</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="admin@example.com"
-                className={errors.email ? styles.inputError : ''}
-                disabled={loading}
-              />
-              {errors.email && (
-                <span className={styles.error}>{errors.email}</span>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div className={styles.formGroup}>
-              <label htmlFor="password">パスワード *</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="8文字以上のパスワード"
-                className={errors.password ? styles.inputError : ''}
-                disabled={loading}
-              />
-              {errors.password && (
-                <span className={styles.error}>{errors.password}</span>
-              )}
-              <p className={styles.hint}>
-                8文字以上のパスワードを設定してください
-              </p>
-            </div>
-
-            {/* Confirm Password Field */}
-            <div className={styles.formGroup}>
-              <label htmlFor="confirmPassword">パスワード確認 *</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="パスワードを再入力"
-                className={errors.confirmPassword ? styles.inputError : ''}
-                disabled={loading}
-              />
-              {errors.confirmPassword && (
-                <span className={styles.error}>{errors.confirmPassword}</span>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className={styles.submitButton}
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            display="flex"
+            flexDirection="column"
+            gap={2}
+          >
+            <TextField
+              label="名前"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="山田太郎"
+              error={Boolean(errors.name)}
+              helperText={errors.name}
               disabled={loading}
-            >
+              required
+              fullWidth
+            />
+
+            <TextField
+              label="メールアドレス"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="admin@example.com"
+              error={Boolean(errors.email)}
+              helperText={errors.email}
+              disabled={loading}
+              required
+              fullWidth
+            />
+
+            <TextField
+              label="パスワード"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="8文字以上のパスワード"
+              error={Boolean(errors.password)}
+              helperText={
+                errors.password || '8文字以上のパスワードを設定してください'
+              }
+              disabled={loading}
+              required
+              fullWidth
+            />
+
+            <TextField
+              label="パスワード確認"
+              name="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="パスワードを再入力"
+              error={Boolean(errors.confirmPassword)}
+              helperText={errors.confirmPassword}
+              disabled={loading}
+              required
+              fullWidth
+            />
+
+            <Button type="submit" variant="contained" disabled={loading}>
               {loading ? '作成中...' : '管理者ユーザーを作成'}
-            </button>
-          </form>
+            </Button>
+          </Box>
 
-          {/* Links */}
-          <div className={styles.links}>
-            <div className={styles.linkContent}>
-              <span className={styles.linkText}>既存の管理者ですか？</span>
-              <Link href="/admin/login" className={styles.loginLink}>
-                ログインページへ
-              </Link>
-            </div>
-            <Link href="/" className={styles.backLink}>
+          <Stack spacing={1}>
+            <Typography variant="body2" color="text.secondary">
+              既存の管理者ですか？
+            </Typography>
+            <MuiLink component={Link} href="/admin/login">
+              ログインページへ
+            </MuiLink>
+            <MuiLink component={Link} href="/">
               ← ホーム画面へ
-            </Link>
-          </div>
-        </div>
+            </MuiLink>
+          </Stack>
+        </Stack>
 
-        {/* Snackbar */}
         {snackbar.open && (
           <Snackbar
             message={snackbar.message}
@@ -238,7 +253,7 @@ export default function CreateAdminPage() {
             onClose={() => setSnackbar({ ...snackbar, open: false })}
           />
         )}
-      </div>
-    </div>
+      </Paper>
+    </Box>
   );
 }

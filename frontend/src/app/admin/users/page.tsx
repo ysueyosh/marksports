@@ -5,10 +5,20 @@ import AdminModal from '@/components/Admin/AdminModal';
 import AdminTable from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
 import Snackbar from '@/components/Snackbar/Snackbar';
-import sharedStyles from '../admin-shared.module.css';
 import { adminUserAPI, User } from '@/api/admin-users';
-
-const styles = sharedStyles;
+import {
+  Box,
+  Typography,
+  Paper,
+  TextField,
+  Stack,
+  Chip,
+  Button,
+  FormControl,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
+} from '@mui/material';
 
 interface UserForm {
   name: string;
@@ -198,8 +208,16 @@ export default function AdminUsersPage() {
 
   // フォーム入力を処理
   const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  const handleSelectChange = (e: SelectChangeEvent) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
@@ -211,7 +229,7 @@ export default function AdminUsersPage() {
   const filteredUsers = users.filter(
     (user) =>
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // ページネーション
@@ -220,368 +238,238 @@ export default function AdminUsersPage() {
   const displayedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>ユーザー管理</h1>
-      </div>
+    <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+      <Stack spacing={2}>
+        <Typography variant="h4" fontWeight={700}>
+          ユーザー管理
+        </Typography>
 
-      <div className={styles.searchBox}>
-        <input
-          type="text"
-          className={styles.searchInput}
-          placeholder="メールアドレスまたは名前で検索..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <TextField
+            fullWidth
+            placeholder="メールアドレスまたは名前で検索..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </Paper>
+
+        <AdminTable
+          columns={[
+            {
+              key: 'email',
+              label: 'メールアドレス',
+              render: (value) => (
+                <Typography fontWeight={600}>{value}</Typography>
+              ),
+            },
+            {
+              key: 'name',
+              label: '名前',
+              render: (value) => value || '-',
+            },
+            {
+              key: 'phone',
+              label: '電話番号',
+              render: (value) => value || '-',
+              hide: { mobile: true, tablet: true },
+            },
+            {
+              key: 'sex',
+              label: '性別',
+              render: (value) =>
+                value === 'male' ? '男性' : value === 'female' ? '女性' : '-',
+              hide: { mobile: true },
+            },
+            {
+              key: 'status',
+              label: 'ステータス',
+              render: (value) => (
+                <Chip
+                  size="small"
+                  label={value === 'active' ? 'アクティブ' : '非アクティブ'}
+                  color={value === 'active' ? 'success' : 'default'}
+                />
+              ),
+            },
+            {
+              key: 'createdAt',
+              label: '登録日',
+              render: (value) => new Date(value).toLocaleDateString('ja-JP'),
+              hide: { mobile: true },
+            },
+          ]}
+          data={displayedUsers}
+          rowKey="userId"
+          actions={[
+            {
+              label: '編集',
+              onClick: (row) => handleEditClick(row),
+              variant: 'primary',
+            },
+          ]}
+          emptyMessage="ユーザーが見つかりません"
+        />
+
+        <Box display="flex" justifyContent="center">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </Box>
+
+        <AdminModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setIsDeleteConfirming(false);
+            setDeleteInputValue('');
           }}
-        />
-      </div>
-
-      <AdminTable
-        columns={[
-          {
-            key: 'email',
-            label: 'メールアドレス',
-            render: (value) => (
-              <span style={{ fontWeight: '500' }}>{value}</span>
-            ),
-          },
-          {
-            key: 'name',
-            label: '名前',
-            render: (value) => value || '-',
-          },
-          {
-            key: 'phone',
-            label: '電話番号',
-            render: (value) => value || '-',
-            hide: { mobile: true, tablet: true },
-          },
-          {
-            key: 'sex',
-            label: '性別',
-            render: (value) =>
-              value === 'male' ? '男性' : value === 'female' ? '女性' : '-',
-            hide: { mobile: true },
-          },
-          {
-            key: 'status',
-            label: 'ステータス',
-            render: (value) => (
-              <span
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  backgroundColor: value === 'active' ? '#d1fae5' : '#fee2e2',
-                  color: value === 'active' ? '#065f46' : '#991b1b',
-                }}
-              >
-                {value === 'active' ? 'アクティブ' : '非アクティブ'}
-              </span>
-            ),
-          },
-          {
-            key: 'createdAt',
-            label: '登録日',
-            render: (value) => new Date(value).toLocaleDateString('ja-JP'),
-            hide: { mobile: true },
-          },
-        ]}
-        data={displayedUsers}
-        rowKey="userId"
-        actions={[
-          {
-            label: '編集',
-            onClick: (row) => handleEditClick(row),
-            variant: 'primary',
-          },
-        ]}
-        emptyMessage="ユーザーが見つかりません"
-      />
-
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
-
-      <AdminModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setIsDeleteConfirming(false);
-          setDeleteInputValue('');
-        }}
-        title={editingUser ? 'ユーザーを編集' : 'ユーザー情報'}
-        buttons={
-          <div
-            style={{
-              display: 'flex',
-              gap: '10px',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'flex' }}>
-              {editingUser && !isDeleteConfirming && (
-                <button
-                  className={`${styles.secondaryButton} ${styles.danger}`}
-                  onClick={handleStartDelete}
-                >
-                  削除
-                </button>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                className={styles.secondaryButton}
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setIsDeleteConfirming(false);
-                  setDeleteInputValue('');
-                }}
-              >
-                キャンセル
-              </button>
-              {editingUser && !isDeleteConfirming && (
-                <button
-                  className={styles.primaryButton}
-                  onClick={handleSaveUser}
-                  disabled={isLoading}
-                >
-                  更新
-                </button>
-              )}
-            </div>
-          </div>
-        }
-      >
-        {isDeleteConfirming && editingUser && (
-          <div
-            style={{
-              marginBottom: '20px',
-              padding: '12px',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fca5a5',
-              borderRadius: '4px',
-            }}
-          >
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '600',
-                color: '#991b1b',
-              }}
-            >
-              ⚠️ 確認: 以下のユーザーを削除します
-            </label>
-            <p style={{ margin: '8px 0', fontSize: '14px', color: '#1f2937' }}>
-              <strong>ユーザーID:</strong> {editingUser.userId}
-            </p>
-            <p style={{ margin: '8px 0', fontSize: '14px', color: '#1f2937' }}>
-              <strong>メール:</strong> {editingUser.email}
-            </p>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '4px',
-                marginTop: '12px',
-              }}
-            >
-              削除を確認するため、ユーザーIDを入力してください
-            </label>
-            <input
-              type="text"
-              value={deleteInputValue}
-              onChange={(e) => setDeleteInputValue(e.target.value)}
-              placeholder={`「${editingUser.userId}」と入力`}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #fca5a5',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                backgroundColor: '#fff',
-              }}
-            />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={deleteInputValue !== editingUser.userId}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  backgroundColor:
-                    deleteInputValue === editingUser.userId
-                      ? '#dc2626'
-                      : '#f3f4f6',
-                  color:
-                    deleteInputValue === editingUser.userId
-                      ? 'white'
-                      : '#9ca3af',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor:
-                    deleteInputValue === editingUser.userId
-                      ? 'pointer'
-                      : 'not-allowed',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                }}
-              >
-                削除
-              </button>
-              <button
-                onClick={handleCancelDelete}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                }}
-              >
-                キャンセル
-              </button>
-            </div>
-          </div>
-        )}
-
-        {editingUser && !isDeleteConfirming && (
-          <>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '4px' }}>
-                メールアドレス
-              </label>
-              <input
-                type="email"
-                value={editingUser.email}
-                disabled
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  backgroundColor: '#f3f4f6',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '4px' }}>
-                名前
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleFormChange}
-                placeholder="名前を入力"
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '4px' }}>
-                電話番号
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleFormChange}
-                placeholder="電話番号を入力"
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '16px',
-                marginBottom: '16px',
-              }}
-            >
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px' }}>
-                  性別
-                </label>
-                <select
-                  name="sex"
-                  value={formData.sex}
-                  onChange={handleFormChange}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '14px',
+          title={editingUser ? 'ユーザーを編集' : 'ユーザー情報'}
+          buttons={
+            <Stack direction="row" spacing={2} justifyContent="space-between">
+              <Box>
+                {editingUser && !isDeleteConfirming && (
+                  <Button
+                    color="error"
+                    variant="outlined"
+                    onClick={handleStartDelete}
+                  >
+                    削除
+                  </Button>
+                )}
+              </Box>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setIsDeleteConfirming(false);
+                    setDeleteInputValue('');
                   }}
                 >
-                  <option value="">未設定</option>
-                  <option value="male">男性</option>
-                  <option value="female">女性</option>
-                </select>
-              </div>
+                  キャンセル
+                </Button>
+                {editingUser && !isDeleteConfirming && (
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveUser}
+                    disabled={isLoading}
+                  >
+                    更新
+                  </Button>
+                )}
+              </Stack>
+            </Stack>
+          }
+        >
+          <Stack spacing={2}>
+            {isDeleteConfirming && editingUser && (
+              <Paper
+                variant="outlined"
+                sx={{ p: 2, borderColor: 'error.main' }}
+              >
+                <Typography color="error" fontWeight={700} mb={1}>
+                  ⚠️ 確認: 以下のユーザーを削除します
+                </Typography>
+                <Typography variant="body2" mb={1}>
+                  <strong>ユーザーID:</strong> {editingUser.userId}
+                </Typography>
+                <Typography variant="body2" mb={2}>
+                  <strong>メール:</strong> {editingUser.email}
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="削除確認"
+                  value={deleteInputValue}
+                  onChange={(e) => setDeleteInputValue(e.target.value)}
+                  placeholder={`「${editingUser.userId}」と入力`}
+                />
+                <Stack direction="row" spacing={1} mt={2}>
+                  <Button
+                    color="error"
+                    variant="contained"
+                    fullWidth
+                    onClick={handleConfirmDelete}
+                    disabled={deleteInputValue !== editingUser.userId}
+                  >
+                    削除
+                  </Button>
+                  <Button fullWidth onClick={handleCancelDelete}>
+                    キャンセル
+                  </Button>
+                </Stack>
+              </Paper>
+            )}
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px' }}>
-                  ステータス
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
+            {editingUser && !isDeleteConfirming && (
+              <>
+                <TextField
+                  label="メールアドレス"
+                  value={editingUser.email}
+                  disabled
+                  fullWidth
+                />
+                <TextField
+                  label="名前"
+                  name="name"
+                  value={formData.name}
                   onChange={handleFormChange}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '14px',
+                  placeholder="名前を入力"
+                  fullWidth
+                />
+                <TextField
+                  label="電話番号"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleFormChange}
+                  placeholder="電話番号を入力"
+                  fullWidth
+                />
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                    gap: 2,
                   }}
                 >
-                  <option value="active">アクティブ</option>
-                  <option value="inactive">非アクティブ</option>
-                </select>
-              </div>
-            </div>
-          </>
-        )}
-      </AdminModal>
+                  <FormControl fullWidth>
+                    <Select
+                      name="sex"
+                      value={formData.sex}
+                      onChange={handleSelectChange}
+                    >
+                      <MenuItem value="">未設定</MenuItem>
+                      <MenuItem value="male">男性</MenuItem>
+                      <MenuItem value="female">女性</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl fullWidth>
+                    <Select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleSelectChange}
+                    >
+                      <MenuItem value="active">アクティブ</MenuItem>
+                      <MenuItem value="inactive">非アクティブ</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              </>
+            )}
+          </Stack>
+        </AdminModal>
 
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          type={snackbar.type}
-          onClose={() => setSnackbar(null)}
-        />
-      )}
-    </div>
+        {snackbar && (
+          <Snackbar
+            message={snackbar.message}
+            type={snackbar.type}
+            onClose={() => setSnackbar(null)}
+          />
+        )}
+      </Stack>
+    </Box>
   );
 }

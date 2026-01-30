@@ -2,7 +2,14 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import styles from './ProductCard.module.css';
+import {
+  Card,
+  CardActionArea,
+  CardContent,
+  Box,
+  Typography,
+  Button,
+} from '@mui/material';
 import { formatPriceIncludedTax } from '@/utils/price';
 
 interface ProductCardProps {
@@ -29,58 +36,63 @@ export default function ProductCard({
   };
 
   const content = (
-    <div
-      className={styles.productCard}
-      onClick={handleClick}
-      style={onClick ? { cursor: 'pointer' } : {}}
-    >
-      <div className={styles.productImage}>
-        {image ? (
-          <Image
-            src={image}
-            alt={name || '商品画像'}
-            fill
-            className={styles.image}
-            priority
-          />
-        ) : (
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: '#f0f0f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ccc',
-            }}
-          >
-            画像なし
-          </div>
-        )}
-      </div>
-      {showDetails && (
-        <>
-          {name && <h3 className={styles.productName}>{name}</h3>}
-          {price != null && (
-            <p className={styles.productPrice}>
-              {formatPriceIncludedTax(price)}
-            </p>
+    <Card elevation={1} sx={{ height: '100%' }}>
+      <CardActionArea onClick={handleClick} sx={{ height: '100%' }}>
+        <Box sx={{ position: 'relative', width: '100%', pt: '75%' }}>
+          {image ? (
+            <Image
+              src={image}
+              alt={name || '商品画像'}
+              fill
+              style={{ objectFit: 'cover' }}
+              priority
+            />
+          ) : (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                bgcolor: 'grey.100',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'grey.500',
+              }}
+            >
+              画像なし
+            </Box>
           )}
-        </>
-      )}
-      {onClick && (
-        <button
-          className={styles.detailButton}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick();
-          }}
-        >
-          詳細を見る
-        </button>
-      )}
-    </div>
+        </Box>
+        {showDetails && (
+          <CardContent>
+            {name && (
+              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                {name}
+              </Typography>
+            )}
+            {price != null && (
+              <Typography variant="body2" color="text.secondary">
+                {formatPriceIncludedTax(price)}
+              </Typography>
+            )}
+          </CardContent>
+        )}
+        {onClick && (
+          <Box px={2} pb={2}>
+            <Button
+              variant="outlined"
+              fullWidth
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+              }}
+            >
+              詳細を見る
+            </Button>
+          </Box>
+        )}
+      </CardActionArea>
+    </Card>
   );
 
   // Link でラップされている場合と、そうでない場合の両方に対応

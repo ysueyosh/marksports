@@ -7,7 +7,7 @@ import ProductCard from '@/components/ProductCard/ProductCard';
 import Link from 'next/link';
 import { useCategories } from '@/context/CategoryContext';
 import { getFeaturedProducts, Product } from '@/api/products';
-import styles from './page.module.css';
+import { Box, Typography, Button } from '@mui/material';
 
 export default function Home() {
   const router = useRouter();
@@ -38,14 +38,29 @@ export default function Home() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <h1 className={styles.title}>Mark Sports</h1>
-        <p className={styles.subtitle}>お好みのスポーツ用品をお探しください</p>
+      <Box display="flex" flexDirection="column" gap={5}>
+        <Box textAlign="center">
+          <Typography variant="h3" fontWeight={800} gutterBottom>
+            Mark Sports
+          </Typography>
+          <Typography color="text.secondary">
+            お好みのスポーツ用品をお探しください
+          </Typography>
+        </Box>
 
-        {/* おすすめ商品セクション */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>おすすめ商品</h2>
-          <div className={styles.productGrid}>
+        <Box>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            おすすめ商品
+          </Typography>
+          <Box
+            display="grid"
+            gap={2}
+            gridTemplateColumns={{
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+            }}
+          >
             {Array.from(
               new Map(
                 Object.values(featuredProducts)
@@ -64,24 +79,38 @@ export default function Home() {
                   onClick={() => handleProductClick(product.id)}
                 />
               ))}
-          </div>
-        </section>
+          </Box>
+        </Box>
 
-        {/* カテゴリごとの商品セクション */}
         {categories.map((category) => (
-          <section key={category.id} className={styles.section}>
-            <div className={styles.categoryHeader}>
-              <h2 className={styles.sectionTitle}>{category.name}</h2>
-              <Link
+          <Box key={category.id}>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              mb={2}
+            >
+              <Typography variant="h5" fontWeight={700}>
+                {category.name}
+              </Typography>
+              <Button
+                component={Link}
                 href={`/search?categories=${category.subcategories
                   .map((sub) => sub.id)
                   .join('&categories=')}`}
-                className={styles.categoryLink}
               >
                 すべて見る →
-              </Link>
-            </div>
-            <div className={styles.productGrid}>
+              </Button>
+            </Box>
+            <Box
+              display="grid"
+              gap={2}
+              gridTemplateColumns={{
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+              }}
+            >
               {featuredProducts[category.id]?.map((product, index) => (
                 <ProductCard
                   image={product.image}
@@ -92,10 +121,10 @@ export default function Home() {
                   onClick={() => handleProductClick(product.id)}
                 />
               ))}
-            </div>
-          </section>
+            </Box>
+          </Box>
         ))}
-      </div>
+      </Box>
     </MainLayout>
   );
 }

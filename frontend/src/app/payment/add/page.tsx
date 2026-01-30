@@ -8,7 +8,16 @@ import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
 import { addCard } from '@/api/payment';
 import { CardFormComponent } from '@/components/CardFormComponent/CardFormComponent';
-import styles from './add.module.css';
+import {
+  Box,
+  Breadcrumbs,
+  Typography,
+  Stack,
+  Button,
+  Paper,
+  Link as MuiLink,
+  Alert,
+} from '@mui/material';
 
 export default function AddPaymentPage() {
   const router = useRouter();
@@ -138,68 +147,87 @@ export default function AddPaymentPage() {
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>カード追加</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+          <Paper sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack spacing={2}>
+              <Typography variant="h4" fontWeight={700}>
+                カード追加
+              </Typography>
+              <Alert severity="info">ログインしていません</Alert>
+              <Button variant="outlined" component={Link} href="/">
+                ホームへ戻る
+              </Button>
+            </Stack>
+          </Paper>
+        </Box>
       </MainLayout>
     );
   }
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/account">アカウント</Link>
-          <span>/</span>
-          <Link href="/payment">お支払方法管理</Link>
-          <span>/</span>
-          <span>カード追加</span>
-        </div>
-
-        <div className={styles.header}>
-          <h1>カードを追加</h1>
-        </div>
-
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <CardFormComponent
-            cardholderName={cardholderName}
-            onCardholderNameChange={setCardholderName}
-            sqInitialized={sqInitialized}
-            onSqInitialized={setSqInitialized}
-            cardInstanceRef={cardInstanceRef}
-            paymentsInstanceRef={paymentsInstanceRef}
-            isLoggedIn={isLoggedIn}
-          />
-
-          <div className={styles.formGroup}>
-            <button
-              type="submit"
-              disabled={isLoading || !sqInitialized}
-              className={styles.submitButton}
-              style={{
-                opacity: isLoading || !sqInitialized ? 0.6 : 1,
-                cursor: isLoading || !sqInitialized ? 'not-allowed' : 'pointer',
-              }}
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+        <Stack spacing={3}>
+          <Breadcrumbs>
+            <MuiLink
+              component={Link}
+              href="/"
+              underline="hover"
+              color="inherit"
             >
-              {isLoading ? '処理中...' : 'カードを追加'}
-            </button>
-          </div>
+              ホーム
+            </MuiLink>
+            <MuiLink
+              component={Link}
+              href="/account"
+              underline="hover"
+              color="inherit"
+            >
+              アカウント
+            </MuiLink>
+            <MuiLink
+              component={Link}
+              href="/payment"
+              underline="hover"
+              color="inherit"
+            >
+              お支払方法管理
+            </MuiLink>
+            <Typography color="text.secondary">カード追加</Typography>
+          </Breadcrumbs>
 
-          <div className={styles.formGroup}>
-            <Link href="/payment" className={styles.backButton}>
-              キャンセル
-            </Link>
-          </div>
-        </form>
-      </div>
+          <Typography variant="h4" fontWeight={700}>
+            カードを追加
+          </Typography>
+
+          <Paper sx={{ p: { xs: 2, md: 3 } }}>
+            <Stack component="form" onSubmit={handleSubmit} spacing={3}>
+              <CardFormComponent
+                cardholderName={cardholderName}
+                onCardholderNameChange={setCardholderName}
+                sqInitialized={sqInitialized}
+                onSqInitialized={setSqInitialized}
+                cardInstanceRef={cardInstanceRef}
+                paymentsInstanceRef={paymentsInstanceRef}
+                isLoggedIn={isLoggedIn}
+              />
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={isLoading || !sqInitialized}
+                >
+                  {isLoading ? '処理中...' : 'カードを追加'}
+                </Button>
+                <Button variant="outlined" component={Link} href="/payment">
+                  キャンセル
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        </Stack>
+      </Box>
     </MainLayout>
   );
 }

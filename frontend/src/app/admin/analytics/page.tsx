@@ -2,10 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import sharedStyles from '../admin-shared.module.css';
-import pageStyles from './analytics.module.css';
-
-const styles = { ...sharedStyles, ...pageStyles };
+import {
+  Box,
+  Typography,
+  Paper,
+  FormControl,
+  Select,
+  MenuItem,
+  Stack,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+} from '@mui/material';
 
 interface AnalyticsData {
   date: string;
@@ -66,98 +76,137 @@ export default function AdminAnalyticsPage() {
 
   const totalAccess = analyticsData.reduce(
     (sum, data) => sum + data.siteAccess,
-    0
+    0,
   );
   const avgAccess = Math.round(totalAccess / analyticsData.length);
   const topProduct = analyticsData.reduce((prev, current) =>
-    prev.accessCount > current.accessCount ? prev : current
+    prev.accessCount > current.accessCount ? prev : current,
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>分析機能</h1>
-        <select
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
-          className={styles.rangeSelect}
+    <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+      <Stack spacing={3}>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Typography variant="h4" fontWeight={700}>
+            分析機能
+          </Typography>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <Select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value)}
+            >
+              <MenuItem value="week">過去7日間</MenuItem>
+              <MenuItem value="month">過去30日間</MenuItem>
+              <MenuItem value="year">過去1年間</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: '1fr 1fr',
+              md: 'repeat(4, 1fr)',
+            },
+            gap: 2,
+          }}
         >
-          <option value="week">過去7日間</option>
-          <option value="month">過去30日間</option>
-          <option value="year">過去1年間</option>
-        </select>
-      </div>
+          {[
+            {
+              label: '総アクセス数',
+              value: totalAccess.toLocaleString(),
+              sub: '全期間',
+            },
+            { label: '平均日次アクセス', value: avgAccess, sub: '1日あたり' },
+            {
+              label: '最も人気な商品',
+              value: topProduct.productAccess,
+              sub: `${topProduct.accessCount}回のアクセス`,
+            },
+            {
+              label: '分析期間',
+              value: analyticsData.length,
+              sub: '日間のデータ',
+            },
+          ].map((stat) => (
+            <Paper key={stat.label} variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {stat.label}
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {stat.value}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {stat.sub}
+              </Typography>
+            </Paper>
+          ))}
+        </Box>
 
-      <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <h3>総アクセス数</h3>
-          <p className={styles.statNumber}>{totalAccess.toLocaleString()}</p>
-          <p className={styles.statSubtext}>全期間</p>
-        </div>
-        <div className={styles.statCard}>
-          <h3>平均日次アクセス</h3>
-          <p className={styles.statNumber}>{avgAccess}</p>
-          <p className={styles.statSubtext}>1日あたり</p>
-        </div>
-        <div className={styles.statCard}>
-          <h3>最も人気な商品</h3>
-          <p className={styles.statNumber}>{topProduct.productAccess}</p>
-          <p className={styles.statSubtext}>
-            {topProduct.accessCount}回のアクセス
-          </p>
-        </div>
-        <div className={styles.statCard}>
-          <h3>分析期間</h3>
-          <p className={styles.statNumber}>{analyticsData.length}</p>
-          <p className={styles.statSubtext}>日間のデータ</p>
-        </div>
-      </div>
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="h6" fontWeight={700} gutterBottom>
+            サイトアクセス推移
+          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: 1,
+              height: 180,
+            }}
+          >
+            {analyticsData.map((data, index) => {
+              const maxAccess = Math.max(
+                ...analyticsData.map((d) => d.siteAccess),
+              );
+              const height = (data.siteAccess / maxAccess) * 100;
+              return (
+                <Box key={index} sx={{ flex: 1, textAlign: 'center' }}>
+                  <Box
+                    sx={{
+                      height: `${height}%`,
+                      bgcolor: 'primary.main',
+                      borderRadius: 1,
+                    }}
+                    title={`${data.date}: ${data.siteAccess}アクセス`}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {data.date.split('-')[2]}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        </Paper>
 
-      <div className={styles.chartContainer}>
-        <h2 className={styles.chartTitle}>サイトアクセス推移</h2>
-        <div className={styles.chart}>
-          {analyticsData.map((data, index) => {
-            const maxAccess = Math.max(
-              ...analyticsData.map((d) => d.siteAccess)
-            );
-            const height = (data.siteAccess / maxAccess) * 100;
-            return (
-              <div key={index} className={styles.chartBar}>
-                <div
-                  className={styles.bar}
-                  style={{ height: `${height}%` }}
-                  title={`${data.date}: ${data.siteAccess}アクセス`}
-                />
-                <label>{data.date.split('-')[2]}</label>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className={styles.tableContainer}>
-        <h2 className={styles.chartTitle}>商品別アクセス数</h2>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>サイトアクセス数</th>
-              <th>人気商品</th>
-              <th>商品アクセス数</th>
-            </tr>
-          </thead>
-          <tbody>
-            {analyticsData.map((data) => (
-              <tr key={data.date}>
-                <td>{data.date}</td>
-                <td>{data.siteAccess}</td>
-                <td>{data.productAccess}</td>
-                <td>{data.accessCount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <Paper variant="outlined" sx={{ p: 3 }}>
+          <Typography variant="h6" fontWeight={700} gutterBottom>
+            商品別アクセス数
+          </Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>日付</TableCell>
+                <TableCell>サイトアクセス数</TableCell>
+                <TableCell>人気商品</TableCell>
+                <TableCell>商品アクセス数</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {analyticsData.map((data) => (
+                <TableRow key={data.date}>
+                  <TableCell>{data.date}</TableCell>
+                  <TableCell>{data.siteAccess}</TableCell>
+                  <TableCell>{data.productAccess}</TableCell>
+                  <TableCell>{data.accessCount}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      </Stack>
+    </Box>
   );
 }

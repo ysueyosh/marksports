@@ -8,7 +8,15 @@ import { TextInput } from '@/components/Input/TextInput';
 import { verifyResetToken, resetPassword } from '@/api/auth';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useLoading } from '@/context/LoadingContext';
-import styles from './reset-password.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Button,
+  Paper,
+  CircularProgress,
+} from '@mui/material';
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
@@ -48,39 +56,35 @@ export default function ResetPasswordPage() {
     if (token) {
       verifyToken();
     } else {
-      setTokenVerifying(false);
+      router.push('/forgot-password');
     }
   }, [token, router, showSnackbar]);
 
-  const validateForm = (): boolean => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
     const newErrors: Record<string, string> = {};
 
     if (!newPassword) {
       newErrors.newPassword = '新しいパスワードを入力してください';
     } else if (newPassword.length < 8) {
-      newErrors.newPassword = 'パスワードは8文字以上である必要があります';
+      newErrors.newPassword = 'パスワードは8文字以上必要です';
     }
 
     if (!confirmPassword) {
-      newErrors.confirmPassword = 'パスワードを再度入力してください';
+      newErrors.confirmPassword = 'パスワード確認を入力してください';
     } else if (newPassword !== confirmPassword) {
       newErrors.confirmPassword = 'パスワードが一致しません';
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    try {
-      setIsLoading(true);
+    setIsLoading(true);
 
+    try {
       const response = await resetPassword({
         token,
         newPassword,
@@ -107,11 +111,9 @@ export default function ResetPasswordPage() {
   if (tokenVerifying) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.formWrapper}>
-            <p>トークンを確認中...</p>
-          </div>
-        </div>
+        <Box display="flex" justifyContent="center" py={6}>
+          <CircularProgress />
+        </Box>
       </MainLayout>
     );
   }
@@ -122,102 +124,97 @@ export default function ResetPasswordPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <span>パスワードリセット</span>
-        </div>
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+        <Box sx={{ mb: 3 }}>
+          <Breadcrumbs>
+            <MuiLink component={Link} href="/" color="inherit">
+              ホーム
+            </MuiLink>
+            <Typography color="text.primary">パスワードリセット</Typography>
+          </Breadcrumbs>
+        </Box>
 
-        <div className={styles.formWrapper}>
-          <h1>新しいパスワードを設定</h1>
+        <Paper
+          variant="outlined"
+          sx={{ p: { xs: 3, md: 4 }, maxWidth: 500, mx: 'auto' }}
+        >
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            新しいパスワードを設定
+          </Typography>
 
           {!passwordReset ? (
-            <>
-              <p className={styles.description}>
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+            >
+              <Typography color="text.secondary">
                 新しいパスワードを入力してください。
-              </p>
+              </Typography>
 
-              <form onSubmit={handleSubmit} className={styles.form}>
-                <TextInput
-                  name="newPassword"
-                  label="新しいパスワード"
-                  inputType="password"
-                  value={newPassword}
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    if (errors.newPassword) {
-                      setErrors({ ...errors, newPassword: '' });
-                    }
-                  }}
-                  placeholder="8文字以上のパスワード"
-                  disabled={isLoading}
-                  required
-                  error={errors.newPassword}
-                  containerStyle={{ marginBottom: '28px' }}
-                />
+              <TextInput
+                name="newPassword"
+                label="新しいパスワード"
+                inputType="password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  if (errors.newPassword) {
+                    setErrors({ ...errors, newPassword: '' });
+                  }
+                }}
+                placeholder="8文字以上のパスワード"
+                disabled={isLoading}
+                required
+                error={errors.newPassword}
+              />
 
-                <TextInput
-                  name="confirmPassword"
-                  label="パスワード（確認）"
-                  inputType="password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (errors.confirmPassword) {
-                      setErrors({ ...errors, confirmPassword: '' });
-                    }
-                  }}
-                  placeholder="パスワードを再度入力"
-                  disabled={isLoading}
-                  required
-                  error={errors.confirmPassword}
-                  containerStyle={{ marginBottom: '28px' }}
-                />
+              <TextInput
+                name="confirmPassword"
+                label="パスワード（確認）"
+                inputType="password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (errors.confirmPassword) {
+                    setErrors({ ...errors, confirmPassword: '' });
+                  }
+                }}
+                placeholder="パスワードを再度入力"
+                disabled={isLoading}
+                required
+                error={errors.confirmPassword}
+              />
 
-                <button
-                  type="submit"
-                  className={styles.submitButton}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'リセット中...' : 'パスワードリセット'}
-                </button>
-              </form>
+              <Button type="submit" variant="contained" disabled={isLoading}>
+                {isLoading ? 'リセット中...' : 'パスワードリセット'}
+              </Button>
 
-              <div className={styles.links}>
-                <a
-                  href="/"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    router.push('/');
-                  }}
-                  className={styles.link}
-                >
-                  ホームへ戻る
-                </a>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className={styles.successMessage}>
-                <div className={styles.successIcon}>✓</div>
-                <p>パスワードをリセットしました</p>
-              </div>
-
-              <p className={styles.description}>
-                新しいパスワードでログインしてください。
-              </p>
-
-              <button
-                onClick={() => router.push('/')}
-                className={styles.successButton}
+              <MuiLink
+                component="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push('/');
+                }}
               >
                 ホームへ戻る
-              </button>
-            </>
+              </MuiLink>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography fontWeight={700}>
+                パスワードがリセットされました
+              </Typography>
+              <Typography color="text.secondary">
+                新しいパスワードの設定が完了しました。以下のボタンからホームに戻ってください。
+              </Typography>
+              <Button variant="contained" onClick={() => router.push('/')}>
+                ホームへ戻る
+              </Button>
+            </Box>
           )}
-        </div>
-      </div>
+        </Paper>
+      </Box>
     </MainLayout>
   );
 }

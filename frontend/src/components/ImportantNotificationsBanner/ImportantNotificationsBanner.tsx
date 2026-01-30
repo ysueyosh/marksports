@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { Alert, Box } from '@mui/material';
 import { useNotificationContext } from '@/context/NotificationContext';
-import styles from './ImportantNotificationsBanner.module.css';
 
 export default function ImportantNotificationsBanner() {
   const { importantNotifications } = useNotificationContext();
@@ -10,21 +10,22 @@ export default function ImportantNotificationsBanner() {
   if (importantNotifications.length === 0) return null;
 
   return (
-    <div className={styles.banner}>
-      <div className={styles.icon}>⚠️</div>
-      <div className={styles.content}>
+    <Alert severity="warning" icon={false}>
+      <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+        <Box component="span">⚠️</Box>
         {importantNotifications.map((notification, index) => (
-          <span key={notification.id}>
-            {index > 0 && <span className={styles.separator}>・</span>}
-            <Link
+          <Box component="span" key={notification.id}>
+            {index > 0 && <Box component="span">・</Box>}
+            <Box
+              component={Link}
               href={`/notifications/detail?id=${notification.id}`}
-              className={styles.notificationLink}
+              sx={{ color: 'inherit', fontWeight: 600 }}
             >
               {notification.title}
-            </Link>
-          </span>
+            </Box>
+          </Box>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Alert>
   );
 }

@@ -2,10 +2,23 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { Notification, getNotifications } from '@/api/notifications';
 import NotificationTag from '@/components/NotificationTag/NotificationTag';
-import Overlay from '@/components/Common/Overlay';
-import styles from './NotificationPopup.module.css';
 
 interface NotificationPopupProps {
   isOpen: boolean;
@@ -46,57 +59,77 @@ export default function NotificationPopup({
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Overlay */}
-      <Overlay isOpen={isOpen} onClick={onClose} zIndex="notification" />
-
-      {/* Popup */}
-      <div className={styles.popup}>
-        <div className={styles.header}>
-          <h2>お知らせ</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            ✕
-          </button>
-        </div>
-
-        <div className={styles.notificationList}>
-          {loading ? (
-            <div
-              style={{ padding: '20px', textAlign: 'center', color: '#999' }}
-            >
-              読み込み中...
-            </div>
-          ) : notifications.length === 0 ? (
-            <p className={styles.empty}>お知らせはありません</p>
-          ) : (
-            notifications.slice(0, 10).map((notification) => (
-              <Link
+    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        お知らせ
+        <Box flex={1} />
+        <IconButton onClick={onClose} aria-label="閉じる">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
+        {loading ? (
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            py={4}
+          >
+            <CircularProgress />
+          </Box>
+        ) : notifications.length === 0 ? (
+          <Typography color="text.secondary" align="center">
+            お知らせはありません
+          </Typography>
+        ) : (
+          <List disablePadding>
+            {notifications.slice(0, 10).map((notification) => (
+              <ListItemButton
                 key={notification.id}
+                component={Link}
                 href={`/notifications/detail?id=${notification.id}`}
-                className={`${styles.notificationItem} ${
-                  notification.read ? styles.read : styles.unread
-                }`}
                 onClick={onClose}
+                sx={{
+                  alignItems: 'flex-start',
+                  bgcolor: notification.read ? 'transparent' : 'action.hover',
+                  mb: 1,
+                  borderRadius: 2,
+                }}
               >
-                <div className={styles.itemHeader}>
-                  <h3>{notification.title}</h3>
-                  {notification.important && <NotificationTag tag="重要" />}
-                </div>
-                <p className={styles.content}>{notification.message}</p>
-                <span className={styles.date}>
-                  {new Date(notification.timestamp).toLocaleDateString('ja-JP')}
-                </span>
-              </Link>
-            ))
-          )}
-        </div>
-
-        <div className={styles.footer}>
-          <Link href="/notifications" className={styles.viewAllLink}>
-            すべて見る →
-          </Link>
-        </div>
-      </div>
-    </>
+                <ListItemText
+                  primary={
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography variant="subtitle1" fontWeight={700}>
+                        {notification.title}
+                      </Typography>
+                      {notification.important && (
+                        <NotificationTag tag="important" />
+                      )}
+                    </Box>
+                  }
+                  secondary={
+                    <Box mt={0.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        {notification.message}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        {new Date(notification.timestamp).toLocaleDateString(
+                          'ja-JP',
+                        )}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button component={Link} href="/notifications" onClick={onClose}>
+          すべて見る →
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

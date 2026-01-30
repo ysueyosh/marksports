@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import Header from '@/components/Header/Header';
-import styles from './CheckoutLayout.module.css';
+import { Box, Container } from '@mui/material';
 
 interface CheckoutLayoutProps {
   children: React.ReactNode;
@@ -10,8 +9,8 @@ interface CheckoutLayoutProps {
 
 export default function CheckoutLayout({ children }: CheckoutLayoutProps) {
   return (
-    <div className={`${styles.layoutNoSidebar} layout-no-sidebar`}>
-      <main className={styles.main}>{children}</main>
-    </div>
+    <Box minHeight="100vh" py={3} bgcolor="background.default">
+      <Container maxWidth="md">{children}</Container>
+    </Box>
   );
 }

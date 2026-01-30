@@ -7,14 +7,28 @@ import { useSnackbar } from '@/context/SnackbarContext';
 import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
 import { TextInput } from '@/components/Input/TextInput';
-import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import {
   updateProfile,
   changePassword,
   deleteAccount,
   getUserProfile,
 } from '@/api/auth';
-import styles from './settings.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Tabs,
+  Tab,
+  Paper,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  Stack,
+} from '@mui/material';
 
 interface ProfileFormData {
   name: string;
@@ -35,10 +49,9 @@ export default function SettingsPage() {
     phone: '',
     sex: '',
   });
-  const [isSexDropdownOpen, setIsSexDropdownOpen] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>(
-    {}
+    {},
   );
 
   const sexOptions = [
@@ -78,21 +91,23 @@ export default function SettingsPage() {
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>設定</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box textAlign="center" py={6}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            設定
+          </Typography>
+          <Typography color="text.secondary" gutterBottom>
+            ログインしていません
+          </Typography>
+          <Button variant="outlined" component={Link} href="/">
+            ホームへ戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -159,7 +174,7 @@ export default function SettingsPage() {
       } else {
         showSnackbar(
           response.message || 'プロフィール更新に失敗しました',
-          'error'
+          'error',
         );
       }
     } catch (err) {
@@ -189,7 +204,7 @@ export default function SettingsPage() {
       } else {
         showSnackbar(
           response.message || 'パスワード変更に失敗しました',
-          'error'
+          'error',
         );
       }
     } catch (err) {
@@ -214,7 +229,7 @@ export default function SettingsPage() {
       });
       localStorage.setItem(
         'notificationSettings',
-        JSON.stringify(notificationSettings)
+        JSON.stringify(notificationSettings),
       );
       setNotificationSwitchChanged(false);
       showSnackbar('通知設定を更新しました', 'success');
@@ -227,7 +242,7 @@ export default function SettingsPage() {
   const handleDeleteAccount = async () => {
     if (
       confirm(
-        'アカウントを削除すると、すべてのデータが永遠に削除されます。本当に削除してもよろしいですか？'
+        'アカウントを削除すると、すべてのデータが永遠に削除されます。本当に削除してもよろしいですか？',
       )
     ) {
       if (confirm('もう一度確認します。本当にアカウントを削除しますか？')) {
@@ -248,47 +263,36 @@ export default function SettingsPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/account">アカウント</Link>
-          <span>/</span>
-          <span>設定</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <MuiLink component={Link} href="/account" color="inherit">
+            アカウント
+          </MuiLink>
+          <Typography color="text.primary">設定</Typography>
+        </Breadcrumbs>
 
-        <h1 className={styles.title}>設定</h1>
+        <Typography variant="h4" fontWeight={700}>
+          設定
+        </Typography>
 
-        <div className={styles.tabButtons}>
-          <button
-            className={`${styles.tabButton} ${
-              activeTab === 'profile' ? styles.active : ''
-            }`}
-            onClick={() => setActiveTab('profile')}
-          >
-            プロフィール
-          </button>
-          <button
-            className={`${styles.tabButton} ${
-              activeTab === 'password' ? styles.active : ''
-            }`}
-            onClick={() => setActiveTab('password')}
-          >
-            パスワード変更
-          </button>
-          <button
-            className={`${styles.tabButton} ${
-              activeTab === 'other' ? styles.active : ''
-            }`}
-            onClick={() => setActiveTab('other')}
-          >
-            その他
-          </button>
-        </div>
+        <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)}>
+          <Tab label="プロフィール" value="profile" />
+          <Tab label="パスワード変更" value="password" />
+          <Tab label="その他" value="other" />
+        </Tabs>
 
         {activeTab === 'profile' && (
-          <form className={styles.form} onSubmit={handleProfileSubmit}>
-            <div className={styles.formGroup}>
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Box
+              component="form"
+              onSubmit={handleProfileSubmit}
+              display="flex"
+              flexDirection="column"
+              gap={2}
+            >
               <TextInput
                 label="お名前"
                 name="name"
@@ -297,9 +301,7 @@ export default function SettingsPage() {
                 placeholder="例：山田 太郎"
                 error={fieldErrors.name}
               />
-            </div>
 
-            <div className={styles.formGroup}>
               <TextInput
                 label="電話番号"
                 name="phone"
@@ -307,46 +309,44 @@ export default function SettingsPage() {
                 onChange={handleInputChange}
                 placeholder="例：09012345678"
               />
-            </div>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label}>性別</label>
-              <Dropdown
-                isOpen={isSexDropdownOpen}
-                onToggle={() => setIsSexDropdownOpen(!isSexDropdownOpen)}
-                onClose={() => setIsSexDropdownOpen(false)}
-                buttonText={
-                  sexOptions.find((opt) => opt.id === formData.sex)?.label ||
-                  '選択してください'
-                }
-              >
-                {sexOptions.map((option) => (
-                  <div
-                    key={option.id}
-                    className={styles.dropdownOption}
-                    onClick={() => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        sex: option.id,
-                      }));
-                      setIsSexDropdownOpen(false);
-                    }}
-                  >
-                    <span>{option.label}</span>
-                  </div>
-                ))}
-              </Dropdown>
-            </div>
+              <FormControl fullWidth>
+                <InputLabel id="sex-label">性別</InputLabel>
+                <Select
+                  labelId="sex-label"
+                  label="性別"
+                  value={formData.sex || ''}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      sex: String(e.target.value),
+                    }))
+                  }
+                >
+                  {sexOptions.map((option) => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-            <button type="submit" className={styles.submitButton}>
-              更新する
-            </button>
-          </form>
+              <Button type="submit" variant="contained">
+                更新する
+              </Button>
+            </Box>
+          </Paper>
         )}
 
         {activeTab === 'password' && (
-          <form className={styles.form} onSubmit={handlePasswordSubmit}>
-            <div className={styles.formGroup}>
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Box
+              component="form"
+              onSubmit={handlePasswordSubmit}
+              display="flex"
+              flexDirection="column"
+              gap={2}
+            >
               <TextInput
                 label="現在のパスワード"
                 name="currentPassword"
@@ -356,9 +356,7 @@ export default function SettingsPage() {
                 placeholder="現在のパスワードを入力"
                 error={passwordErrors.currentPassword}
               />
-            </div>
 
-            <div className={styles.formGroup}>
               <TextInput
                 label="新しいパスワード"
                 name="newPassword"
@@ -368,9 +366,7 @@ export default function SettingsPage() {
                 placeholder="新しいパスワードを入力"
                 error={passwordErrors.newPassword}
               />
-            </div>
 
-            <div className={styles.formGroup}>
               <TextInput
                 label="新しいパスワード（確認）"
                 name="confirmPassword"
@@ -380,32 +376,34 @@ export default function SettingsPage() {
                 placeholder="新しいパスワードを再度入力"
                 error={passwordErrors.confirmPassword}
               />
-            </div>
 
-            <button type="submit" className={styles.submitButton}>
-              パスワードを変更
-            </button>
-          </form>
+              <Button type="submit" variant="contained">
+                パスワードを変更
+              </Button>
+            </Box>
+          </Paper>
         )}
 
         {activeTab === 'other' && (
-          <div className={styles.otherSection}>
-            <div className={styles.settingsCard}>
-              <h2 className={styles.cardTitle}>アカウント</h2>
-
-              <button
-                className={styles.deleteAccountButton}
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                アカウント
+              </Typography>
+              <Button
+                variant="outlined"
+                color="error"
                 onClick={handleDeleteAccount}
               >
                 アカウントを削除
-              </button>
-              <p className={styles.deleteAccountWarning}>
+              </Button>
+              <Typography color="text.secondary">
                 アカウントを削除すると、すべてのデータが永遠に削除されます。この操作は取り消せません。
-              </p>
-            </div>
-          </div>
+              </Typography>
+            </Stack>
+          </Paper>
         )}
-      </div>
+      </Box>
     </MainLayout>
   );
 }

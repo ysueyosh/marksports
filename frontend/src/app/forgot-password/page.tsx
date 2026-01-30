@@ -7,7 +7,19 @@ import MainLayout from '@/components/Layout/MainLayout';
 import { requestPasswordReset } from '@/api/auth';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useLoading } from '@/context/LoadingContext';
-import styles from './forgot-password.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  TextField,
+  Button,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
+  Paper,
+} from '@mui/material';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -44,7 +56,7 @@ export default function ForgotPasswordPage() {
       } else {
         showSnackbar(
           response.message || 'リセットメール送信に失敗しました',
-          'error'
+          'error',
         );
       }
     } catch (err) {
@@ -57,117 +69,95 @@ export default function ForgotPasswordPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <span>パスワードリセット</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <Typography color="text.primary">パスワードリセット</Typography>
+        </Breadcrumbs>
 
-        <div className={styles.formWrapper}>
-          <h1>パスワードリセット</h1>
+        <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            パスワードリセット
+          </Typography>
 
           {!emailSent ? (
-            <>
-              <p className={styles.description}>
-                ご登録のメールアドレスを入力してください。
-                パスワードリセット用のメールをお送りします。
-              </p>
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              display="flex"
+              flexDirection="column"
+              gap={2}
+            >
+              <Typography color="text.secondary">
+                ご登録のメールアドレスを入力してください。パスワードリセット用のメールをお送りします。
+              </Typography>
 
-              <form onSubmit={handleSubmit} className={styles.form}>
-                <div className={styles.formGroup}>
-                  <label htmlFor="email" className={styles.label}>
-                    メールアドレス
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setError('');
-                    }}
-                    placeholder="example@example.com"
-                    className={styles.input}
-                    disabled={isLoading}
-                  />
-                  {error && <span className={styles.error}>{error}</span>}
-                </div>
-
-                <button
-                  type="submit"
-                  className={styles.submitButton}
-                  disabled={isLoading}
-                >
-                  {isLoading ? '送信中...' : 'リセットメール送信'}
-                </button>
-              </form>
-
-              <div className={styles.links}>
-                <p>
-                  <a
-                    href="/"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      router.push('/');
-                    }}
-                    className={styles.link}
-                  >
-                    ホームへ戻る
-                  </a>
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className={styles.successMessage}>
-                <div className={styles.successIcon}>✓</div>
-                <p>メールを送信しました</p>
-              </div>
-
-              <p className={styles.description}>
-                ご登録のメールアドレスにリセット用のリンクを送信しました。
-                メール内のリンクをクリックして新しいパスワードを設定してください。
-              </p>
-
-              <div
-                style={{
-                  backgroundColor: '#fef3cd',
-                  border: '1px solid #ffc107',
-                  borderRadius: '6px',
-                  padding: '12px',
-                  fontSize: '13px',
-                  color: '#856404',
-                  marginTop: '16px',
+              <TextField
+                id="email"
+                type="email"
+                label="メールアドレス"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError('');
                 }}
-              >
-                <strong>ご確認ください</strong>
-                <ul style={{ margin: '8px 0 0 16px', paddingLeft: '8px' }}>
-                  <li>
-                    メールが届かない場合、迷惑メール（スパム）フォルダをご確認ください
-                  </li>
-                  <li>
-                    @marksports.com
-                    ドメインをメール設定でブロックしている場合はご解除ください
-                  </li>
-                </ul>
-              </div>
-              <div className={styles.links}>
-                <a
-                  href="/"
+                placeholder="example@example.com"
+                disabled={isLoading}
+                error={Boolean(error)}
+                helperText={error}
+                fullWidth
+              />
+
+              <Button type="submit" variant="contained" disabled={isLoading}>
+                {isLoading ? '送信中...' : 'リセットメール送信'}
+              </Button>
+
+              <Typography variant="body2">
+                <MuiLink
+                  component="button"
                   onClick={(e) => {
                     e.preventDefault();
                     router.push('/');
                   }}
-                  className={styles.link}
                 >
                   ホームへ戻る
-                </a>
-              </div>
-            </>
+                </MuiLink>
+              </Typography>
+            </Box>
+          ) : (
+            <Box display="flex" flexDirection="column" gap={2}>
+              <Alert severity="success">メールを送信しました</Alert>
+              <Typography color="text.secondary">
+                ご登録のメールアドレスにリセット用のリンクを送信しました。メール内のリンクをクリックして新しいパスワードを設定してください。
+              </Typography>
+              <Alert severity="warning">
+                <Typography fontWeight={700}>ご確認ください</Typography>
+                <List dense>
+                  {[
+                    'メールが届かない場合、迷惑メール（スパム）フォルダをご確認ください',
+                    '@marksports.com ドメインをメール設定でブロックしている場合はご解除ください',
+                  ].map((item) => (
+                    <ListItem key={item} disableGutters>
+                      <ListItemText primary={item} />
+                    </ListItem>
+                  ))}
+                </List>
+              </Alert>
+              <MuiLink
+                component="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push('/');
+                }}
+              >
+                ホームへ戻る
+              </MuiLink>
+            </Box>
           )}
-        </div>
-      </div>
+        </Paper>
+      </Box>
     </MainLayout>
   );
 }

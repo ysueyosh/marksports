@@ -1,7 +1,6 @@
 'use client';
 
 import MainLayout from '@/components/Layout/MainLayout';
-import styles from './register.module.css';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -11,8 +10,27 @@ import {
 } from '@/api/register';
 import { useLoading } from '@/context/LoadingContext';
 import { TextInput } from '@/components/Input/TextInput';
-import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import { searchAddressByPostalCode } from '@/api/address';
+import {
+  Box,
+  Typography,
+  Paper,
+  Stack,
+  Button,
+  FormControlLabel,
+  Checkbox,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+} from '@mui/material';
+import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 interface AddressFormData {
   name: string;
@@ -42,9 +60,6 @@ export default function RegisterPage() {
     address: '',
     option: '',
   });
-  const [isGenderDropdownOpen, setIsGenderDropdownOpen] = useState(false);
-  const [isPrefectureDropdownOpen, setIsPrefectureDropdownOpen] =
-    useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [step, setStep] = useState<
@@ -313,563 +328,392 @@ export default function RegisterPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <h1 className={styles.title}>アカウント登録</h1>
-        {step === 'form' && (
-          <form className={styles.form} onSubmit={handleSubmit}>
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>基本情報</legend>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Typography variant="h4" fontWeight={700}>
+          アカウント登録
+        </Typography>
 
-              <TextInput
-                label="お名前"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="例：山田 太郎"
-                inputType="text"
-                required
-                error={fieldErrors.name}
-                containerStyle={{ marginBottom: '16px' }}
-              />
-              <TextInput
-                label="メールアドレス"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="例：sample@example.com"
-                inputType="text"
-                required
-                error={fieldErrors.email}
-                containerStyle={{ marginBottom: '16px' }}
-              />
-              <div className={styles.formGroup}>
-                <label className={styles.label}>パスワード</label>
-                <input
-                  className={styles.input}
-                  type="password"
+        {step === 'form' && (
+          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+            <Box
+              component="form"
+              onSubmit={handleSubmit}
+              display="flex"
+              flexDirection="column"
+              gap={3}
+            >
+              <Typography variant="h6" fontWeight={700}>
+                基本情報
+              </Typography>
+              <Stack spacing={2}>
+                <TextInput
+                  label="お名前"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="例：山田 太郎"
+                  inputType="text"
+                  required
+                  error={fieldErrors.name}
+                />
+                <TextInput
+                  label="メールアドレス"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="例：sample@example.com"
+                  inputType="text"
+                  required
+                  error={fieldErrors.email}
+                />
+                <TextInput
+                  label="パスワード"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
+                  placeholder="パスワード"
+                  inputType="password"
+                  required
+                  error={fieldErrors.password}
                 />
-                {fieldErrors.password && (
-                  <div
-                    style={{
-                      color: '#e74c3c',
-                      fontSize: '12px',
-                      marginTop: '4px',
-                    }}
-                  >
-                    {fieldErrors.password}
-                  </div>
-                )}
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>パスワード（確認）</label>
-                <input
-                  className={styles.input}
-                  type="password"
+                <TextInput
+                  label="パスワード（確認）"
                   name="confirm"
                   value={formData.confirm}
                   onChange={handleInputChange}
+                  placeholder="パスワード（確認）"
+                  inputType="password"
+                  required
+                  error={fieldErrors.confirm}
                 />
-                {fieldErrors.confirm && (
-                  <div
-                    style={{
-                      color: '#e74c3c',
-                      fontSize: '12px',
-                      marginTop: '4px',
-                    }}
+                <TextInput
+                  label="電話番号"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="例：090-1234-5678"
+                  inputType="text"
+                  error={fieldErrors.phone}
+                />
+                <FormControl fullWidth>
+                  <InputLabel id="sex-label">性別</InputLabel>
+                  <Select
+                    labelId="sex-label"
+                    label="性別"
+                    value={formData.sex}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        sex: String(e.target.value),
+                      }))
+                    }
                   >
-                    {fieldErrors.confirm}
-                  </div>
-                )}
-              </div>
-              <TextInput
-                label="電話番号"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                placeholder="例：090-1234-5678"
-                inputType="text"
-                error={fieldErrors.phone}
-                containerStyle={{ marginBottom: '16px' }}
+                    {genderOptions.map((option) => (
+                      <MenuItem key={option.id} value={option.id}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+
+              <Divider />
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.registerAddress}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        registerAddress: e.target.checked,
+                      }))
+                    }
+                  />
+                }
+                label="住所情報を登録する（任意）"
               />
-              <div className={styles.formGroup}>
-                <label className={styles.label}>性別</label>
-                <Dropdown
-                  isOpen={isGenderDropdownOpen}
-                  onToggle={() =>
-                    setIsGenderDropdownOpen(!isGenderDropdownOpen)
-                  }
-                  onClose={() => setIsGenderDropdownOpen(false)}
-                  buttonText={
-                    genderOptions.find((opt) => opt.id === formData.sex)
-                      ?.label || '選択してください'
-                  }
-                >
-                  {genderOptions.map((option) => (
-                    <div
-                      key={option.id}
-                      className={styles.dropdownOption}
-                      onClick={() => {
+
+              {formData.registerAddress && (
+                <Box display="flex" flexDirection="column" gap={2}>
+                  <Typography variant="h6" fontWeight={700}>
+                    住所情報
+                  </Typography>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={2}
+                    alignItems="flex-end"
+                  >
+                    <Box flex={1}>
+                      <TextInput
+                        name="postalCode"
+                        value={formData.postalCode}
+                        onChange={handleInputChange}
+                        placeholder="1234567"
+                        label="郵便番号"
+                        inputType="number"
+                        maxLength={7}
+                        required={formData.registerAddress}
+                        error={fieldErrors.postalCode}
+                      />
+                    </Box>
+                    <Button
+                      variant="outlined"
+                      onClick={handleSearchAddress}
+                      disabled={isSearchingAddress}
+                    >
+                      {isSearchingAddress ? '検索中...' : '住所検索'}
+                    </Button>
+                  </Stack>
+                  {addressSearchError && (
+                    <Alert severity="error">{addressSearchError}</Alert>
+                  )}
+
+                  <FormControl
+                    fullWidth
+                    error={Boolean(fieldErrors.prefecture)}
+                  >
+                    <InputLabel id="prefecture-label">都道府県</InputLabel>
+                    <Select
+                      labelId="prefecture-label"
+                      label="都道府県"
+                      value={formData.prefecture}
+                      onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          sex: option.id,
-                        }));
-                        setIsGenderDropdownOpen(false);
-                      }}
-                    >
-                      <span>{option.label}</span>
-                    </div>
-                  ))}
-                </Dropdown>
-              </div>
-            </fieldset>
-
-            {/* 住所登録チェックボックス */}
-            <div
-              className={styles.checkboxContainer}
-              style={{ marginBottom: '16px' }}
-            >
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  name="registerAddress"
-                  checked={formData.registerAddress}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      registerAddress: e.target.checked,
-                    }))
-                  }
-                  style={{ marginRight: '8px', cursor: 'pointer' }}
-                />
-                <span style={{ fontSize: '14px', color: '#333' }}>
-                  住所情報を登録する（任意）
-                </span>
-              </label>
-            </div>
-
-            {/* 住所情報フィールド - チェックボックスがONの時だけ表示 */}
-            {formData.registerAddress && (
-              <fieldset className={styles.fieldset}>
-                <legend className={styles.legend}>住所情報</legend>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '12px',
-                    alignItems: 'flex-start',
-                    marginBottom: '16px',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <TextInput
-                      name="postalCode"
-                      value={formData.postalCode}
-                      onChange={handleInputChange}
-                      placeholder="1234567"
-                      label="郵便番号"
-                      inputType="number"
-                      maxLength={7}
-                      required={formData.registerAddress}
-                      error={fieldErrors.postalCode}
-                      containerStyle={{ marginBottom: '0px' }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSearchAddress}
-                    disabled={isSearchingAddress}
-                    onMouseEnter={(e) => {
-                      if (!isSearchingAddress) {
-                        e.currentTarget.style.backgroundColor = '#f0f0f0';
+                          prefecture: String(e.target.value),
+                        }))
                       }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#fff';
-                    }}
-                    style={{
-                      padding: '10px 16px',
-                      backgroundColor: '#fff',
-                      color: '#333',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      cursor: isSearchingAddress ? 'not-allowed' : 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      whiteSpace: 'nowrap',
-                      opacity: isSearchingAddress ? 0.6 : 1,
-                      transition: 'background-color 0.2s',
-                      height: '38px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      marginTop: '28px',
-                    }}
-                  >
-                    {isSearchingAddress ? '検索中...' : '住所検索'}
-                  </button>
-                </div>
-                {addressSearchError && (
-                  <div
-                    style={{
-                      color: '#c33',
-                      fontSize: '12px',
-                      marginTop: '4px',
-                      marginBottom: '16px',
-                    }}
-                  >
-                    {addressSearchError}
-                  </div>
-                )}
+                    >
+                      {prefectureOptions.map((option) => (
+                        <MenuItem key={option.id} value={option.id}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {fieldErrors.prefecture && (
+                      <Typography variant="caption" color="error">
+                        {fieldErrors.prefecture}
+                      </Typography>
+                    )}
+                  </FormControl>
 
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    都道府県<span style={{ color: '#e74c3c' }}>*</span>
-                  </label>
-                  <Dropdown
-                    isOpen={isPrefectureDropdownOpen}
-                    onToggle={() =>
-                      setIsPrefectureDropdownOpen(!isPrefectureDropdownOpen)
-                    }
-                    onClose={() => setIsPrefectureDropdownOpen(false)}
-                    buttonText={
+                  <TextInput
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    placeholder="丸の内1-1-1"
+                    label="住所"
+                    inputType="text"
+                    required
+                    error={fieldErrors.address}
+                  />
+
+                  <TextInput
+                    name="option"
+                    value={formData.option}
+                    onChange={handleInputChange}
+                    placeholder="◇◇ビル 4階"
+                    label="建物名・その他（オプション）"
+                    inputType="text"
+                  />
+                </Box>
+              )}
+
+              {error && <Alert severity="error">{error}</Alert>}
+              <Button type="submit" variant="contained">
+                登録内容を確認
+              </Button>
+            </Box>
+          </Paper>
+        )}
+
+        {step === 'confirm' && (
+          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              入力内容の確認
+            </Typography>
+            <Stack spacing={1}>
+              {[
+                ['お名前', formData.name],
+                ['メールアドレス', formData.email],
+                ['電話番号', formData.phone || '-'],
+                [
+                  '性別',
+                  genderOptions.find((opt) => opt.id === formData.sex)?.label ||
+                    '-',
+                ],
+              ].map(([label, value]) => (
+                <Box key={label} display="flex" justifyContent="space-between">
+                  <Typography color="text.secondary">{label}</Typography>
+                  <Typography>{value}</Typography>
+                </Box>
+              ))}
+              {formData.registerAddress && (
+                <>
+                  <Divider sx={{ my: 1 }} />
+                  {[
+                    ['郵便番号', `〒${formData.postalCode}`],
+                    [
+                      '都道府県',
                       prefectureOptions.find(
                         (opt) => opt.id === formData.prefecture,
-                      )?.label || '選択してください'
-                    }
-                  >
-                    {prefectureOptions.map((option) => (
-                      <div
-                        key={option.id}
-                        style={{
-                          padding: '8px 12px',
-                          cursor: 'pointer',
-                          transition: 'background-color 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor =
-                            'var(--bg-secondary)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                        onClick={() => {
-                          setFormData((prev) => ({
-                            ...prev,
-                            prefecture: option.id,
-                          }));
-                          setIsPrefectureDropdownOpen(false);
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: '14px',
-                            color: 'var(--text-primary)',
-                          }}
-                        >
-                          {option.label}
-                        </span>
-                      </div>
-                    ))}
-                  </Dropdown>
-                </div>
-                {fieldErrors.prefecture && (
-                  <div
-                    style={{
-                      color: '#e74c3c',
-                      fontSize: '12px',
-                      marginTop: '4px',
-                      marginBottom: '16px',
-                    }}
-                  >
-                    {fieldErrors.prefecture}
-                  </div>
-                )}
-
-                <TextInput
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  placeholder="丸の内1-1-1"
-                  label="住所"
-                  inputType="text"
-                  required
-                  error={fieldErrors.address}
-                  containerStyle={{ marginBottom: '16px' }}
-                />
-
-                <TextInput
-                  name="option"
-                  value={formData.option}
-                  onChange={handleInputChange}
-                  placeholder="◇◇ビル 4階"
-                  label="建物名・その他（オプション）"
-                  inputType="text"
-                  containerStyle={{ marginBottom: '16px' }}
-                />
-              </fieldset>
-            )}
-            {error && <div className={styles.error}>{error}</div>}
-            <button className={styles.submitButton} type="submit">
-              登録内容を確認
-            </button>
-          </form>
-        )}
-        {step === 'confirm' && (
-          <div className={styles.confirmBox}>
-            <h2>入力内容の確認</h2>
-            <div className={styles.confirmRow}>
-              <span>お名前</span>
-              <span>{formData.name}</span>
-            </div>
-            <div className={styles.confirmRow}>
-              <span>メールアドレス</span>
-              <span>{formData.email}</span>
-            </div>
-            <div className={styles.confirmRow}>
-              <span>電話番号</span>
-              <span>{formData.phone || '-'}</span>
-            </div>
-            <div className={styles.confirmRow}>
-              <span>性別</span>
-              <span>
-                {genderOptions.find((opt) => opt.id === formData.sex)?.label ||
-                  '-'}
-              </span>
-            </div>
-            {formData.registerAddress && (
-              <>
-                <div className={styles.confirmRow}>
-                  <span>郵便番号</span>
-                  <span>〒{formData.postalCode}</span>
-                </div>
-                <div className={styles.confirmRow}>
-                  <span>都道府県</span>
-                  <span>
-                    {prefectureOptions.find(
-                      (opt) => opt.id === formData.prefecture,
-                    )?.label || '-'}
-                  </span>
-                </div>
-                <div className={styles.confirmRow}>
-                  <span>住所</span>
-                  <span>{formData.address}</span>
-                </div>
-                {formData.option && (
-                  <div className={styles.confirmRow}>
-                    <span>建物名・その他</span>
-                    <span>{formData.option}</span>
-                  </div>
-                )}
-              </>
-            )}
-            <div className={styles.confirmActions}>
-              <button className={styles.submitButton} onClick={handleConfirm}>
+                      )?.label || '-',
+                    ],
+                    ['住所', formData.address],
+                    ...(formData.option
+                      ? [['建物名・その他', formData.option]]
+                      : []),
+                  ].map(([label, value]) => (
+                    <Box
+                      key={label}
+                      display="flex"
+                      justifyContent="space-between"
+                    >
+                      <Typography color="text.secondary">{label}</Typography>
+                      <Typography>{value}</Typography>
+                    </Box>
+                  ))}
+                </>
+              )}
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mt={3}>
+              <Button variant="contained" onClick={handleConfirm}>
                 登録
-              </button>
-              <button
-                className={styles.cancelButton}
-                onClick={() => setStep('form')}
-              >
+              </Button>
+              <Button variant="outlined" onClick={() => setStep('form')}>
                 戻る
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Stack>
+          </Paper>
         )}
 
         {step === 'verification' && (
-          <div className={styles.verificationBox}>
-            <div className={styles.checkIcon}>
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="23"
-                  fill="none"
-                  stroke="#007bff"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M24 8v16M24 32h0M30 14h-12a2 2 0 00-2 2v8"
-                  stroke="#007bff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-            <h2>メールアドレス認証</h2>
-            <p
-              style={{
-                marginTop: '8px',
-                marginBottom: '20px',
-                textAlign: 'center',
-                color: '#666',
-              }}
-            >
-              {formData.email}{' '}
-              に送信された認証メール内のリンクをクリックしてください。
-            </p>
+          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+            <Stack spacing={2} alignItems="center">
+              <MarkEmailReadIcon color="primary" sx={{ fontSize: 56 }} />
+              <Typography variant="h6" fontWeight={700}>
+                メールアドレス認証
+              </Typography>
+              <Typography color="text.secondary" textAlign="center">
+                {formData.email}{' '}
+                に送信された認証メール内のリンクをクリックしてください。
+              </Typography>
 
-            <div
-              style={{
-                backgroundColor: '#e7f3ff',
-                border: '1px solid #b3d9ff',
-                borderRadius: '6px',
-                padding: '12px',
-                fontSize: '13px',
-                color: '#004085',
-                marginBottom: '20px',
-              }}
-            >
-              <strong>ご確認ください</strong>
-              <ul style={{ margin: '8px 0 0 16px', paddingLeft: '8px' }}>
-                <li>
-                  メールが届かない場合は、迷惑メール（スパム）フォルダをご確認ください
-                </li>
-                <li>
-                  @mark-sports.com
-                  ドメインをメール設定でブロックしている場合はご解除ください
-                </li>
-                <li>認証リンクは24時間有効です</li>
-              </ul>
-            </div>
+              <Alert severity="info" sx={{ width: '100%' }}>
+                <Typography fontWeight={700}>ご確認ください</Typography>
+                <List dense>
+                  {[
+                    'メールが届かない場合は、迷惑メール（スパム）フォルダをご確認ください',
+                    '@mark-sports.com ドメインをメール設定でブロックしている場合はご解除ください',
+                    '認証リンクは24時間有効です',
+                  ].map((item) => (
+                    <ListItem key={item} disableGutters>
+                      <ListItemText primary={item} />
+                    </ListItem>
+                  ))}
+                </List>
+              </Alert>
 
-            {verificationError && (
-              <div
-                style={{
-                  color: '#e74c3c',
-                  fontSize: '14px',
-                  marginBottom: '16px',
-                  backgroundColor: '#fdeef0',
-                  border: '1px solid #e74c3c',
-                  padding: '10px',
-                  borderRadius: '4px',
-                }}
+              {verificationError && (
+                <Alert severity="error">{verificationError}</Alert>
+              )}
+              {resendSuccess && (
+                <Alert severity="success">
+                  認証メールを再送信しました。メールをご確認ください。
+                </Alert>
+              )}
+
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                width="100%"
               >
-                {verificationError}
-              </div>
-            )}
-
-            {resendSuccess && (
-              <div
-                style={{
-                  color: '#27ae60',
-                  fontSize: '14px',
-                  marginBottom: '16px',
-                  backgroundColor: '#eafcf0',
-                  border: '1px solid #27ae60',
-                  padding: '10px',
-                  borderRadius: '4px',
-                }}
-              >
-                認証メールを再送信しました。メールをご確認ください。
-              </div>
-            )}
-
-            <div className={styles.verificationActions}>
-              <button
-                className={styles.resendButton}
-                onClick={async () => {
-                  try {
-                    setIsResendingEmail(true);
+                <Button
+                  variant="outlined"
+                  onClick={async () => {
+                    try {
+                      setIsResendingEmail(true);
+                      setVerificationError('');
+                      setResendSuccess(false);
+                      const response = await resendVerificationEmail({
+                        email: formData.email,
+                      });
+                      if (response.success) {
+                        setResendSuccess(true);
+                      } else {
+                        setVerificationError(
+                          response.message || 'メール再送に失敗しました',
+                        );
+                      }
+                    } catch (err) {
+                      console.error('Resend error:', err);
+                      setVerificationError(
+                        'メール再送に失敗しました。時間をおいて再度お試しください。',
+                      );
+                    } finally {
+                      setIsResendingEmail(false);
+                    }
+                  }}
+                  disabled={isResendingEmail}
+                  fullWidth
+                >
+                  {isResendingEmail ? '送信中...' : 'メール再送'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  onClick={() => {
+                    setStep('form');
+                    setVerificationCode('');
                     setVerificationError('');
                     setResendSuccess(false);
-                    const response = await resendVerificationEmail({
-                      email: formData.email,
-                    });
-                    if (response.success) {
-                      setResendSuccess(true);
-                    } else {
-                      setVerificationError(
-                        response.message || 'メール再送に失敗しました',
-                      );
-                    }
-                  } catch (err) {
-                    console.error('Resend error:', err);
-                    setVerificationError(
-                      'メール再送に失敗しました。時間をおいて再度お試しください。',
-                    );
-                  } finally {
-                    setIsResendingEmail(false);
-                  }
-                }}
-                disabled={isResendingEmail}
-              >
-                {isResendingEmail ? '送信中...' : 'メール再送'}
-              </button>
-              <button
-                className={styles.cancelButton}
-                onClick={() => {
-                  setStep('form');
-                  setVerificationCode('');
-                  setVerificationError('');
-                  setResendSuccess(false);
-                }}
-              >
-                キャンセル
-              </button>
-            </div>
-          </div>
+                  }}
+                  fullWidth
+                >
+                  キャンセル
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
         )}
 
         {step === 'done' && (
-          <div className={styles.doneBox}>
-            <div className={styles.checkIcon}>
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <circle cx="24" cy="24" r="24" fill="#4caf50" />
-                <path
-                  d="M14 25l7 7 13-13"
-                  stroke="#fff"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <h2>メール送信しました</h2>
-            <p style={{ marginTop: '5px' }}>
-              ご登録のメールアドレス宛に確認メールを送信しました。
-              <br />
-              メールをご確認のうえ、認証手続きを完了してください。
-            </p>
-            <div
-              style={{
-                backgroundColor: '#fef3cd',
-                border: '1px solid #ffc107',
-                borderRadius: '6px',
-                padding: '12px',
-                fontSize: '13px',
-                color: '#856404',
-                marginTop: '16px',
-              }}
-            >
-              <strong>ご確認ください</strong>
-              <ul style={{ margin: '8px 0 0 16px', paddingLeft: '8px' }}>
-                <li>
-                  メールが届かない場合、迷惑メール（スパム）フォルダをご確認ください
-                </li>
-                <li>
-                  @marksports.com
-                  ドメインをメール設定でブロックしている場合はご解除ください
-                </li>
-              </ul>
-            </div>
-            <button
-              className={styles.submitButton}
-              onClick={() => router.push('/')}
-            >
-              ホームへ
-            </button>
-          </div>
+          <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+            <Stack spacing={2} alignItems="center">
+              <CheckCircleIcon color="success" sx={{ fontSize: 56 }} />
+              <Typography variant="h6" fontWeight={700}>
+                メール送信しました
+              </Typography>
+              <Typography textAlign="center" color="text.secondary">
+                ご登録のメールアドレス宛に確認メールを送信しました。
+                <br />
+                メールをご確認のうえ、認証手続きを完了してください。
+              </Typography>
+              <Alert severity="warning" sx={{ width: '100%' }}>
+                <Typography fontWeight={700}>ご確認ください</Typography>
+                <List dense>
+                  {[
+                    'メールが届かない場合、迷惑メール（スパム）フォルダをご確認ください',
+                    '@marksports.com ドメインをメール設定でブロックしている場合はご解除ください',
+                  ].map((item) => (
+                    <ListItem key={item} disableGutters>
+                      <ListItemText primary={item} />
+                    </ListItem>
+                  ))}
+                </List>
+              </Alert>
+              <Button
+                variant="contained"
+                onClick={() => router.push('/')}
+                fullWidth
+              >
+                ホームへ
+              </Button>
+            </Stack>
+          </Paper>
         )}
-      </div>
+      </Box>
     </MainLayout>
   );
 }

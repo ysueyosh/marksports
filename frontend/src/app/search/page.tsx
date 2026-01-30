@@ -5,12 +5,29 @@ import ProductCard from '@/components/ProductCard/ProductCard';
 import Pagination from '@/components/Pagination/Pagination';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import Link from 'next/link';
-import styles from './search.module.css';
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCategories } from '@/context/CategoryContext';
 import { useSearch } from '@/context/SearchContext';
 import { searchProducts } from '@/api/search';
+import {
+  Box,
+  Breadcrumbs,
+  Typography,
+  Stack,
+  TextField,
+  Button,
+  InputAdornment,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  Collapse,
+  Radio,
+  Alert,
+  Link as MuiLink,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 // ダミー商品データ（カテゴリと小カテゴリのIDを追加）
 const DUMMY_PRODUCTS = [
@@ -102,7 +119,7 @@ export default function SearchPage() {
   const [isPriceDropdownOpen, setIsPriceDropdownOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(categories.map((c) => c.id))
+    new Set(categories.map((c) => c.id)),
   );
 
   // API結果状態
@@ -224,7 +241,7 @@ export default function SearchPage() {
 
   const handleParentCategoryChange = (
     category: { id: string; subcategories: any[] },
-    isChecked: boolean
+    isChecked: boolean,
   ) => {
     const subcategoryIds = category.subcategories.map((sub) => sub.id);
     if (isChecked) {
@@ -234,7 +251,7 @@ export default function SearchPage() {
       });
     } else {
       setSelectedCategories((prev) =>
-        prev.filter((id) => !subcategoryIds.includes(id))
+        prev.filter((id) => !subcategoryIds.includes(id)),
       );
     }
   };
@@ -256,7 +273,7 @@ export default function SearchPage() {
   }) => {
     const subcategoryIds = category.subcategories.map((sub) => sub.id);
     const selectedCount = subcategoryIds.filter((id) =>
-      selectedCategories.includes(id)
+      selectedCategories.includes(id),
     ).length;
     return selectedCount > 0 && selectedCount < subcategoryIds.length;
   };
@@ -293,244 +310,240 @@ export default function SearchPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <span>検索結果</span>
-        </div>
-
-        <div className={styles.header}>
-          <h1>検索結果</h1>
-        </div>
-
-        {/* 検索欄 */}
-        <div className={styles.searchSection}>
-          <div className={styles.searchContainer}>
-            <svg
-              className={styles.searchIcon}
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+      <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
+        <Stack spacing={3}>
+          <Breadcrumbs>
+            <MuiLink
+              component={Link}
+              href="/"
+              color="inherit"
+              underline="hover"
             >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
+              ホーム
+            </MuiLink>
+            <Typography color="text.secondary">検索結果</Typography>
+          </Breadcrumbs>
+
+          <Typography variant="h4" fontWeight={700}>
+            検索結果
+          </Typography>
+
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+          >
+            <TextField
+              fullWidth
               placeholder="商品名で検索..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className={styles.searchInput}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
             />
-          </div>
-          {!isMobile && (
-            <button className={styles.searchButton} onClick={handleSearch}>
-              検索
-            </button>
-          )}
-        </div>
+            {!isMobile && (
+              <Button variant="contained" onClick={handleSearch}>
+                検索
+              </Button>
+            )}
+          </Stack>
 
-        {/* フィルタ・ソート */}
-        <div className={styles.filterSection}>
-          <Dropdown
-            isOpen={isDropdownOpen}
-            onToggle={() => setIsDropdownOpen(!isDropdownOpen)}
-            onClose={() => setIsDropdownOpen(false)}
-            buttonText={
-              selectedCategories.length === 0
-                ? 'すべてのカテゴリ'
-                : `${selectedCategories.length}個選択中`
-            }
-            containerClassName={styles.categoryFilter}
-          >
-            {categories.map((category) => (
-              <div key={category.id}>
-                <div className={styles.dropdownParentCheckboxWrapper}>
-                  <label className={styles.dropdownParentCheckboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={isParentCategorySelected(category)}
-                      ref={(input) => {
-                        if (input) {
-                          input.indeterminate =
-                            isParentCategoryIndeterminate(category);
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <Dropdown
+              isOpen={isDropdownOpen}
+              onToggle={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClose={() => setIsDropdownOpen(false)}
+              buttonText={
+                selectedCategories.length === 0
+                  ? 'すべてのカテゴリ'
+                  : `${selectedCategories.length}個選択中`
+              }
+            >
+              <Stack spacing={1.5} sx={{ minWidth: 280 }}>
+                {categories.map((category) => (
+                  <Box key={category.id}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={isParentCategorySelected(category)}
+                            indeterminate={isParentCategoryIndeterminate(
+                              category,
+                            )}
+                            onChange={(e) =>
+                              handleParentCategoryChange(
+                                category,
+                                e.target.checked,
+                              )
+                            }
+                          />
                         }
-                      }}
-                      onChange={(e) =>
-                        handleParentCategoryChange(category, e.target.checked)
-                      }
-                    />
-                    <span className={styles.parentCategoryName}>
-                      {category.name}
-                    </span>
-                  </label>
-                  <button
-                    type="button"
-                    className={styles.expandButton}
-                    onClick={() => toggleCategoryExpand(category.id)}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className={`${styles.expandArrow} ${
-                        expandedCategories.has(category.id)
-                          ? styles.expanded
-                          : ''
-                      }`}
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-                </div>
-                {expandedCategories.has(category.id) &&
-                  category.subcategories.map((subcategory) => (
-                    <label
-                      key={subcategory.id}
-                      className={styles.dropdownCheckboxLabel}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(subcategory.id)}
-                        onChange={(e) =>
-                          handleCategoryChange(subcategory.id, e.target.checked)
-                        }
+                        label={category.name}
                       />
-                      <span>{subcategory.name}</span>
-                    </label>
-                  ))}
-              </div>
-            ))}
-          </Dropdown>
-          <Dropdown
-            isOpen={isPriceDropdownOpen}
-            onToggle={() => setIsPriceDropdownOpen(!isPriceDropdownOpen)}
-            onClose={() => setIsPriceDropdownOpen(false)}
-            buttonText={
-              PRICE_RANGES.find((r) => r.id === priceRange)?.label ||
-              'すべての価格'
-            }
-            containerClassName={styles.priceRangeContainer}
-          >
-            {PRICE_RANGES.map((range) => (
-              <label
-                key={range.id}
-                className={styles.priceRangeOption}
-                onClick={() => {
-                  setPriceRange(range.id);
-                  setIsPriceDropdownOpen(false);
-                }}
-              >
-                <input
-                  type="radio"
-                  name="priceRange"
-                  value={range.id}
-                  checked={priceRange === range.id}
-                  onChange={() => {}}
-                  className={styles.priceRangeInput}
-                />
-                <span>{range.label}</span>
-              </label>
-            ))}
-          </Dropdown>
-          <Dropdown
-            isOpen={isSortDropdownOpen}
-            onToggle={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
-            onClose={() => setIsSortDropdownOpen(false)}
-            buttonText={
-              SORT_OPTIONS.find((o) => o.id === sort)?.label || '関連度が高い順'
-            }
-            containerClassName={styles.sortContainer}
-          >
-            {SORT_OPTIONS.map((option) => (
-              <label
-                key={option.id}
-                className={styles.sortOption}
-                onClick={() => {
-                  setSort(option.id);
-                  setIsSortDropdownOpen(false);
-                }}
-              >
-                <input
-                  type="radio"
-                  name="sort"
-                  value={option.id}
-                  checked={sort === option.id}
-                  onChange={() => {}}
-                  className={styles.sortInput}
-                />
-                <span>{option.label}</span>
-              </label>
-            ))}
-          </Dropdown>
-        </div>
+                      <IconButton
+                        size="small"
+                        onClick={() => toggleCategoryExpand(category.id)}
+                        sx={{
+                          ml: 'auto',
+                          transform: expandedCategories.has(category.id)
+                            ? 'rotate(180deg)'
+                            : 'rotate(0deg)',
+                          transition: 'transform 0.2s ease',
+                        }}
+                      >
+                        <ExpandMoreIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                    <Collapse in={expandedCategories.has(category.id)}>
+                      <Stack spacing={0.5} sx={{ pl: 3, pb: 1 }}>
+                        {category.subcategories.map((subcategory) => (
+                          <FormControlLabel
+                            key={subcategory.id}
+                            control={
+                              <Checkbox
+                                checked={selectedCategories.includes(
+                                  subcategory.id,
+                                )}
+                                onChange={(e) =>
+                                  handleCategoryChange(
+                                    subcategory.id,
+                                    e.target.checked,
+                                  )
+                                }
+                              />
+                            }
+                            label={subcategory.name}
+                          />
+                        ))}
+                      </Stack>
+                    </Collapse>
+                  </Box>
+                ))}
+              </Stack>
+            </Dropdown>
 
-        {/* リセットボタン */}
-        <div className={styles.resetButtonContainer}>
+            <Dropdown
+              isOpen={isPriceDropdownOpen}
+              onToggle={() => setIsPriceDropdownOpen(!isPriceDropdownOpen)}
+              onClose={() => setIsPriceDropdownOpen(false)}
+              buttonText={
+                PRICE_RANGES.find((r) => r.id === priceRange)?.label ||
+                'すべての価格'
+              }
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 220 }}>
+                {PRICE_RANGES.map((range) => (
+                  <FormControlLabel
+                    key={range.id}
+                    control={
+                      <Radio
+                        checked={priceRange === range.id}
+                        onChange={() => {
+                          setPriceRange(range.id);
+                          setIsPriceDropdownOpen(false);
+                        }}
+                      />
+                    }
+                    label={range.label}
+                  />
+                ))}
+              </Stack>
+            </Dropdown>
+
+            <Dropdown
+              isOpen={isSortDropdownOpen}
+              onToggle={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+              onClose={() => setIsSortDropdownOpen(false)}
+              buttonText={
+                SORT_OPTIONS.find((o) => o.id === sort)?.label ||
+                '関連度が高い順'
+              }
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 220 }}>
+                {SORT_OPTIONS.map((option) => (
+                  <FormControlLabel
+                    key={option.id}
+                    control={
+                      <Radio
+                        checked={sort === option.id}
+                        onChange={() => {
+                          setSort(option.id);
+                          setIsSortDropdownOpen(false);
+                        }}
+                      />
+                    }
+                    label={option.label}
+                  />
+                ))}
+              </Stack>
+            </Dropdown>
+          </Stack>
+
           {(selectedCategories.length > 0 || priceRange !== 'all') && (
-            <button className={styles.resetButton} onClick={handleResetFilters}>
-              検索条件をリセット
-            </button>
+            <Box>
+              <Button variant="text" onClick={handleResetFilters}>
+                検索条件をリセット
+              </Button>
+            </Box>
           )}
-        </div>
 
-        {/* スマホ版の検索ボタン */}
-        {isMobile && (
-          <button className={styles.searchButton} onClick={handleSearch}>
-            検索
-          </button>
-        )}
+          {isMobile && (
+            <Button variant="contained" onClick={handleSearch}>
+              検索
+            </Button>
+          )}
 
-        {/* 件数表示 */}
-        <div className={styles.resultCount}>
-          <p>
+          <Typography color="text.secondary">
             全{totalCount}件中
             {totalCount > 0
               ? ` ${(urlPage - 1) * ITEMS_PER_PAGE + 1}~${Math.min(
                   urlPage * ITEMS_PER_PAGE,
-                  totalCount
+                  totalCount,
                 )}件を表示`
               : '件を表示'}
-          </p>
-        </div>
+          </Typography>
 
-        {/* 商品グリッド */}
-        <div className={styles.productGrid}>
-          {displayProducts.map((p, index) => (
-            <ProductCard
-              key={`search-${p.id}-${index}`}
-              id={p.id}
-              name={p.name}
-              price={p.price}
-              showDetails={true}
-              image={p.image}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(1, minmax(0, 1fr))',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                lg: 'repeat(3, minmax(0, 1fr))',
+              },
+              gap: 3,
+            }}
+          >
+            {displayProducts.map((p, index) => (
+              <ProductCard
+                key={`search-${p.id}-${index}`}
+                id={p.id}
+                name={p.name}
+                price={p.price}
+                showDetails={true}
+                image={p.image}
+              />
+            ))}
+          </Box>
+
+          {displayProducts.length === 0 && (
+            <Alert severity="info">検索条件に一致する商品がありません</Alert>
+          )}
+
+          {totalCount > 0 && (
+            <Pagination
+              currentPage={urlPage}
+              totalPages={totalPages}
+              onPageChange={updatePageInUrl}
             />
-          ))}
-        </div>
-
-        {/* 検索結果なし */}
-        {displayProducts.length === 0 && (
-          <div className={styles.noResults}>
-            <p>検索条件に一致する商品がありません</p>
-          </div>
-        )}
-
-        {/* ページネーション */}
-        {totalCount > 0 && (
-          <Pagination
-            currentPage={urlPage}
-            totalPages={totalPages}
-            onPageChange={updatePageInUrl}
-          />
-        )}
-      </div>
+          )}
+        </Stack>
+      </Box>
     </MainLayout>
   );
 }

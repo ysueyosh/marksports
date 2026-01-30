@@ -1,7 +1,9 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import styles from './InfoPopper.module.css';
+import { useRef, useState, useEffect } from 'react';
+
+import { IconButton, Popover, Typography } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 interface InfoPopperProps {
   content: string;
@@ -9,8 +11,8 @@ interface InfoPopperProps {
 
 export default function InfoPopper({ content }: InfoPopperProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const popperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const popperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -33,24 +35,28 @@ export default function InfoPopper({ content }: InfoPopperProps) {
   }, [isOpen]);
 
   return (
-    <span className={styles.popperContainer}>
-      <button
+    <>
+      <IconButton
         ref={buttonRef}
-        className={styles.iconButton}
         onClick={(e) => {
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        type="button"
+        size="small"
         aria-label="情報"
       >
-        ⓘ
-      </button>
-      {isOpen && (
-        <div ref={popperRef} className={styles.popover}>
-          {content}
-        </div>
-      )}
-    </span>
+        <InfoOutlinedIcon fontSize="small" />
+      </IconButton>
+      <Popover
+        open={isOpen}
+        anchorEl={buttonRef.current}
+        onClose={() => setIsOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{ sx: { p: 2, maxWidth: 280 } }}
+      >
+        <Typography variant="body2">{content}</Typography>
+      </Popover>
+    </>
   );
 }

@@ -5,8 +5,21 @@ import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useCategories } from '@/context/CategoryContext';
 import { useSidebar } from '@/context/SidebarContext';
-import Overlay from '@/components/Common/Overlay';
-import styles from './Sidebar.module.css';
+import {
+  Drawer,
+  Box,
+  Typography,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
+  Collapse,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -14,11 +27,12 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
   const { categories } = useCategories();
   const { expandedCategory, setExpandedCategory } = useSidebar();
+  const theme = useTheme();
+  const isLargeScreen = useMediaQuery(theme.breakpoints.up('md'));
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategory(expandedCategory === categoryId ? null : categoryId);
@@ -26,7 +40,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   const handleCategoryNameClick = (
     categoryId: string,
-    subcategories: any[]
+    subcategories: any[],
   ) => {
     // 大カテゴリを展開状態にする
     setExpandedCategory(categoryId);
@@ -38,7 +52,7 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     router.push(`/search?categories=${categoriesParams}`);
 
     // モバイル時はサイドバーを閉じる
-    if (onClose) {
+    if (onClose && !isLargeScreen) {
       onClose();
     }
   };
@@ -54,99 +68,87 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   };
 
   return (
-    <>
-      {/* Overlay for mobile */}
-      <Overlay isOpen={isOpen || false} onClick={onClose} zIndex="sidebar" />
+    <Drawer
+      open={isLargeScreen ? true : isOpen}
+      onClose={onClose}
+      variant={isLargeScreen ? 'permanent' : 'temporary'}
+      ModalProps={{ keepMounted: isLargeScreen }}
+      PaperProps={{
+        sx: {
+          width: 280,
+          position: 'fixed',
+          top: isLargeScreen ? 65 : 0,
+          left: 0,
+          height: isLargeScreen ? 'calc(100vh - 65px)' : '100vh',
+          borderRight: '1px solid',
+          borderRightColor: 'divider',
+          boxShadow: isLargeScreen ? 'none' : 3,
+        },
+      }}
+      sx={{
+        '& .MuiDrawer-paper': {
+          p: 2,
+        },
+      }}
+    >
+      <Box display="flex" alignItems="center" gap={1} mb={1}>
+        {!isLargeScreen && (
+          <IconButton onClick={onClose} aria-label="サイドバーを閉じる">
+            <ChevronLeftIcon />
+          </IconButton>
+        )}
+        <Typography variant="h6" fontWeight={700}>
+          カテゴリー
+        </Typography>
+      </Box>
 
-      <aside className={`${styles.sidebar} ${!isOpen ? styles.closed : ''}`}>
-        <nav className={styles.nav}>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
-            aria-label="サイドバーを閉じる"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+      <List dense>
+        {categories.map((category) => (
+          <Box key={category.id}>
+            <ListItemButton
+              onClick={() =>
+                handleCategoryNameClick(category.id, category.subcategories)
+              }
             >
-              <path d="M15 19l-7-7 7-7" />
-            </svg>
-            <span>閉じる</span>
-          </button>
-          <h2 className={styles.title}>カテゴリー</h2>
-
-          <ul className={styles.categoryList}>
-            {categories.map((category) => (
-              <li key={category.id} className={styles.categoryItem}>
-                <div className={styles.categoryHeader}>
-                  <button
-                    className={`${styles.categoryButton} ${
-                      expandedCategory === category.id ? styles.expanded : ''
-                    }`}
-                    onClick={() =>
-                      handleCategoryNameClick(
-                        category.id,
-                        category.subcategories
-                      )
-                    }
-                    aria-expanded={expandedCategory === category.id}
-                  >
-                    <span>{category.name}</span>
-                  </button>
-                  <button
-                    className={styles.chevronButton}
-                    onClick={(e) => handleChevronClick(e, category.id)}
-                    aria-label={`${category.name}を${
-                      expandedCategory === category.id ? '縮小' : '展開'
-                    }`}
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      className={`${styles.chevron} ${
-                        expandedCategory === category.id ? styles.expanded : ''
-                      }`}
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-                </div>
-
-                {expandedCategory === category.id && (
-                  <ul className={styles.subcategoryList}>
-                    {category.subcategories.map((sub) => (
-                      <li key={sub.id} className={styles.subcategoryItem}>
-                        <Link
-                          href={`/search?categories=${sub.id}`}
-                          className={`${styles.subcategoryLink} ${
-                            isActive(sub.id) ? styles.active : ''
-                          }`}
-                          onClick={() => {
-                            // モバイル時はサイドバーを閉じる
-                            if (onClose) {
-                              onClose();
-                            }
-                          }}
-                        >
-                          {sub.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+              <ListItemText primary={category.name} />
+              <IconButton
+                size="small"
+                onClick={(e) => handleChevronClick(e, category.id)}
+                aria-label={`${category.name}を${
+                  expandedCategory === category.id ? '縮小' : '展開'
+                }`}
+              >
+                {expandedCategory === category.id ? (
+                  <ExpandLessIcon fontSize="small" />
+                ) : (
+                  <ExpandMoreIcon fontSize="small" />
                 )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </aside>
-    </>
+              </IconButton>
+            </ListItemButton>
+
+            <Collapse in={expandedCategory === category.id} timeout="auto">
+              <List component="div" disablePadding>
+                {category.subcategories.map((sub) => (
+                  <ListItemButton
+                    key={sub.id}
+                    component={Link}
+                    href={`/search?categories=${sub.id}`}
+                    selected={isActive(sub.id)}
+                    sx={{ pl: 4 }}
+                    onClick={() => {
+                      if (onClose) {
+                        onClose();
+                      }
+                    }}
+                  >
+                    <ListItemText primary={sub.name} />
+                  </ListItemButton>
+                ))}
+              </List>
+            </Collapse>
+          </Box>
+        ))}
+      </List>
+    </Drawer>
   );
 }

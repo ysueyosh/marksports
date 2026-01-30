@@ -6,7 +6,15 @@ import MainLayout from '@/components/Layout/MainLayout';
 import NotificationTag from '@/components/NotificationTag/NotificationTag';
 import Link from 'next/link';
 import { Notification, getNotificationDetail } from '@/api/notifications';
-import styles from './notification-detail.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Paper,
+  Button,
+  CircularProgress,
+} from '@mui/material';
 
 export default function NotificationDetailPage() {
   const searchParams = useSearchParams();
@@ -42,9 +50,9 @@ export default function NotificationDetailPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.loading}>読み込み中...</div>
-        </div>
+        <Box display="flex" justifyContent="center" py={6}>
+          <CircularProgress />
+        </Box>
       </MainLayout>
     );
   }
@@ -52,54 +60,59 @@ export default function NotificationDetailPage() {
   if (error || !notification) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.error}>
-            <h2>お知らせが見つかりません</h2>
-            <p>
-              {error || 'お手数ですが、お知らせ一覧から再度お選びください。'}
-            </p>
-            <Link href="/notifications" className={styles.backLink}>
-              お知らせ一覧に戻る
-            </Link>
-          </div>
-        </div>
+        <Box textAlign="center" py={6}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            お知らせが見つかりません
+          </Typography>
+          <Typography color="text.secondary" gutterBottom>
+            {error || 'お手数ですが、お知らせ一覧から再度お選びください。'}
+          </Typography>
+          <Button variant="outlined" component={Link} href="/notifications">
+            お知らせ一覧に戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/notifications">お知らせ</Link>
-          <span>/</span>
-          <span>{notification.title}</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <MuiLink component={Link} href="/notifications" color="inherit">
+            お知らせ
+          </MuiLink>
+          <Typography color="text.primary">{notification.title}</Typography>
+        </Breadcrumbs>
 
-        <article className={styles.article}>
-          <header className={styles.header}>
-            <div className={styles.titleSection}>
-              <h1 className={styles.title}>{notification.title}</h1>
-              {notification.important && <NotificationTag tag="重要" />}
-            </div>
-            <time className={styles.date}>
+        <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 } }}>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            mb={2}
+          >
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography variant="h5" fontWeight={700}>
+                {notification.title}
+              </Typography>
+              {notification.important && <NotificationTag tag="important" />}
+            </Box>
+            <Typography variant="body2" color="text.secondary">
               {new Date(notification.timestamp).toLocaleDateString('ja-JP')}
-            </time>
-          </header>
-
-          <div className={styles.content}>
-            <p>{notification.message}</p>
-          </div>
-
-          <footer className={styles.footer}>
-            <Link href="/notifications" className={styles.backLink}>
+            </Typography>
+          </Box>
+          <Typography color="text.secondary">{notification.message}</Typography>
+          <Box mt={3}>
+            <Button component={Link} href="/notifications">
               ← お知らせ一覧に戻る
-            </Link>
-          </footer>
-        </article>
-      </div>
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
     </MainLayout>
   );
 }

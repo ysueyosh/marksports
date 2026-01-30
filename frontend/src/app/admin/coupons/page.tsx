@@ -5,10 +5,22 @@ import AdminModal from '@/components/Admin/AdminModal';
 import AdminTable from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
 import Snackbar from '@/components/Snackbar/Snackbar';
-import sharedStyles from '../admin-shared.module.css';
 import { adminCouponAPI, Coupon } from '@/api/admin-coupons';
-
-const styles = sharedStyles;
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  Stack,
+  Paper,
+  Chip,
+  FormControl,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+  SelectChangeEvent,
+} from '@mui/material';
 
 interface CouponForm {
   couponCode: string;
@@ -60,7 +72,7 @@ export default function AdminCouponsPage() {
       setIsLoading(true);
       const response = await adminCouponAPI.getAllCoupons(
         currentPage,
-        pageSize
+        pageSize,
       );
       if (response.success && response.data) {
         // response.data は { coupons: Coupon[] } または Coupon の場合がある
@@ -187,7 +199,7 @@ export default function AdminCouponsPage() {
             startDate: formData.startDate || undefined,
             endDate: formData.endDate || undefined,
             isActive: formData.isActive,
-          }
+          },
         );
 
         if (response.success) {
@@ -263,7 +275,7 @@ export default function AdminCouponsPage() {
     try {
       setIsLoading(true);
       const response = await adminCouponAPI.deleteCoupon(
-        editingCoupon.couponId!
+        editingCoupon.couponId!,
       );
 
       if (response.success) {
@@ -287,21 +299,27 @@ export default function AdminCouponsPage() {
 
   // フォーム入力を処理
   const handleFormChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    const { name, value, type } = e.target as HTMLInputElement;
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
     setFormData({
       ...formData,
-      [name]:
-        type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+      [name]: type === 'checkbox' ? checked : value,
+    });
+  };
+
+  const handleSelectChange = (e: SelectChangeEvent) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
     });
   };
 
   // フィルタリング
   const filteredCoupons = coupons.filter((coupon) =>
-    coupon.couponCode?.toLowerCase().includes(searchTerm.toLowerCase())
+    coupon.couponCode?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // ページネーション
@@ -309,450 +327,291 @@ export default function AdminCouponsPage() {
   const startIndex = (currentPage - 1) * pageSize;
   const displayedCoupons = filteredCoupons.slice(
     startIndex,
-    startIndex + pageSize
+    startIndex + pageSize,
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>クーポンコード管理</h1>
-        <div className={styles.headerButtons}>
-          <button
+    <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+      <Stack spacing={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h4" fontWeight={700}>
+            クーポンコード管理
+          </Typography>
+          <Button
+            variant="contained"
             onClick={handleAddClick}
-            className={styles.primaryButton}
             disabled={isLoading}
           >
             新規クーポン
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Box>
 
-      <div className={styles.searchBox}>
-        <input
-          type="text"
-          className={styles.searchInput}
-          placeholder="クーポンコードで検索..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-        />
-      </div>
-
-      <AdminTable
-        columns={[
-          {
-            key: 'couponCode',
-            label: 'クーポンコード',
-            render: (value) => (
-              <span style={{ fontWeight: '500' }}>{value}</span>
-            ),
-          },
-          {
-            key: 'discountType',
-            label: '割引タイプ',
-            render: (value) => (value === 'percentage' ? '%割引' : '円割引'),
-            hide: { mobile: true, tablet: true },
-          },
-          {
-            key: 'discountValue',
-            label: '割引値',
-            render: (value, row) =>
-              row.discountType === 'percentage'
-                ? `${value}%`
-                : `¥${value?.toLocaleString?.() || value}`,
-          },
-          {
-            key: 'startDate',
-            label: '有効期間',
-            render: (value, row) => (
-              <>
-                <div>{value || '-'}</div>
-                <div>{row.endDate || '-'}</div>
-              </>
-            ),
-            hide: { mobile: true },
-          },
-          {
-            key: 'isActive',
-            label: 'ステータス',
-            render: (value) => (
-              <span
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  backgroundColor: value ? '#d1fae5' : '#fee2e2',
-                  color: value ? '#065f46' : '#991b1b',
-                }}
-              >
-                {value ? '有効' : '無効'}
-              </span>
-            ),
-          },
-        ]}
-        data={displayedCoupons}
-        rowKey="couponId"
-        actions={[
-          {
-            label: '編集',
-            onClick: (row) => handleEditClick(row),
-            variant: 'primary',
-          },
-        ]}
-        emptyMessage="クーポンが見つかりません"
-      />
-
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
-
-      <AdminModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setIsDeleteConfirming(false);
-          setDeleteInputValue('');
-        }}
-        title={editingCoupon ? 'クーポンを編集' : '新規クーポンを作成'}
-        buttons={
-          <div
-            style={{
-              display: 'flex',
-              gap: '10px',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'flex' }}>
-              {editingCoupon && !isDeleteConfirming && (
-                <button
-                  className={`${styles.secondaryButton} ${styles.danger}`}
-                  onClick={handleStartDelete}
-                >
-                  削除
-                </button>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                className={styles.secondaryButton}
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setIsDeleteConfirming(false);
-                  setDeleteInputValue('');
-                }}
-              >
-                キャンセル
-              </button>
-              <button
-                className={styles.primaryButton}
-                onClick={handleAddCoupon}
-                disabled={isLoading}
-              >
-                {editingCoupon ? '更新' : '作成'}
-              </button>
-            </div>
-          </div>
-        }
-      >
-        {isDeleteConfirming && editingCoupon && (
-          <div
-            style={{
-              marginBottom: '20px',
-              padding: '12px',
-              backgroundColor: '#fee2e2',
-              border: '1px solid #fca5a5',
-              borderRadius: '4px',
-            }}
-          >
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '600',
-                color: '#991b1b',
-              }}
-            >
-              ⚠️ 確認: 以下のクーポンを削除します
-            </label>
-            <p style={{ margin: '8px 0', fontSize: '14px', color: '#1f2937' }}>
-              <strong>クーポンコード:</strong> {editingCoupon.couponCode}
-            </p>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '4px',
-                marginTop: '12px',
-              }}
-            >
-              削除を確認するため、クーポンコードを入力してください
-            </label>
-            <input
-              type="text"
-              value={deleteInputValue}
-              onChange={(e) => setDeleteInputValue(e.target.value)}
-              placeholder={`「${editingCoupon.couponCode}」と入力`}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #fca5a5',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                backgroundColor: '#fff',
-              }}
-            />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={deleteInputValue !== editingCoupon.couponCode}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  backgroundColor:
-                    deleteInputValue === editingCoupon.couponCode
-                      ? '#dc2626'
-                      : '#f3f4f6',
-                  color:
-                    deleteInputValue === editingCoupon.couponCode
-                      ? 'white'
-                      : '#9ca3af',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor:
-                    deleteInputValue === editingCoupon.couponCode
-                      ? 'pointer'
-                      : 'not-allowed',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                }}
-              >
-                削除
-              </button>
-              <button
-                onClick={handleCancelDelete}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  backgroundColor: '#f3f4f6',
-                  color: '#1f2937',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                }}
-              >
-                キャンセル
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '4px' }}>
-            クーポンコード*
-          </label>
-          <input
-            type="text"
-            name="couponCode"
-            value={formData.couponCode}
-            onChange={handleFormChange}
-            placeholder="例: SUMMER2024"
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              fontSize: '14px',
-              boxSizing: 'border-box',
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <TextField
+            fullWidth
+            placeholder="クーポンコードで検索..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
             }}
           />
-        </div>
+        </Paper>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px',
-            marginBottom: '16px',
+        <AdminTable
+          columns={[
+            {
+              key: 'couponCode',
+              label: 'クーポンコード',
+              render: (value) => (
+                <Typography fontWeight={600}>{value}</Typography>
+              ),
+            },
+            {
+              key: 'discountType',
+              label: '割引タイプ',
+              render: (value) => (value === 'percentage' ? '%割引' : '円割引'),
+              hide: { mobile: true, tablet: true },
+            },
+            {
+              key: 'discountValue',
+              label: '割引値',
+              render: (value, row) =>
+                row.discountType === 'percentage'
+                  ? `${value}%`
+                  : `¥${value?.toLocaleString?.() || value}`,
+            },
+            {
+              key: 'startDate',
+              label: '有効期間',
+              render: (value, row) => (
+                <Stack spacing={0.5}>
+                  <Typography variant="body2">{value || '-'}</Typography>
+                  <Typography variant="body2">{row.endDate || '-'}</Typography>
+                </Stack>
+              ),
+              hide: { mobile: true },
+            },
+            {
+              key: 'isActive',
+              label: 'ステータス',
+              render: (value) => (
+                <Chip
+                  size="small"
+                  label={value ? '有効' : '無効'}
+                  color={value ? 'success' : 'default'}
+                />
+              ),
+            },
+          ]}
+          data={displayedCoupons}
+          rowKey="couponId"
+          actions={[
+            {
+              label: '編集',
+              onClick: (row) => handleEditClick(row),
+              variant: 'primary',
+            },
+          ]}
+          emptyMessage="クーポンが見つかりません"
+        />
+
+        <Box display="flex" justifyContent="center">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </Box>
+
+        <AdminModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setIsDeleteConfirming(false);
+            setDeleteInputValue('');
           }}
+          title={editingCoupon ? 'クーポンを編集' : '新規クーポンを作成'}
+          buttons={
+            <Stack direction="row" spacing={2} justifyContent="space-between">
+              <Box>
+                {editingCoupon && !isDeleteConfirming && (
+                  <Button
+                    color="error"
+                    variant="outlined"
+                    onClick={handleStartDelete}
+                  >
+                    削除
+                  </Button>
+                )}
+              </Box>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setIsDeleteConfirming(false);
+                    setDeleteInputValue('');
+                  }}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleAddCoupon}
+                  disabled={isLoading}
+                >
+                  {editingCoupon ? '更新' : '作成'}
+                </Button>
+              </Stack>
+            </Stack>
+          }
         >
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              割引タイプ*
-            </label>
-            <select
-              name="discountType"
-              value={formData.discountType}
+          <Stack spacing={2}>
+            {isDeleteConfirming && editingCoupon && (
+              <Paper
+                variant="outlined"
+                sx={{ p: 2, borderColor: 'error.main' }}
+              >
+                <Typography color="error" fontWeight={700} mb={1}>
+                  ⚠️ 確認: 以下のクーポンを削除します
+                </Typography>
+                <Typography variant="body2" mb={2}>
+                  <strong>クーポンコード:</strong> {editingCoupon.couponCode}
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="削除確認"
+                  value={deleteInputValue}
+                  onChange={(e) => setDeleteInputValue(e.target.value)}
+                  placeholder={`「${editingCoupon.couponCode}」と入力`}
+                />
+                <Stack direction="row" spacing={1} mt={2}>
+                  <Button
+                    color="error"
+                    variant="contained"
+                    fullWidth
+                    onClick={handleConfirmDelete}
+                    disabled={deleteInputValue !== editingCoupon.couponCode}
+                  >
+                    削除
+                  </Button>
+                  <Button fullWidth onClick={handleCancelDelete}>
+                    キャンセル
+                  </Button>
+                </Stack>
+              </Paper>
+            )}
+
+            <TextField
+              label="クーポンコード"
+              name="couponCode"
+              value={formData.couponCode}
               onChange={handleFormChange}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
+              placeholder="例: SUMMER2024"
+              fullWidth
+            />
+
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                gap: 2,
               }}
             >
-              <option value="percentage">パーセンテージ</option>
-              <option value="amount">固定額</option>
-            </select>
-          </div>
+              <FormControl fullWidth>
+                <Select
+                  name="discountType"
+                  value={formData.discountType}
+                  onChange={handleSelectChange}
+                >
+                  <MenuItem value="percentage">パーセンテージ</MenuItem>
+                  <MenuItem value="amount">固定額</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                type="number"
+                name="discountValue"
+                label="割引値"
+                value={formData.discountValue}
+                onChange={handleFormChange}
+                placeholder="0"
+                inputProps={{ min: 0, step: 0.01 }}
+                fullWidth
+              />
+            </Box>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              割引値*
-            </label>
-            <input
-              type="number"
-              name="discountValue"
-              value={formData.discountValue}
-              onChange={handleFormChange}
-              placeholder="0"
-              min="0"
-              step="0.01"
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-        </div>
+            {formData.discountType === 'percentage' && (
+              <TextField
+                type="number"
+                name="maxDiscountAmount"
+                label="最大割引額"
+                value={formData.maxDiscountAmount}
+                onChange={handleFormChange}
+                placeholder="0"
+                inputProps={{ min: 0, step: 0.01 }}
+                fullWidth
+              />
+            )}
 
-        {formData.discountType === 'percentage' && (
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              最大割引額*
-            </label>
-            <input
-              type="number"
-              name="maxDiscountAmount"
-              value={formData.maxDiscountAmount}
-              onChange={handleFormChange}
-              placeholder="0"
-              min="0"
-              step="0.01"
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
+            {formData.discountType === 'amount' && (
+              <TextField
+                type="number"
+                name="minOrderAmount"
+                label="最小注文額"
+                value={formData.minOrderAmount}
+                onChange={handleFormChange}
+                placeholder="0"
+                inputProps={{ min: 0, step: 0.01 }}
+                fullWidth
+              />
+            )}
+
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                gap: 2,
               }}
+            >
+              <TextField
+                type="date"
+                name="startDate"
+                label="有効開始日"
+                value={formData.startDate}
+                onChange={handleFormChange}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                type="date"
+                name="endDate"
+                label="有効終了日"
+                value={formData.endDate}
+                onChange={handleFormChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  name="isActive"
+                  checked={formData.isActive}
+                  onChange={handleFormChange}
+                />
+              }
+              label="有効にする"
             />
-          </div>
+          </Stack>
+        </AdminModal>
+
+        {snackbar && (
+          <Snackbar
+            message={snackbar.message}
+            type={snackbar.type}
+            onClose={() => setSnackbar(null)}
+          />
         )}
-
-        {formData.discountType === 'amount' && (
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              最小注文額*
-            </label>
-            <input
-              type="number"
-              name="minOrderAmount"
-              value={formData.minOrderAmount}
-              onChange={handleFormChange}
-              placeholder="0"
-              min="0"
-              step="0.01"
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-        )}
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px',
-            marginBottom: '16px',
-          }}
-        >
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              有効開始日
-            </label>
-            <input
-              type="date"
-              name="startDate"
-              value={formData.startDate}
-              onChange={handleFormChange}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '4px' }}>
-              有効終了日
-            </label>
-            <input
-              type="date"
-              name="endDate"
-              value={formData.endDate}
-              onChange={handleFormChange}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <input
-              type="checkbox"
-              name="isActive"
-              checked={formData.isActive}
-              onChange={handleFormChange}
-            />
-            <span>有効にする</span>
-          </label>
-        </div>
-      </AdminModal>
-
-      {snackbar && (
-        <Snackbar
-          message={snackbar.message}
-          type={snackbar.type}
-          onClose={() => setSnackbar(null)}
-        />
-      )}
-    </div>
+      </Stack>
+    </Box>
   );
 }

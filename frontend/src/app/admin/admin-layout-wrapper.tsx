@@ -4,9 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminHeader from '@/components/Header/AdminHeader';
-import Overlay from '@/components/Common/Overlay';
 import { verifyAdminToken, refreshAdminToken } from '@/api/admin';
-import styles from './admin-layout.module.css';
+import {
+  Box,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  IconButton,
+  Typography,
+  Divider,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface AdminLayoutWrapperProps {
   children: React.ReactNode;
@@ -24,6 +33,27 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLargeScreen, setIsLargeScreen] = useState(false);
+
+  const navItems = [
+    { href: '/admin/home', label: 'ホーム' },
+    { href: '/admin/products', label: '商品管理' },
+    { href: '/admin/orders', label: '注文管理' },
+    { href: '/admin/coupons', label: 'クーポン管理' },
+    { href: '/admin/users', label: 'ユーザー管理' },
+    { href: '/admin/notifications', label: 'お知らせ配信' },
+    { href: '/admin/settings', label: '設定' },
+  ];
+
+  useEffect(() => {
+    // タブレット以上のサイズかチェック
+    const checkSize = () => {
+      setIsLargeScreen(window.innerWidth >= 960); // md breakpoint
+    };
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
 
   useEffect(() => {
     // ログインページと新規管理者作成ページは常に表示（リダイレクト処理なし）
@@ -152,123 +182,78 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   }
 
   return (
-    <div className={styles.layoutContainer}>
-      <AdminHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-      <div
-        className={`${styles.mainContent} ${
-          sidebarOpen ? styles.hasSidebarOpen : ''
-        }`}
-      >
-        <Overlay
-          isOpen={sidebarOpen}
-          onClick={() => setSidebarOpen(false)}
-          zIndex="sidebar"
-        />
-        <aside
-          className={`${styles.sidebar} ${sidebarOpen ? styles.open : ''}`}
-        >
-          <nav className={styles.nav}>
-            <button
-              className={styles.closeButton}
-              onClick={() => setSidebarOpen(false)}
-              aria-label="サイドバーを閉じる"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M15 19l-7-7 7-7" />
-              </svg>
-              <span>閉じる</span>
-            </button>
-            <ul className={styles.navList}>
-              <li>
-                <Link
-                  href="/admin/home"
-                  className={`${styles.navLink} ${
-                    isActive('/admin/home') ? styles.active : ''
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  ホーム
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/products"
-                  className={`${styles.navLink} ${
-                    isActive('/admin/products') ? styles.active : ''
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  商品管理
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/orders"
-                  className={`${styles.navLink} ${
-                    isActive('/admin/orders') ? styles.active : ''
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  注文管理
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/coupons"
-                  className={`${styles.navLink} ${
-                    isActive('/admin/coupons') ? styles.active : ''
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  クーポン管理
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/users"
-                  className={`${styles.navLink} ${
-                    isActive('/admin/users') ? styles.active : ''
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  ユーザー管理
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/notifications"
-                  className={`${styles.navLink} ${
-                    isActive('/admin/notifications') ? styles.active : ''
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  お知らせ配信
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/settings"
-                  className={`${styles.navLink} ${
-                    isActive('/admin/settings') ? styles.active : ''
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  設定
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </aside>
+    <Box display="flex" flexDirection="column" minHeight="100vh">
+      <AdminHeader
+        onMenuClick={() => setSidebarOpen(true)}
+        isLargeScreen={isLargeScreen}
+      />
 
-        <main className={styles.content}>{children}</main>
-      </div>
-    </div>
+      {/* Admin Sidebar */}
+      <Drawer
+        open={isLargeScreen ? true : sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        variant={isLargeScreen ? 'permanent' : 'temporary'}
+        ModalProps={{ keepMounted: isLargeScreen }}
+        PaperProps={{
+          sx: {
+            width: 240,
+            position: isLargeScreen ? 'fixed' : 'absolute',
+            top: isLargeScreen ? 65 : 0,
+            left: 0,
+            height: isLargeScreen ? 'calc(100vh - 65px)' : '100vh',
+            borderRight: '1px solid',
+            borderRightColor: 'divider',
+            boxShadow: isLargeScreen ? 'none' : 3,
+          },
+        }}
+      >
+        <Box sx={{ p: 2, display: 'flex', alignItems: 'center' }}>
+          <Typography fontWeight={700} flex={1}>
+            メニュー
+          </Typography>
+          {!isLargeScreen && (
+            <IconButton onClick={() => setSidebarOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          )}
+        </Box>
+        <Divider />
+        <List>
+          {navItems.map((item) => (
+            <ListItemButton
+              key={item.href}
+              component={Link}
+              href={item.href}
+              selected={isActive(item.href)}
+              onClick={() => {
+                if (!isLargeScreen) {
+                  setSidebarOpen(false);
+                }
+              }}
+            >
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          ))}
+        </List>
+      </Drawer>
+
+      {/* Main Content Area */}
+      <Box
+        component="main"
+        flex={1}
+        sx={{
+          overflow: 'auto',
+          marginLeft: isLargeScreen ? '240px' : '0',
+          transition: 'margin-left 0.3s ease-in-out',
+          paddingTop: 2,
+          paddingLeft: { xs: 2, md: 3 },
+          paddingRight: { xs: 2, md: 3 },
+          paddingBottom: 3,
+          backgroundColor: 'grey.50',
+        }}
+      >
+        {children}
+      </Box>
+    </Box>
   );
 }

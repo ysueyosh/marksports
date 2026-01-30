@@ -7,7 +7,15 @@ import NotificationTag from '@/components/NotificationTag/NotificationTag';
 import { useNotificationContext } from '@/context/NotificationContext';
 import Link from 'next/link';
 import { getNotifications, Notification } from '@/api/notifications';
-import styles from './notifications.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Card,
+  CardContent,
+  Stack,
+} from '@mui/material';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -73,56 +81,68 @@ export default function NotificationsPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <span>お知らせ</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <Typography color="text.primary">お知らせ</Typography>
+        </Breadcrumbs>
 
-        <div className={styles.header}>
-          <h1>お知らせ</h1>
-        </div>
+        <Typography variant="h4" fontWeight={700}>
+          お知らせ
+        </Typography>
 
-        {/* 件数表示 */}
-        <div className={styles.resultCount}>
-          <p>全 {filteredNotifications.length} 件を表示</p>
-        </div>
+        <Typography color="text.secondary">
+          全 {filteredNotifications.length} 件を表示
+        </Typography>
 
-        {/* お知らせリスト */}
-        <div className={styles.notificationList}>
+        <Stack spacing={2}>
           {paginatedNotifications.length === 0 ? (
-            <div className={styles.empty}>お知らせがありません</div>
+            <Typography color="text.secondary">お知らせがありません</Typography>
           ) : (
             paginatedNotifications.map((notification) => (
-              <Link
+              <Card
                 key={notification.id}
+                variant="outlined"
+                component={Link}
                 href={`/notifications/detail?id=${notification.id}`}
                 onClick={() => markAsRead(notification.id)}
-                className={`${styles.notificationItem} ${
-                  notification.read ? styles.read : styles.unread
-                }`}
+                sx={{
+                  textDecoration: 'none',
+                  bgcolor: notification.read
+                    ? 'background.paper'
+                    : 'action.hover',
+                }}
               >
-                <div className={styles.content}>
-                  <div className={styles.titleRow}>
-                    <h3 className={styles.title}>{notification.title}</h3>
-                    {notification.important && <NotificationTag tag="重要" />}
-                  </div>
-                  <p className={styles.description}>{notification.message}</p>
-                  <div className={styles.meta}>
-                    <span className={styles.date}>
-                      {new Date(notification.timestamp).toLocaleDateString(
-                        'ja-JP',
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </Link>
+                <CardContent>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    mb={1}
+                  >
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      {notification.title}
+                    </Typography>
+                    {notification.important && (
+                      <NotificationTag tag="important" />
+                    )}
+                  </Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    {notification.message}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">
+                    {new Date(notification.timestamp).toLocaleDateString(
+                      'ja-JP',
+                    )}
+                  </Typography>
+                </CardContent>
+              </Card>
             ))
           )}
-        </div>
+        </Stack>
 
-        {/* ページネーション */}
         {filteredNotifications.length > 0 && (
           <Pagination
             currentPage={currentPage}
@@ -130,7 +150,7 @@ export default function NotificationsPage() {
             onPageChange={setCurrentPage}
           />
         )}
-      </div>
+      </Box>
     </MainLayout>
   );
 }

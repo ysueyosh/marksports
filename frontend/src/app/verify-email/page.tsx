@@ -3,9 +3,18 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { verifyEmail } from '@/api/register';
-import styles from '@/app/register/register.module.css';
 import MainLayout from '@/components/Layout/MainLayout';
 import LoginModal from '@/components/LoginModal/LoginModal';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  CircularProgress,
+  Stack,
+} from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
@@ -53,110 +62,76 @@ export default function VerifyEmailPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.verificationBox}>
-          <div className={styles.checkIcon}>
-            {status === 'loading' && (
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  fill="none"
-                  stroke="#007bff"
-                  strokeWidth="2"
-                />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  fill="none"
-                  stroke="#007bff"
-                  strokeWidth="2"
-                  strokeDasharray="31.4 94.2"
-                  style={{ animation: 'spin 1s linear infinite' }}
-                />
-              </svg>
-            )}
+      <Box display="flex" justifyContent="center" py={6}>
+        <Paper
+          variant="outlined"
+          sx={{ p: { xs: 3, md: 4 }, textAlign: 'center', maxWidth: 480 }}
+        >
+          <Stack spacing={2} alignItems="center">
+            {status === 'loading' && <CircularProgress />}
             {status === 'success' && (
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <circle cx="24" cy="24" r="24" fill="#4caf50" />
-                <path
-                  d="M14 25l7 7 13-13"
-                  stroke="#fff"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <CheckCircleIcon color="success" sx={{ fontSize: 56 }} />
             )}
             {status === 'error' && (
-              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <circle cx="24" cy="24" r="24" fill="#e74c3c" />
-                <path
-                  d="M15 15l18 18M33 15L15 33"
-                  stroke="#fff"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <ErrorIcon color="error" sx={{ fontSize: 56 }} />
             )}
-          </div>
 
-          <h2 style={{ marginBottom: '16px' }}>
-            {status === 'loading' && 'メール認証中'}
-            {status === 'success' && '認証成功'}
-            {status === 'error' && '認証失敗'}
-          </h2>
+            <Typography variant="h5" fontWeight={700}>
+              {status === 'loading' && 'メール認証中'}
+              {status === 'success' && '認証成功'}
+              {status === 'error' && '認証失敗'}
+            </Typography>
 
-          <p
-            style={{ marginBottom: '24px', textAlign: 'center', color: '#666' }}
-          >
-            {message}
-          </p>
+            <Typography color="text.secondary">{message}</Typography>
 
-          {status === 'error' && (
-            <div className={styles.verificationActions}>
-              <button
-                className={styles.submitButton}
-                onClick={() => router.push('/register')}
+            {status === 'error' && (
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                width="100%"
               >
-                会員登録に戻る
-              </button>
-              <button
-                className={styles.cancelButton}
-                onClick={() => router.push('/')}
-              >
-                ホームへ
-              </button>
-            </div>
-          )}
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={() => router.push('/register')}
+                >
+                  会員登録に戻る
+                </Button>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  onClick={() => router.push('/')}
+                >
+                  ホームへ
+                </Button>
+              </Stack>
+            )}
 
-          {status === 'success' && (
-            <div className={styles.verificationActions}>
-              <button
-                className={styles.submitButton}
-                onClick={() => setIsLoginModalOpen(true)}
+            {status === 'success' && (
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                width="100%"
               >
-                ログインする
-              </button>
-              <button
-                className={styles.cancelButton}
-                onClick={() => router.push('/')}
-              >
-                ホームへ
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={() => setIsLoginModalOpen(true)}
+                >
+                  ログインする
+                </Button>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  onClick={() => router.push('/')}
+                >
+                  ホームへ
+                </Button>
+              </Stack>
+            )}
+          </Stack>
+        </Paper>
+      </Box>
 
       <LoginModal
         isOpen={isLoginModalOpen}

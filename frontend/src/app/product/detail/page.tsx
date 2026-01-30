@@ -8,7 +8,6 @@ import ReactMarkdown from 'react-markdown';
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
-import styles from '../detail/product.module.css';
 import { formatPriceIncludedTax } from '@/utils/price';
 import {
   getProductDetail,
@@ -18,6 +17,15 @@ import {
 } from '@/api/products';
 import { useSearch } from '@/context/SearchContext';
 import { useSnackbar } from '@/context/SnackbarContext';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Button,
+  Stack,
+  Chip,
+} from '@mui/material';
 
 export default function ProductDetailPage() {
   const searchParams = useSearchParams();
@@ -107,7 +115,7 @@ export default function ProductDetailPage() {
   if (!id) {
     return (
       <MainLayout>
-        <div className={styles.container}></div>
+        <Box py={6} />
       </MainLayout>
     );
   }
@@ -115,28 +123,42 @@ export default function ProductDetailPage() {
   if (error || !product) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <h1>商品が見つかりません</h1>
-        </div>
+        <Box py={6} textAlign="center">
+          <Typography variant="h5" fontWeight={700}>
+            商品が見つかりません
+          </Typography>
+        </Box>
       </MainLayout>
     );
   }
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href={searchUrl}>検索</Link>
-          <span>/</span>
-          <span>商品詳細</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <MuiLink component={Link} href={searchUrl} color="inherit">
+            検索
+          </MuiLink>
+          <Typography color="text.primary">商品詳細</Typography>
+        </Breadcrumbs>
 
-        <div className={styles.productContent}>
-          {/* Product Images */}
-          <div className={styles.imageSection}>
-            <div className={styles.mainImage}>
+        <Box
+          display="grid"
+          gap={3}
+          gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }}
+        >
+          <Box>
+            <Box
+              position="relative"
+              width="100%"
+              pt="100%"
+              borderRadius={2}
+              overflow="hidden"
+              bgcolor="grey.100"
+            >
               {product?.imageUrls && product.imageUrls.length > 0 ? (
                 <Image
                   src={
@@ -147,108 +169,98 @@ export default function ProductDetailPage() {
                     selectedImageIndex + 1
                   }`}
                   fill
-                  className={styles.image}
+                  style={{ objectFit: 'cover' }}
                   priority
                 />
-              ) : (
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: '#f0f0f0',
-                  }}
-                />
-              )}
-            </div>
-            <div className={styles.thumbnails}>
+              ) : null}
+            </Box>
+            <Stack direction="row" spacing={1} mt={2} flexWrap="wrap">
               {product?.imageUrls &&
                 product.imageUrls.map((imageUrl, index) => (
-                  <button
+                  <Button
                     key={index}
-                    className={`${styles.thumbnail} ${
-                      selectedImageIndex === index ? styles.active : ''
-                    }`}
+                    variant={
+                      selectedImageIndex === index ? 'contained' : 'outlined'
+                    }
                     onClick={() => setSelectedImageIndex(index)}
-                    aria-label={`画像${index + 1}を表示`}
+                    sx={{ minWidth: 60, p: 0, height: 60 }}
                   >
-                    <Image
-                      src={imageUrl}
-                      alt={`${product?.name || '商品'} - 画像${index + 1}`}
-                      fill
-                      className={styles.thumbnailImage}
-                    />
-                  </button>
+                    <Box position="relative" width={60} height={60}>
+                      <Image
+                        src={imageUrl}
+                        alt={`${product?.name || '商品'} - 画像${index + 1}`}
+                        fill
+                        style={{ objectFit: 'cover' }}
+                      />
+                    </Box>
+                  </Button>
                 ))}
-            </div>
-          </div>
+            </Stack>
+          </Box>
 
-          {/* Product Info */}
-          <div className={styles.infoSection}>
-            <h1 className={styles.productName}>{product.name}</h1>
+          <Box display="flex" flexDirection="column" gap={2}>
+            <Typography variant="h4" fontWeight={700}>
+              {product.name}
+            </Typography>
 
-            <div className={styles.priceSection}>
-              <div className={styles.price}>
+            <Box display="flex" alignItems="center" gap={2}>
+              <Typography variant="h5" fontWeight={700}>
                 {formatPriceIncludedTax(product.price)}
-              </div>
+              </Typography>
               {product.originalPrice && (
                 <>
-                  <span className={styles.originalPrice}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ textDecoration: 'line-through' }}
+                  >
                     {formatPriceIncludedTax(product.originalPrice)}
-                  </span>
+                  </Typography>
                   {product.discount && (
-                    <span className={styles.discount}>{product.discount}</span>
+                    <Chip label={product.discount} color="error" size="small" />
                   )}
                 </>
               )}
-            </div>
+            </Box>
 
-            {/* Product Details Text */}
-            <div className={styles.productDetails}>
+            <Box>
               <ReactMarkdown>{product.description || ''}</ReactMarkdown>
-            </div>
+            </Box>
 
-            <div style={{ marginTop: 8 }}>
-              {product.redirectUrl ? (
-                <a
-                  href={product.redirectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    backgroundColor: '#007bff',
-                    color: 'white',
-                    textDecoration: 'none',
-                    borderRadius: '4px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.target as HTMLElement).style.backgroundColor = '#0056b3';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.target as HTMLElement).style.backgroundColor = '#007bff';
-                  }}
-                >
-                  サイトに移動
-                </a>
-              ) : (
-                <ClientAddToCart
-                  id={String(product.id)}
-                  name={product.name}
-                  price={product.price}
-                  image={product.image}
-                />
-              )}
-            </div>
-          </div>
-        </div>
+            {product.redirectUrl ? (
+              <Button
+                variant="contained"
+                component="a"
+                href={product.redirectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                サイトに移動
+              </Button>
+            ) : (
+              <ClientAddToCart
+                id={String(product.id)}
+                name={product.name}
+                price={product.price}
+                image={product.image}
+              />
+            )}
+          </Box>
+        </Box>
 
-        {/* Related Products */}
-        <div className={styles.relatedSection}>
-          <h2>関連商品</h2>
-          <div className={styles.relatedGrid}>
+        <Box>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            関連商品
+          </Typography>
+          <Box
+            display="grid"
+            gap={2}
+            gridTemplateColumns={{
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(4, 1fr)',
+            }}
+          >
             {relatedProducts.length > 0 ? (
               relatedProducts.map((relatedProduct) => (
                 <ProductCard
@@ -261,13 +273,13 @@ export default function ProductDetailPage() {
                 />
               ))
             ) : (
-              <div className={styles.noRelatedProducts}>
+              <Typography color="text.secondary">
                 関連商品がありません
-              </div>
+              </Typography>
             )}
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Box>
     </MainLayout>
   );
 }

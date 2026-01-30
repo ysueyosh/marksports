@@ -7,9 +7,25 @@ import MainLayout from '@/components/Layout/MainLayout';
 import LoadingSpinner from '@/components/Admin/LoadingSpinner';
 import Link from 'next/link';
 import { TextInput } from '@/components/Input/TextInput';
-import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import { updateProfile, changePassword } from '@/api/auth';
-import styles from './edit-profile.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Tabs,
+  Tab,
+  Paper,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Stack,
+  Alert,
+  Checkbox,
+  FormControlLabel,
+} from '@mui/material';
 
 interface ProfileFormData {
   name: string;
@@ -25,7 +41,6 @@ export default function EditProfilePage() {
     name: user?.name || '',
     gender: '',
   });
-  const [isGenderDropdownOpen, setIsGenderDropdownOpen] = useState(false);
   const [isEmailEditable, setIsEmailEditable] = useState(false);
   const [email, setEmail] = useState(user?.email || '');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -36,7 +51,7 @@ export default function EditProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>(
-    {}
+    {},
   );
 
   const genderOptions = [
@@ -63,7 +78,9 @@ export default function EditProfilePage() {
   }, [pathname]);
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -118,15 +135,17 @@ export default function EditProfilePage() {
     return (
       <MainLayout>
         {isLoading && <LoadingSpinner />}
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>プロフィール編集</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box textAlign="center" py={6}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            プロフィール編集
+          </Typography>
+          <Typography color="text.secondary" gutterBottom>
+            ログインしていません
+          </Typography>
+          <Button variant="outlined" component={Link} href="/">
+            ホームへ戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
@@ -140,8 +159,8 @@ export default function EditProfilePage() {
     try {
       const response = await updateProfile({
         name: formData.name,
-        email: email,
-        gender: formData.gender,
+        phone: undefined,
+        sex: formData.gender,
       });
 
       if (response.success) {
@@ -193,42 +212,38 @@ export default function EditProfilePage() {
   return (
     <MainLayout>
       {isLoading && <LoadingSpinner />}
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/account">アカウント</Link>
-          <span>/</span>
-          <span>プロフィール編集</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <MuiLink component={Link} href="/account" color="inherit">
+            アカウント
+          </MuiLink>
+          <Typography color="text.primary">プロフィール編集</Typography>
+        </Breadcrumbs>
 
-        <h1 className={styles.title}>プロフィール編集</h1>
+        <Typography variant="h4" fontWeight={700}>
+          プロフィール編集
+        </Typography>
 
-        <div className={styles.tabButtons}>
-          <button
-            className={`${styles.tabButton} ${
-              activeTab === 'profile' ? styles.active : ''
-            }`}
-            onClick={() => setActiveTab('profile')}
-          >
-            プロフィール
-          </button>
-          <button
-            className={`${styles.tabButton} ${
-              activeTab === 'password' ? styles.active : ''
-            }`}
-            onClick={() => setActiveTab('password')}
-          >
-            パスワード変更
-          </button>
-        </div>
+        <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)}>
+          <Tab label="プロフィール" value="profile" />
+          <Tab label="パスワード変更" value="password" />
+        </Tabs>
 
-        {error && <div className={styles.errorMessage}>{error}</div>}
-        {success && <div className={styles.successMessage}>{success}</div>}
+        {error && <Alert severity="error">{error}</Alert>}
+        {success && <Alert severity="success">{success}</Alert>}
 
         {activeTab === 'profile' && (
-          <form className={styles.form} onSubmit={handleProfileSubmit}>
-            <div className={styles.formGroup}>
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Box
+              component="form"
+              onSubmit={handleProfileSubmit}
+              display="flex"
+              flexDirection="column"
+              gap={2}
+            >
               <TextInput
                 label="お名前"
                 name="name"
@@ -237,74 +252,71 @@ export default function EditProfilePage() {
                 placeholder="例：山田 太郎"
                 error={fieldErrors.name}
               />
-            </div>
 
-            <div className={styles.formGroup}>
-              <div className={styles.formLabelWithCheckbox}>
-                <label>メールアドレス</label>
-                <div className={styles.checkboxWrapper}>
-                  <input
-                    type="checkbox"
-                    id="emailEditable"
-                    checked={isEmailEditable}
-                    onChange={(e) => setIsEmailEditable(e.target.checked)}
-                    className={styles.checkbox}
+              <Box>
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  mb={1}
+                >
+                  <Typography variant="subtitle2">メールアドレス</Typography>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={isEmailEditable}
+                        onChange={(e) => setIsEmailEditable(e.target.checked)}
+                      />
+                    }
+                    label="編集する"
                   />
-                  <label
-                    htmlFor="emailEditable"
-                    className={styles.checkboxLabel}
-                  >
-                    編集する
-                  </label>
-                </div>
-              </div>
-              <TextInput
-                name="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={!isEmailEditable}
-                placeholder="example@example.com"
-              />
-            </div>
+                </Box>
+                <TextInput
+                  name="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={!isEmailEditable}
+                  placeholder="example@example.com"
+                />
+              </Box>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label}>性別</label>
-              <Dropdown
-                isOpen={isGenderDropdownOpen}
-                onToggle={() => setIsGenderDropdownOpen(!isGenderDropdownOpen)}
-                onClose={() => setIsGenderDropdownOpen(false)}
-                buttonText={
-                  genderOptions.find((opt) => opt.id === formData.gender)
-                    ?.label || '選択してください'
-                }
-              >
-                {genderOptions.map((option) => (
-                  <div
-                    key={option.id}
-                    className={styles.dropdownOption}
-                    onClick={() => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        gender: option.id,
-                      }));
-                      setIsGenderDropdownOpen(false);
-                    }}
-                  >
-                    <span>{option.label}</span>
-                  </div>
-                ))}
-              </Dropdown>
-            </div>
+              <FormControl fullWidth>
+                <InputLabel id="gender-label">性別</InputLabel>
+                <Select
+                  labelId="gender-label"
+                  label="性別"
+                  value={formData.gender}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      gender: String(e.target.value),
+                    }))
+                  }
+                >
+                  {genderOptions.map((option) => (
+                    <MenuItem key={option.id} value={option.id}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-            <button type="submit" className={styles.submitButton}>
-              更新する
-            </button>
-          </form>
+              <Button type="submit" variant="contained">
+                更新する
+              </Button>
+            </Box>
+          </Paper>
         )}
 
         {activeTab === 'password' && (
-          <form className={styles.form} onSubmit={handlePasswordSubmit}>
-            <div className={styles.formGroup}>
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Box
+              component="form"
+              onSubmit={handlePasswordSubmit}
+              display="flex"
+              flexDirection="column"
+              gap={2}
+            >
               <TextInput
                 label="現在のパスワード"
                 name="currentPassword"
@@ -314,9 +326,7 @@ export default function EditProfilePage() {
                 placeholder="現在のパスワードを入力"
                 error={passwordErrors.currentPassword}
               />
-            </div>
 
-            <div className={styles.formGroup}>
               <TextInput
                 label="新しいパスワード"
                 name="newPassword"
@@ -326,9 +336,7 @@ export default function EditProfilePage() {
                 placeholder="新しいパスワードを入力"
                 error={passwordErrors.newPassword}
               />
-            </div>
 
-            <div className={styles.formGroup}>
               <TextInput
                 label="新しいパスワード（確認）"
                 name="confirmPassword"
@@ -338,14 +346,14 @@ export default function EditProfilePage() {
                 placeholder="新しいパスワードを再度入力"
                 error={passwordErrors.confirmPassword}
               />
-            </div>
 
-            <button type="submit" className={styles.submitButton}>
-              パスワードを変更
-            </button>
-          </form>
+              <Button type="submit" variant="contained">
+                パスワードを変更
+              </Button>
+            </Box>
+          </Paper>
         )}
-      </div>
+      </Box>
     </MainLayout>
   );
 }

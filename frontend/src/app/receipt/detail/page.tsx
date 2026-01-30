@@ -5,7 +5,22 @@ import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useRef } from 'react';
-import styles from './receipt.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Button,
+  Paper,
+  Divider,
+  Stack,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Alert,
+} from '@mui/material';
 
 interface Order {
   id: string;
@@ -58,14 +73,12 @@ export default function ReceiptPage() {
     if (receiptRef.current) {
       const printWindow = window.open('', '', 'width=800,height=600');
       if (printWindow) {
-        // クローンした領収証要素を新しいウィンドウに追加
         const clonedReceipt = receiptRef.current.cloneNode(true) as HTMLElement;
 
         printWindow.document.write(
           '<!DOCTYPE html><html><head><meta charset="UTF-8">',
         );
 
-        // すべてのスタイルシートを新しいウィンドウにコピー
         for (let i = 0; i < document.styleSheets.length; i++) {
           try {
             const sheet = document.styleSheets[i];
@@ -99,15 +112,14 @@ export default function ReceiptPage() {
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>領収証</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            ログインしていません
+          </Alert>
+          <Button variant="outlined" component={Link} href="/">
+            ホームへ戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
@@ -115,15 +127,14 @@ export default function ReceiptPage() {
   if (!order) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notFound}>
-            <h1>領収証が見つかりません</h1>
-            <p>指定された注文が見つかりませんでした</p>
-            <Link href="/orders" className={styles.backButton}>
-              注文履歴に戻る
-            </Link>
-          </div>
-        </div>
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            領収証が見つかりません
+          </Alert>
+          <Button variant="outlined" component={Link} href="/orders">
+            注文履歴に戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
@@ -137,123 +148,143 @@ export default function ReceiptPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/account">アカウント</Link>
-          <span>/</span>
-          <Link href="/orders">注文履歴</Link>
-          <span>/</span>
-          <span>領収証</span>
-        </div>
+      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+        <Breadcrumbs sx={{ mb: 3 }}>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <MuiLink component={Link} href="/account" color="inherit">
+            アカウント
+          </MuiLink>
+          <MuiLink component={Link} href="/orders" color="inherit">
+            注文履歴
+          </MuiLink>
+          <Typography color="text.primary">領収証</Typography>
+        </Breadcrumbs>
 
-        <div className={styles.receiptContainer}>
-          <div className={styles.receiptHeader}>
-            <h1>領収証</h1>
-            <button className={styles.printButton} onClick={handlePrint}>
+        <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={2}
+            mb={3}
+          >
+            <Typography variant="h4" fontWeight={700}>
+              領収証
+            </Typography>
+            <Button variant="contained" onClick={handlePrint}>
               印刷する
-            </button>
-          </div>
+            </Button>
+          </Stack>
 
-          <div ref={receiptRef} className={styles.receipt}>
-            <div className={styles.companyInfo}>
-              <h2>Mark Sports</h2>
-              <p>住所：〒000-0000 東京都渋谷区</p>
-              <p>電話：0120-XXX-XXXX</p>
-            </div>
+          <Box ref={receiptRef}>
+            <Box mb={2}>
+              <Typography variant="h6" fontWeight={700}>
+                Mark Sports
+              </Typography>
+              <Typography color="text.secondary">
+                住所：〒000-0000 東京都渋谷区
+              </Typography>
+              <Typography color="text.secondary">
+                電話：0120-XXX-XXXX
+              </Typography>
+            </Box>
 
-            <div className={styles.divider}></div>
+            <Divider sx={{ my: 2 }} />
 
-            <div className={styles.receiptInfo}>
-              <div className={styles.infoRow}>
-                <span className={styles.label}>領収書番号</span>
-                <span className={styles.value}>{order.id}</span>
-              </div>
-              <div className={styles.infoRow}>
-                <span className={styles.label}>発行日</span>
-                <span className={styles.value}>{order.date}</span>
-              </div>
-              <div className={styles.infoRow}>
-                <span className={styles.label}>お客様名</span>
-                <span className={styles.value}>{user.name}</span>
-              </div>
-            </div>
+            <Stack spacing={1} mb={2}>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography color="text.secondary">領収書番号</Typography>
+                <Typography>{order.id}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography color="text.secondary">発行日</Typography>
+                <Typography>{order.date}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography color="text.secondary">お客様名</Typography>
+                <Typography>{user.name}</Typography>
+              </Stack>
+            </Stack>
 
-            <div className={styles.divider}></div>
+            <Divider sx={{ my: 2 }} />
 
-            <div className={styles.itemsSection}>
-              <h3>ご購入商品</h3>
-              <div className={styles.itemsTable}>
-                <div className={styles.itemsHeader}>
-                  <div className={styles.colName}>商品名</div>
-                  <div className={styles.colQuantity}>数量</div>
-                  <div className={styles.colPrice}>単価</div>
-                  <div className={styles.colAmount}>金額</div>
-                </div>
-                {order.items.map((item) => (
-                  <div key={item.id} className={styles.itemRow}>
-                    <div className={styles.colName}>{item.name}</div>
-                    <div className={styles.colQuantity}>{item.quantity}</div>
-                    <div className={styles.colPrice}>
-                      ¥{item.price.toLocaleString()}
-                    </div>
-                    <div className={styles.colAmount}>
-                      ¥{(item.price * item.quantity).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Box mb={2}>
+              <Typography variant="h6" fontWeight={700} mb={2}>
+                ご購入商品
+              </Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>商品名</TableCell>
+                    <TableCell align="right">数量</TableCell>
+                    <TableCell align="right">単価</TableCell>
+                    <TableCell align="right">金額</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {order.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell align="right">{item.quantity}</TableCell>
+                      <TableCell align="right">
+                        ¥{item.price.toLocaleString()}
+                      </TableCell>
+                      <TableCell align="right">
+                        ¥{(item.price * item.quantity).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
 
-            <div className={styles.divider}></div>
+            <Divider sx={{ my: 2 }} />
 
-            <div className={styles.summary}>
-              <div className={styles.summaryRow}>
-                <span className={styles.summaryLabel}>小計</span>
-                <span className={styles.summaryValue}>
-                  ¥{(subtotal + tax).toLocaleString()}
-                </span>
-              </div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  textAlign: 'right',
-                  marginBottom: '8px',
-                }}
+            <Stack spacing={1} mb={2}>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography color="text.secondary">小計</Typography>
+                <Typography>¥{(subtotal + tax).toLocaleString()}</Typography>
+              </Stack>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                textAlign="right"
               >
                 （内消費税 ¥{tax.toLocaleString()}）
-              </div>
-              <div className={styles.summaryRow}>
-                <span className={styles.summaryLabel}>配送料</span>
-                <span className={styles.summaryValue}>
-                  ¥{shipping.toLocaleString()}
-                </span>
-              </div>
-              <div className={styles.summaryRow + ' ' + styles.total}>
-                <span className={styles.summaryLabel}>合計金額</span>
-                <span className={styles.summaryValue}>
+              </Typography>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography color="text.secondary">配送料</Typography>
+                <Typography>¥{shipping.toLocaleString()}</Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between">
+                <Typography fontWeight={700}>合計金額</Typography>
+                <Typography fontWeight={700} fontSize="1.1rem">
                   ¥{order.total.toLocaleString()}
-                </span>
-              </div>
-            </div>
+                </Typography>
+              </Stack>
+            </Stack>
 
-            <div className={styles.divider}></div>
+            <Divider sx={{ my: 2 }} />
 
-            <div className={styles.footer}>
-              <p>本領収証は、お支払いの証として発行させていただきました。</p>
-              <p>ご不明な点がございましたら、お気軽にお問い合わせください。</p>
-            </div>
-          </div>
+            <Box>
+              <Typography color="text.secondary" mb={1}>
+                本領収証は、お支払いの証として発行させていただきました。
+              </Typography>
+              <Typography color="text.secondary">
+                ご不明な点がございましたら、お気軽にお問い合わせください。
+              </Typography>
+            </Box>
+          </Box>
 
-          <div className={styles.actions}>
-            <Link href="/orders" className={styles.backLink}>
+          <Box mt={3} textAlign="center">
+            <Button variant="outlined" component={Link} href="/orders">
               注文履歴に戻る
-            </Link>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </Box>
+        </Paper>
+      </Box>
     </MainLayout>
   );
 }

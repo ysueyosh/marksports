@@ -4,11 +4,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '@/components/Admin/AdminModal';
 import Pagination from '@/components/Pagination/Pagination';
-import sharedStyles from '../admin-shared.module.css';
-import pageStyles from './notifications.module.css';
 import adminNotificationAPI from '@/api/admin-notifications';
-
-const styles = { ...sharedStyles, ...pageStyles };
+import {
+  Box,
+  Typography,
+  Button,
+  Stack,
+  Alert,
+  Paper,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  Chip,
+} from '@mui/material';
 
 interface Notification {
   notificationId: string;
@@ -60,7 +69,7 @@ export default function AdminNotificationsPage() {
       setLoading(true);
       const response = await adminNotificationAPI.getAllNotifications(
         page,
-        itemsPerPage
+        itemsPerPage,
       );
 
       if (response.success && response.data) {
@@ -139,14 +148,13 @@ export default function AdminNotificationsPage() {
   const handleConfirmDelete = async () => {
     if (deleteTargetId !== null) {
       const targetNotification = notifications.find(
-        (n) => n.notificationId === deleteTargetId
+        (n) => n.notificationId === deleteTargetId,
       );
       if (targetNotification && deleteInputValue === targetNotification.title) {
         try {
           setLoading(true);
-          const response = await adminNotificationAPI.deleteNotification(
-            deleteTargetId
-          );
+          const response =
+            await adminNotificationAPI.deleteNotification(deleteTargetId);
 
           if (response.success) {
             setSuccessMessage('お知らせを削除しました');
@@ -184,424 +192,289 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>お知らせ配信</h1>
-        <button
-          className={styles.primaryButton}
-          onClick={() => setIsModalOpen(!isModalOpen)}
-          disabled={loading}
-        >
-          {isModalOpen ? 'キャンセル' : 'お知らせを配信'}
-        </button>
-      </div>
+    <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+      <Stack spacing={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h4" fontWeight={700}>
+            お知らせ配信
+          </Typography>
+          <Button
+            variant={isModalOpen ? 'outlined' : 'contained'}
+            onClick={() => setIsModalOpen(!isModalOpen)}
+            disabled={loading}
+          >
+            {isModalOpen ? 'キャンセル' : 'お知らせを配信'}
+          </Button>
+        </Box>
 
-      {successMessage && (
-        <div
-          style={{
-            backgroundColor: '#efe',
-            border: '1px solid #0f0',
-            color: '#060',
-            padding: '12px',
-            borderRadius: '4px',
-            marginBottom: '20px',
-          }}
-        >
-          {successMessage}
-        </div>
-      )}
+        {successMessage && <Alert severity="success">{successMessage}</Alert>}
+        {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
-      {errorMessage && (
-        <div
-          style={{
-            backgroundColor: '#fee',
-            border: '1px solid #f00',
-            color: '#c00',
-            padding: '12px',
-            borderRadius: '4px',
-            marginBottom: '20px',
-          }}
-        >
-          {errorMessage}
-        </div>
-      )}
+        {isDeleteConfirming && deleteTargetId !== null && (
+          <AdminModal
+            isOpen={isDeleteConfirming}
+            onClose={handleCancelDelete}
+            title="お知らせを削除"
+            buttons={
+              <Stack direction="row" spacing={2} justifyContent="flex-end">
+                <Button onClick={handleCancelDelete} disabled={loading}>
+                  キャンセル
+                </Button>
+                <Button
+                  color="error"
+                  variant="contained"
+                  onClick={handleConfirmDelete}
+                  disabled={
+                    deleteInputValue !==
+                      notifications.find(
+                        (n) => n.notificationId === deleteTargetId,
+                      )?.title || loading
+                  }
+                >
+                  削除する
+                </Button>
+              </Stack>
+            }
+          >
+            {notifications.find((n) => n.notificationId === deleteTargetId) && (
+              <Box sx={{ p: 2, bgcolor: 'error.lighter', borderRadius: 1 }}>
+                <Typography color="error" fontWeight={700} mb={1}>
+                  ⚠️ 確認: 以下のお知らせを削除します
+                </Typography>
+                <Typography variant="body2" mb={2}>
+                  <strong>タイトル:</strong>{' '}
+                  {
+                    notifications.find(
+                      (n) => n.notificationId === deleteTargetId,
+                    )?.title
+                  }
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="削除確認"
+                  value={deleteInputValue}
+                  onChange={(e) => setDeleteInputValue(e.target.value)}
+                  placeholder={`「${
+                    notifications.find(
+                      (n) => n.notificationId === deleteTargetId,
+                    )?.title
+                  }」と入力`}
+                />
+              </Box>
+            )}
+          </AdminModal>
+        )}
 
-      {isDeleteConfirming && deleteTargetId !== null && (
         <AdminModal
-          isOpen={isDeleteConfirming}
-          onClose={handleCancelDelete}
-          title="お知らせを削除"
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          title="お知らせを配信"
           buttons={
-            <div
-              style={{
-                display: 'flex',
-                gap: '10px',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-              }}
-            >
-              <button
-                className={styles.secondaryButton}
-                onClick={handleCancelDelete}
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <Button onClick={handleCloseModal} disabled={loading}>
+                キャンセル
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleAddNotification}
                 disabled={loading}
               >
-                キャンセル
-              </button>
-              <button
-                className={`${styles.primaryButton} ${styles.danger}`}
-                onClick={handleConfirmDelete}
-                disabled={
-                  deleteInputValue !==
-                    notifications.find(
-                      (n) => n.notificationId === deleteTargetId
-                    )?.title || loading
-                }
-                style={{
-                  opacity:
-                    deleteInputValue !==
-                      notifications.find(
-                        (n) => n.notificationId === deleteTargetId
-                      )?.title || loading
-                      ? 0.5
-                      : 1,
-                  cursor:
-                    deleteInputValue !==
-                      notifications.find(
-                        (n) => n.notificationId === deleteTargetId
-                      )?.title || loading
-                      ? 'not-allowed'
-                      : 'pointer',
-                }}
-              >
-                削除する
-              </button>
-            </div>
+                {loading ? '配信中...' : '配信実行'}
+              </Button>
+            </Stack>
           }
         >
-          {notifications.find((n) => n.notificationId === deleteTargetId) && (
-            <div
-              style={{
-                marginBottom: '20px',
-                padding: '12px',
-                backgroundColor: '#fee2e2',
-                border: '1px solid #fca5a5',
-                borderRadius: '4px',
-              }}
-            >
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontWeight: '600',
-                  color: '#991b1b',
-                }}
-              >
-                ⚠️ 確認: 以下のお知らせを削除します
-              </label>
-              <p
-                style={{
-                  margin: '8px 0',
-                  fontSize: '14px',
-                  color: '#1f2937',
-                }}
-              >
-                <strong>タイトル:</strong>{' '}
-                {
-                  notifications.find((n) => n.notificationId === deleteTargetId)
-                    ?.title
-                }
-              </p>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: '4px',
-                  marginTop: '12px',
-                }}
-              >
-                削除を確認するため、タイトルを入力してください
-              </label>
-              <input
-                type="text"
-                value={deleteInputValue}
-                onChange={(e) => setDeleteInputValue(e.target.value)}
-                placeholder={`「${
-                  notifications.find((n) => n.notificationId === deleteTargetId)
-                    ?.title
-                }」と入力`}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #fca5a5',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  backgroundColor: '#fff',
-                }}
-              />
-            </div>
-          )}
-        </AdminModal>
-      )}
-
-      <AdminModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        title="お知らせを配信"
-        buttons={
-          <div
-            className={styles.formActions}
-            style={{
-              display: 'flex',
-              gap: '10px',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-            }}
-          >
-            <button
-              className={styles.secondaryButton}
-              onClick={handleCloseModal}
-              disabled={loading}
-            >
-              キャンセル
-            </button>
-            <button
-              className={styles.primaryButton}
-              onClick={handleAddNotification}
-              disabled={loading}
-            >
-              {loading ? '配信中...' : '配信実行'}
-            </button>
-          </div>
-        }
-      >
-        <div className={styles.formGroup}>
-          <label>タイトル *</label>
-          <input
-            type="text"
-            value={newNotification.title}
-            onChange={(e) =>
-              setNewNotification({
-                ...newNotification,
-                title: e.target.value,
-              })
-            }
-            placeholder="タイトルを入力"
-            required
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              fontSize: '14px',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label>本文 *</label>
-          <textarea
-            value={newNotification.content}
-            onChange={(e) =>
-              setNewNotification({
-                ...newNotification,
-                content: e.target.value,
-              })
-            }
-            placeholder="本文を入力"
-            rows={5}
-            required
-            style={{
-              width: '100%',
-              padding: '8px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              fontSize: '14px',
-              boxSizing: 'border-box',
-              fontFamily: 'inherit',
-            }}
-          />
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-            marginBottom: '16px',
-          }}
-        >
-          <div className={styles.formGroup}>
-            <label>掲載開始日 *</label>
-            <input
-              type="date"
-              value={newNotification.startDate}
+          <Stack spacing={2}>
+            <TextField
+              label="タイトル"
+              value={newNotification.title}
               onChange={(e) =>
                 setNewNotification({
                   ...newNotification,
-                  startDate: e.target.value,
+                  title: e.target.value,
                 })
               }
+              placeholder="タイトルを入力"
               required
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-              }}
+              fullWidth
             />
-          </div>
-          <div className={styles.formGroup}>
-            <label>掲載終了日</label>
-            <input
-              type="date"
-              value={newNotification.endDate}
+            <TextField
+              label="本文"
+              value={newNotification.content}
               onChange={(e) =>
                 setNewNotification({
                   ...newNotification,
-                  endDate: e.target.value,
+                  content: e.target.value,
                 })
               }
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
-              }}
+              placeholder="本文を入力"
+              rows={5}
+              multiline
+              required
+              fullWidth
             />
-          </div>
-        </div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-            marginBottom: '16px',
-          }}
-        >
-          <div className={styles.formGroup}>
-            <label>通知タイプ</label>
-            <select
-              value={newNotification.type}
-              onChange={(e) =>
-                setNewNotification({
-                  ...newNotification,
-                  type: e.target.value as 'info' | 'important' | 'sale',
-                })
-              }
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                gap: 2,
               }}
             >
-              <option value="info">一般情報</option>
-              <option value="important">重要</option>
-              <option value="sale">セール</option>
-            </select>
-          </div>
-          <div className={styles.formGroup}>
-            <label>配信対象</label>
-            <select
-              value={newNotification.target}
-              onChange={(e) =>
-                setNewNotification({
-                  ...newNotification,
-                  target: e.target.value as 'all' | 'members',
-                })
-              }
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                fontSize: '14px',
+              <TextField
+                label="掲載開始日"
+                type="date"
+                value={newNotification.startDate}
+                onChange={(e) =>
+                  setNewNotification({
+                    ...newNotification,
+                    startDate: e.target.value,
+                  })
+                }
+                required
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="掲載終了日"
+                type="date"
+                value={newNotification.endDate}
+                onChange={(e) =>
+                  setNewNotification({
+                    ...newNotification,
+                    endDate: e.target.value,
+                  })
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                gap: 2,
               }}
             >
-              <option value="all">すべてのユーザー</option>
-              <option value="members">登録済みユーザーのみ</option>
-            </select>
-          </div>
-        </div>
-      </AdminModal>
-
-      {/* 通知一覧 */}
-      <div className={styles.notificationsList}>
-        {loading && notifications.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '40px',
-              color: '#999',
-            }}
-          >
-            読み込み中...
-          </div>
-        ) : notifications.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '40px',
-              color: '#999',
-            }}
-          >
-            <p>お知らせはまだありません</p>
-          </div>
-        ) : (
-          notifications.map((notification) => (
-            <div
-              key={notification.notificationId}
-              className={styles.notificationCard}
-            >
-              <div className={styles.notificationHeader}>
-                <div>
-                  <h3>{notification.title}</h3>
-                  <p className={styles.notificationDate}>
-                    配信日: {notification.startDate}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <span className={styles.badge}>
-                    {notification.type === 'important'
-                      ? '🔴 重要'
-                      : notification.type === 'sale'
-                      ? '🎉 セール'
-                      : 'ℹ️ 情報'}
-                  </span>
-                  <span className={styles.badge}>
-                    {notification.target === 'all'
-                      ? '👥 全ユーザー'
-                      : '👤 会員のみ'}
-                  </span>
-                </div>
-              </div>
-              <p className={styles.notificationContent}>
-                {notification.content}
-              </p>
-              <div className={styles.notificationActions}>
-                <button
-                  className={`${styles.secondaryButton} ${styles.danger}`}
-                  onClick={() => handleStartDelete(notification.notificationId)}
-                  disabled={loading}
+              <FormControl fullWidth>
+                <Select
+                  value={newNotification.type}
+                  onChange={(e) =>
+                    setNewNotification({
+                      ...newNotification,
+                      type: e.target.value as 'info' | 'important' | 'sale',
+                    })
+                  }
                 >
-                  削除
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+                  <MenuItem value="info">一般情報</MenuItem>
+                  <MenuItem value="important">重要</MenuItem>
+                  <MenuItem value="sale">セール</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <Select
+                  value={newNotification.target}
+                  onChange={(e) =>
+                    setNewNotification({
+                      ...newNotification,
+                      target: e.target.value as 'all' | 'members',
+                    })
+                  }
+                >
+                  <MenuItem value="all">すべてのユーザー</MenuItem>
+                  <MenuItem value="members">登録済みユーザーのみ</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          </Stack>
+        </AdminModal>
 
-      {/* ページネーション */}
-      {notifications.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => loadNotifications(page)}
-        />
-      )}
-    </div>
+        <Stack spacing={2}>
+          {loading && notifications.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center" py={4}>
+              読み込み中...
+            </Typography>
+          ) : notifications.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center" py={4}>
+              お知らせはまだありません
+            </Typography>
+          ) : (
+            notifications.map((notification) => (
+              <Paper
+                key={notification.notificationId}
+                variant="outlined"
+                sx={{ p: 2 }}
+              >
+                <Stack spacing={1}>
+                  <Box
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    flexWrap="wrap"
+                    gap={1}
+                  >
+                    <Box>
+                      <Typography fontWeight={700}>
+                        {notification.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        配信日: {notification.startDate}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      <Chip
+                        size="small"
+                        label={
+                          notification.type === 'important'
+                            ? '🔴 重要'
+                            : notification.type === 'sale'
+                              ? '🎉 セール'
+                              : 'ℹ️ 情報'
+                        }
+                        color={
+                          notification.type === 'important'
+                            ? 'error'
+                            : notification.type === 'sale'
+                              ? 'success'
+                              : 'default'
+                        }
+                      />
+                      <Chip
+                        size="small"
+                        label={
+                          notification.target === 'all'
+                            ? '👥 全ユーザー'
+                            : '👤 会員のみ'
+                        }
+                      />
+                    </Stack>
+                  </Box>
+                  <Typography>{notification.content}</Typography>
+                  <Box>
+                    <Button
+                      color="error"
+                      variant="outlined"
+                      onClick={() =>
+                        handleStartDelete(notification.notificationId)
+                      }
+                      disabled={loading}
+                    >
+                      削除
+                    </Button>
+                  </Box>
+                </Stack>
+              </Paper>
+            ))
+          )}
+        </Stack>
+
+        {notifications.length > 0 && (
+          <Box display="flex" justifyContent="center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => loadNotifications(page)}
+            />
+          </Box>
+        )}
+      </Stack>
+    </Box>
   );
 }

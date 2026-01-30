@@ -1,5 +1,17 @@
 import React from 'react';
-import styles from './AdminTable.module.css';
+import {
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TableContainer,
+  Paper,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+} from '@mui/material';
 
 export interface TableColumn {
   key: string;
@@ -43,98 +55,104 @@ const AdminTable: React.FC<AdminTableProps> = ({
   rowClassName,
   isLoading = false,
 }) => {
+  const cellSx = (col?: TableColumn) => ({
+    width: col?.width,
+    textAlign: col?.align,
+    display: {
+      xs: col?.hide?.mobile ? 'none' : 'table-cell',
+      sm: col?.hide?.tablet ? 'none' : 'table-cell',
+    },
+  });
+
   if (isLoading) {
-    return <div className={styles.loading}>読み込み中...</div>;
+    return (
+      <Box display="flex" alignItems="center" justifyContent="center" py={4}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   if (data.length === 0) {
     return (
-      <div className={styles.tableContainer}>
-        <table className={`${styles.table} ${className || ''}`}>
-          <thead>
-            <tr>
+      <TableContainer component={Paper} sx={{ p: 2 }}>
+        <Table size="small" className={className}>
+          <TableHead>
+            <TableRow>
               {columns.map((col) => (
-                <th
-                  key={col.key}
-                  style={{ width: col.width }}
-                  className={col.hide?.mobile ? styles.hideMobile : ''}
-                >
+                <TableCell key={col.key} sx={cellSx(col)}>
                   {col.label}
-                </th>
+                </TableCell>
               ))}
-              {actions && <th>操作</th>}
-            </tr>
-          </thead>
-        </table>
-        <div className={styles.empty}>{emptyMessage}</div>
-      </div>
+              {actions && <TableCell>操作</TableCell>}
+            </TableRow>
+          </TableHead>
+        </Table>
+        <Typography color="text.secondary" align="center" py={4}>
+          {emptyMessage}
+        </Typography>
+      </TableContainer>
     );
   }
 
   return (
-    <div className={styles.tableContainer}>
-      <table className={`${styles.table} ${className || ''}`}>
-        <thead>
-          <tr>
+    <TableContainer component={Paper}>
+      <Table size="small" className={className}>
+        <TableHead>
+          <TableRow>
             {columns.map((col) => (
-              <th
-                key={col.key}
-                style={{ width: col.width }}
-                className={`${col.hide?.mobile ? styles.hideMobile : ''} ${
-                  col.hide?.tablet ? styles.hideTablet : ''
-                }`}
-              >
+              <TableCell key={col.key} sx={cellSx(col)}>
                 {col.label}
-              </th>
+              </TableCell>
             ))}
-            {actions && <th>操作</th>}
-          </tr>
-        </thead>
-        <tbody>
+            {actions && <TableCell>操作</TableCell>}
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {data.map((row) => (
-            <tr
+            <TableRow
               key={row[rowKey]}
-              className={rowClassName ? rowClassName(row) : ''}
+              hover={Boolean(onRowClick)}
               onClick={() => onRowClick?.(row)}
-              style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+              sx={{ cursor: onRowClick ? 'pointer' : 'default' }}
             >
               {columns.map((col) => (
-                <td
-                  key={`${row[rowKey]}-${col.key}`}
-                  style={{
-                    width: col.width,
-                    textAlign: col.align,
-                  }}
-                  className={`${col.hide?.mobile ? styles.hideMobile : ''} ${
-                    col.hide?.tablet ? styles.hideTablet : ''
-                  }`}
-                >
+                <TableCell key={`${row[rowKey]}-${col.key}`} sx={cellSx(col)}>
                   {col.render ? col.render(row[col.key], row) : row[col.key]}
-                </td>
+                </TableCell>
               ))}
               {actions && (
-                <td className={styles.actionCell}>
-                  {actions.map((action, idx) => (
-                    <button
-                      key={idx}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        action.onClick(row);
-                      }}
-                      className={`${styles.button} ${
-                        styles[action.variant || 'secondary']
-                      } ${action.className || ''}`}
-                    >
-                      {action.label}
-                    </button>
-                  ))}
-                </td>
+                <TableCell>
+                  <Box display="flex" gap={1} flexWrap="wrap">
+                    {actions.map((action, idx) => (
+                      <Button
+                        key={idx}
+                        size="small"
+                        variant={
+                          action.variant === 'primary'
+                            ? 'contained'
+                            : action.variant === 'danger'
+                              ? 'outlined'
+                              : 'text'
+                        }
+                        color={
+                          action.variant === 'danger' ? 'error' : 'primary'
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          action.onClick(row);
+                        }}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </Box>
+                </TableCell>
               )}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 };
 

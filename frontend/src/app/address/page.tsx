@@ -7,7 +7,17 @@ import MainLayout from '@/components/Layout/MainLayout';
 import Pagination from '@/components/Pagination/Pagination';
 import Link from 'next/link';
 import { getAddresses, deleteAddress, setDefaultAddress } from '@/api/address';
-import styles from './address.module.css';
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link as MuiLink,
+  Button,
+  Card,
+  CardContent,
+  Stack,
+  Chip,
+} from '@mui/material';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -58,15 +68,17 @@ export default function AddressPage() {
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        <div className={styles.container}>
-          <div className={styles.notLoggedIn}>
-            <h1>配送先住所管理</h1>
-            <p>ログインしていません</p>
-            <Link href="/" className={styles.backButton}>
-              ホームへ戻る
-            </Link>
-          </div>
-        </div>
+        <Box textAlign="center" py={6}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            配送先住所管理
+          </Typography>
+          <Typography color="text.secondary" gutterBottom>
+            ログインしていません
+          </Typography>
+          <Button variant="outlined" component={Link} href="/">
+            ホームへ戻る
+          </Button>
+        </Box>
       </MainLayout>
     );
   }
@@ -120,90 +132,109 @@ export default function AddressPage() {
 
   return (
     <MainLayout>
-      <div className={styles.container}>
-        <div className={styles.breadcrumb}>
-          <Link href="/">ホーム</Link>
-          <span>/</span>
-          <Link href="/account">アカウント</Link>
-          <span>/</span>
-          <span>配送先住所管理</span>
-        </div>
+      <Box display="flex" flexDirection="column" gap={3}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/" color="inherit">
+            ホーム
+          </MuiLink>
+          <MuiLink component={Link} href="/account" color="inherit">
+            アカウント
+          </MuiLink>
+          <Typography color="text.primary">配送先住所管理</Typography>
+        </Breadcrumbs>
 
-        <h1 className={styles.title}>配送先住所管理</h1>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h4" fontWeight={700}>
+            配送先住所管理
+          </Typography>
+          <Button variant="contained" component={Link} href="/address/add">
+            + 新しい住所を追加
+          </Button>
+        </Box>
 
-        <Link href="/address/add" className={styles.addButton}>
-          + 新しい住所を追加
-        </Link>
+        {addresses.length === 0 ? (
+          <Box textAlign="center" py={6}>
+            <Typography color="text.secondary" gutterBottom>
+              登録された住所はありません
+            </Typography>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </Box>
+        ) : (
+          <Box display="flex" flexDirection="column" gap={2}>
+            {(() => {
+              const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+              const endIndex = startIndex + ITEMS_PER_PAGE;
+              const paginatedAddresses = addresses.slice(startIndex, endIndex);
 
-        <div className={styles.addressList}>
-          {addresses.length === 0 ? (
-            <>
-              <p className={styles.emptyMessage}>登録された住所はありません</p>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          ) : (
-            <>
-              {(() => {
-                const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-                const endIndex = startIndex + ITEMS_PER_PAGE;
-                const paginatedAddresses = addresses.slice(
-                  startIndex,
-                  endIndex,
-                );
-
-                return (
-                  <>
-                    {paginatedAddresses.map((addr) => (
-                      <div key={addr.id} className={styles.addressCard}>
-                        <div className={styles.addressHeader}>
-                          <h3>
+              return (
+                <>
+                  {paginatedAddresses.map((addr) => (
+                    <Card key={addr.id} variant="outlined">
+                      <CardContent>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          justifyContent="space-between"
+                          alignItems={{ xs: 'flex-start', sm: 'center' }}
+                          gap={1}
+                        >
+                          <Typography variant="subtitle1" fontWeight={700}>
                             {addr.postalCode} {addr.prefecture}
-                          </h3>
+                          </Typography>
                           {addr.isMain && (
-                            <span className={styles.defaultBadge}>メイン</span>
+                            <Chip label="メイン" color="primary" />
                           )}
-                        </div>
-                        <div className={styles.addressContent}>
-                          <p>
-                            {addr.address}
-                            {addr.option && <br />}
-                            {addr.option && <span>{addr.option}</span>}
-                          </p>
-                        </div>
-                        <div className={styles.addressActions}>
+                        </Stack>
+                        <Typography mt={1} color="text.secondary">
+                          {addr.address}
+                          {addr.option && (
+                            <>
+                              <br />
+                              {addr.option}
+                            </>
+                          )}
+                        </Typography>
+                        <Stack direction="row" spacing={1} mt={2}>
                           {!addr.isMain && (
-                            <button
-                              className={styles.setDefaultButton}
+                            <Button
+                              variant="outlined"
                               onClick={() => handleSetDefault(addr.id)}
                             >
                               メインに設定
-                            </button>
+                            </Button>
                           )}
-                          <Link
+                          <Button
+                            variant="text"
+                            component={Link}
                             href={`/address/detail?id=${addr.id}`}
-                            className={styles.editButton}
                           >
                             編集
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={setCurrentPage}
-                    />
-                  </>
-                );
-              })()}
-            </>
-          )}
-        </div>
-      </div>
+                          </Button>
+                          <Button
+                            variant="text"
+                            color="error"
+                            onClick={() => handleDeleteAddress(addr.id)}
+                          >
+                            削除
+                          </Button>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                </>
+              );
+            })()}
+          </Box>
+        )}
+      </Box>
     </MainLayout>
   );
 }

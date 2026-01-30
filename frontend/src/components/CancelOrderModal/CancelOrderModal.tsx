@@ -4,7 +4,18 @@ import React, { useState } from 'react';
 import { cancelOrder } from '@/api/orders';
 import { TextInput } from '@/components/Input/TextInput';
 import { useSnackbar } from '@/context/SnackbarContext';
-import styles from './CancelOrderModal.module.css';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Stack,
+  FormControlLabel,
+  Checkbox,
+  Alert,
+  Link as MuiLink,
+} from '@mui/material';
 
 interface CancelOrderModalProps {
   isOpen: boolean;
@@ -63,79 +74,49 @@ export default function CancelOrderModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h2>注文のキャンセル</h2>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
+    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>注文のキャンセル</DialogTitle>
+      <DialogContent>
+        <Stack component="form" onSubmit={handleSubmit} spacing={2} mt={1}>
+          <TextInput
+            name="reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="注文をキャンセルする理由をお聞かせください..."
             disabled={loading}
-          >
-            ✕
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formGroup}>
-            <TextInput
-              name="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="注文をキャンセルする理由をお聞かせください..."
-              disabled={loading}
-              inputType="textarea"
-              rows={5}
-              label="取消理由"
-            />
-            <a
-              href="/returns"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.policyLink}
-            >
-              キャンセルポリシーを確認
-            </a>
-          </div>
-
-          <div className={styles.checkboxGroup}>
-            <input
-              type="checkbox"
-              id="policyAgree"
-              checked={policyAgreed}
-              onChange={(e) => setPolicyAgreed(e.target.checked)}
-              disabled={loading}
-              className={styles.checkbox}
-            />
-            <label htmlFor="policyAgree" className={styles.checkboxLabel}>
-              キャンセルポリシーに同意します
-            </label>
-          </div>
-
-          {error && <div className={styles.errorMessage}>{error}</div>}
-
-          <div className={styles.modalFooter}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className={styles.cancelButton}
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !reason.trim() || !policyAgreed}
-              className={styles.submitButton}
-            >
-              {loading ? '処理中...' : 'キャンセルリクエスト'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            inputType="textarea"
+            rows={5}
+            label="取消理由"
+          />
+          <MuiLink href="/returns" target="_blank" rel="noopener noreferrer">
+            キャンセルポリシーを確認
+          </MuiLink>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={policyAgreed}
+                onChange={(e) => setPolicyAgreed(e.target.checked)}
+                disabled={loading}
+              />
+            }
+            label="キャンセルポリシーに同意します"
+          />
+          {error && <Alert severity="error">{error}</Alert>}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={loading}>
+          キャンセル
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={loading || !reason.trim() || !policyAgreed}
+        >
+          {loading ? '処理中...' : 'キャンセルリクエスト'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
