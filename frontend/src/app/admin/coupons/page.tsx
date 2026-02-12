@@ -1,7 +1,5 @@
 'use client';
 
-export const runtime = 'edge';
-
 import React, { useEffect, useState } from 'react';
 import AdminModal from '@/components/Admin/AdminModal';
 import AdminTable from '@/components/Admin/AdminTable';

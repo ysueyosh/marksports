@@ -1,4 +1,3 @@
-import { API_BASE_URL } from './constants';
 import { apiClient } from './client';
 
 export interface SearchAddressResponse {
@@ -59,7 +58,7 @@ export interface SetDefaultAddressResponse {
 }
 
 export async function searchAddressByPostalCode(
-  postalCode: string
+  postalCode: string,
 ): Promise<SearchAddressResponse> {
   return apiClient.post<SearchAddressResponse>('/search-address', {
     postalCode,
@@ -79,7 +78,7 @@ export async function getAddresses(): Promise<GetAddressesResponse> {
  * Add new address
  */
 export async function addAddress(
-  addressData: AddAddressRequest
+  addressData: AddAddressRequest,
 ): Promise<AddAddressResponse> {
   return apiClient.post<AddAddressResponse>('/addresses', addressData);
 }
@@ -89,11 +88,11 @@ export async function addAddress(
  */
 export async function updateAddress(
   addressId: string,
-  addressData: Partial<AddAddressRequest>
+  addressData: Partial<AddAddressRequest>,
 ): Promise<UpdateAddressResponse> {
   return apiClient.put<UpdateAddressResponse>(
     `/addresses/${addressId}`,
-    addressData
+    addressData,
   );
 }
 
@@ -101,7 +100,7 @@ export async function updateAddress(
  * Delete address
  */
 export async function deleteAddress(
-  addressId: string
+  addressId: string,
 ): Promise<DeleteAddressResponse> {
   return apiClient.delete<DeleteAddressResponse>(`/addresses/${addressId}`);
 }
@@ -110,10 +109,10 @@ export async function deleteAddress(
  * Set address as default
  */
 export async function setDefaultAddress(
-  addressId: string
+  addressId: string,
 ): Promise<SetDefaultAddressResponse> {
   return apiClient.put<SetDefaultAddressResponse>(
     `/addresses/${addressId}/default`,
-    {}
+    {},
   );
 }

@@ -5,8 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "export": "next export",
-    "pages:build": "npm ci --legacy-peer-deps && NPM_CONFIG_LEGACY_PEER_DEPS=true next build && NPM_CONFIG_LEGACY_PEER_DEPS=true npx @cloudflare/next-on-pages",
     "start": "next start",
     "lint": "eslint"
   },
@@ -27,7 +25,6 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

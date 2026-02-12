@@ -1,7 +1,5 @@
 'use client';
 
-export const runtime = 'edge';
-
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import '@/styles/square-payment.css';

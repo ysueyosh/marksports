@@ -1,7 +1,5 @@
 'use client';
 
-export const runtime = 'edge';
-
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/Layout/MainLayout';
 import {

@@ -1,6 +1,7 @@
 'use server';
 
 import { randomUUID } from 'crypto';
+import { API_BASE_URL } from '@/api/constants';
 
 export interface PaymentRequest {
   sourceId: string;
@@ -24,7 +25,7 @@ export interface PaymentResponse {
  */
 export async function submitPayment(
   paymentRequest: PaymentRequest,
-  authToken?: string
+  authToken?: string,
 ): Promise<PaymentResponse> {
   try {
     const { sourceId, amount, currency = 'JPY', orderId } = paymentRequest;
@@ -45,9 +46,7 @@ export async function submitPayment(
       headers['Authorization'] = `Bearer ${authToken}`;
     }
 
-    const apiUrl = `${
-      process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
-    }/payments`;
+    const apiUrl = `${API_BASE_URL}/payments`;
 
     const requestBody = JSON.stringify({
       sourceId,
@@ -73,7 +72,7 @@ export async function submitPayment(
     if (!response.ok) {
       const errorData = responseData;
       throw new Error(
-        errorData.message || errorData.error || 'Payment processing failed'
+        errorData.message || errorData.error || 'Payment processing failed',
       );
     }
 
