@@ -44,7 +44,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           overflow: 'auto',
           marginLeft: isLargeScreen ? '280px' : '0',
           transition: 'margin-left 0.3s ease-in-out',
-          paddingTop: '100px',
+          paddingTop: '10px',
           paddingLeft: { xs: '12px', md: '20px' },
           paddingRight: { xs: '12px', md: '20px' },
           paddingBottom: 3,

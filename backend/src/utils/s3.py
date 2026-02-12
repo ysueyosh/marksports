@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 s3_client = boto3.client('s3', region_name='ap-northeast-1')
 
 # S3 bucket and CloudFront domain (stage-specific via env)
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'ecsite-images')
-CLOUDFRONT_DOMAIN = os.environ.get('CLOUDFRONT_DOMAIN', 'd23pzr22xoegue.cloudfront.net')
+S3_BUCKET_NAME = "marksports-image-"+os.environ.get('STAGE', '')
+CLOUDFRONT_DOMAIN = os.environ.get('CLOUDFRONT_DOMAIN', 'd31gq9smh9542q.cloudfront.net')
 
 def get_s3_client():
     """Get S3 client instance"""

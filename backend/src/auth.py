@@ -13,13 +13,13 @@ import json
 import os
 import uuid
 import logging
-import boto3
 import jwt
 import bcrypt
 from datetime import datetime, timedelta
 from typing import Tuple, Optional, Dict, Any
 from functools import wraps
 from pydantic import BaseModel, EmailStr
+from src.utils.dynamodb import get_admin_table, get_users_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -30,17 +30,13 @@ logger.setLevel(logging.INFO)
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-this-in-production')
 JWT_ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_SECONDS = 3600
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 # DynamoDB configuration
-dynamodb = boto3.resource('dynamodb')
-ADMIN_TABLE_NAME = os.environ.get('ADMIN_TABLE_NAME', 'Admin')
-USER_TABLE_NAME = os.environ.get('USER_TABLE_NAME', 'User')
-
 try:
-    admin_table = dynamodb.Table(ADMIN_TABLE_NAME)
-    user_table = dynamodb.Table(USER_TABLE_NAME)
+    admin_table = get_admin_table()
+    user_table = get_users_table()
 except Exception as e:
     logger.warning(f"DynamoDB tables not initialized: {str(e)}")
     admin_table = None
@@ -242,7 +238,7 @@ def generate_access_token(user_id: str, email: str, user_type: str = "user") -> 
         'email': email,
         'user_type': user_type,
         'iat': datetime.utcnow(),
-        'exp': datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        'exp': datetime.utcnow() + timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
     }
 
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -498,7 +494,7 @@ def login(event, context):
                 "email": login_request.email,
                 "accessToken": access_token,
                 "refreshToken": refresh_token,
-                "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
             }
         )
 
@@ -587,8 +583,14 @@ def refresh_token(event, context):
             logger.warning("Access token used instead of refresh token")
             return create_api_response(401, False, "Invalid token type")
 
-        # Generate new access token
+        # Generate new access token and new refresh token
         new_access_token = generate_access_token(
+            payload['user_id'],
+            payload['email'],
+            payload.get('user_type', 'user')
+        )
+        
+        new_refresh_token = generate_refresh_token(
             payload['user_id'],
             payload['email'],
             payload.get('user_type', 'user')
@@ -599,7 +601,8 @@ def refresh_token(event, context):
             message="Token refreshed successfully",
             data={
                 "accessToken": new_access_token,
-                "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                "refreshToken": new_refresh_token,
+                "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
             }
         )
 
@@ -645,7 +648,7 @@ def verify_access_token(event, context):
             "id": user_id,
             "email": email,
             "accessToken": verify_request.access_token,
-            "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
         }
 
         if user_table:
@@ -1040,7 +1043,7 @@ def admin_login(event, context):
                 "name": admin['name'],
                 "accessToken": access_token,
                 "refreshToken": refresh_token_str,
-                "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
             }
         )
 
@@ -1082,8 +1085,14 @@ def admin_refresh_token(event, context):
             logger.warning("Access token used instead of refresh token")
             return create_api_response(401, False, "Invalid token type")
 
-        # Generate new access token
+        # Generate new access token and new refresh token
         new_access_token = generate_access_token(
+            payload['user_id'],
+            payload['email'],
+            payload.get('user_type', 'admin')
+        )
+        
+        new_refresh_token = generate_refresh_token(
             payload['user_id'],
             payload['email'],
             payload.get('user_type', 'admin')
@@ -1094,7 +1103,8 @@ def admin_refresh_token(event, context):
             message="Token refreshed successfully",
             data={
                 "accessToken": new_access_token,
-                "expiresIn": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+                "refreshToken": new_refresh_token,
+                "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
             }
         )
 

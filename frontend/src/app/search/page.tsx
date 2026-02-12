@@ -297,6 +297,11 @@ export default function SearchPage() {
     setSort('relevance');
   };
 
+  // 商品クリック時の処理
+  const handleProductClick = (productId: number | string) => {
+    router.push(`/product/detail?id=${productId}`);
+  };
+
   // 選択されたカテゴリに含まれる小カテゴリの取得
   const getSubcategoriesForCategory = (categoryId: string): string[] => {
     const category = categories.find((c) => c.id === categoryId);
@@ -310,7 +315,7 @@ export default function SearchPage() {
 
   return (
     <MainLayout>
-      <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
+      <Box>
         <Stack spacing={3}>
           <Breadcrumbs>
             <MuiLink
@@ -347,7 +352,11 @@ export default function SearchPage() {
               }}
             />
             {!isMobile && (
-              <Button variant="contained" onClick={handleSearch}>
+              <Button
+                variant="contained"
+                onClick={handleSearch}
+                sx={{ height: '56px' }}
+              >
                 検索
               </Button>
             )}
@@ -512,11 +521,12 @@ export default function SearchPage() {
             sx={{
               display: 'grid',
               gridTemplateColumns: {
-                xs: 'repeat(1, minmax(0, 1fr))',
-                sm: 'repeat(2, minmax(0, 1fr))',
-                lg: 'repeat(3, minmax(0, 1fr))',
+                xs: 'repeat(3, minmax(0, 1fr))',
+                sm: 'repeat(3, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
+                lg: 'repeat(5, minmax(0, 1fr))',
               },
-              gap: 3,
+              gap: 2,
             }}
           >
             {displayProducts.map((p, index) => (
@@ -527,6 +537,7 @@ export default function SearchPage() {
                 price={p.price}
                 showDetails={true}
                 image={p.image}
+                onClick={() => handleProductClick(p.id)}
               />
             ))}
           </Box>
@@ -536,11 +547,13 @@ export default function SearchPage() {
           )}
 
           {totalCount > 0 && (
-            <Pagination
-              currentPage={urlPage}
-              totalPages={totalPages}
-              onPageChange={updatePageInUrl}
-            />
+            <Box display="flex" justifyContent="center">
+              <Pagination
+                currentPage={urlPage}
+                totalPages={totalPages}
+                onPageChange={updatePageInUrl}
+              />
+            </Box>
           )}
         </Stack>
       </Box>

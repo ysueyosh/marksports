@@ -68,8 +68,9 @@ class RegisterResponse(BaseModel):
 class UpdateProfileRequest(BaseModel):
     """Update profile request model"""
     name: str
-    email: str = None
-    gender: str = None
+    email: EmailStr = None
+    phone: str = None
+    sex: str = None
 
 
 class UpdateProfileResponse(BaseModel):

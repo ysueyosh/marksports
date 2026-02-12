@@ -5,22 +5,15 @@ Admin notification management handler - DynamoDB integration
 import json
 import logging
 import uuid
-import boto3
-import os
 from decimal import Decimal
 from datetime import datetime
 from src.utils.auth import require_admin_auth
+from src.utils.dynamodb import get_notification_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-NOTIFICATION_TABLE_NAME = os.environ.get('NOTIFICATION_TABLE_NAME', 'Notification')
 NOTIFICATION_PK = 'NOTIFICATION'
-
-def get_notification_table():
-    """Get DynamoDB Notification table"""
-    dynamodb = boto3.resource('dynamodb')
-    return dynamodb.Table(NOTIFICATION_TABLE_NAME)
 
 class DecimalEncoder(json.JSONEncoder):
     """JSON encoder that converts Decimal to float"""
@@ -277,6 +270,35 @@ def create_notification(event, context):
                         "data": None
                     }, ensure_ascii=False),
                 }
+
+        allowed_types = ['info', 'important']
+        if body.get('type') not in allowed_types:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "typeはinfoまたはimportantのみ利用可能です",
+                    "data": None
+                }, ensure_ascii=False),
+            }
+
+        if body.get('target') != 'all':
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "対象ユーザーは全体配信のみ対応しています",
+                    "data": None
+                }, ensure_ascii=False),
+            }
         
         table = get_notification_table()
         
@@ -288,7 +310,7 @@ def create_notification(event, context):
             'SK': sk,
             'notificationId': notification_id,
             'type': body['type'],
-            'target': body['target'],
+            'target': 'all',
             'title': body['title'],
             'content': body['content'],
             'startDate': body.get('startDate'),
@@ -411,6 +433,34 @@ def update_notification(event, context):
         update_parts = []
         expression_values = {}
         
+        if 'type' in body and body.get('type') not in ['info', 'important']:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "typeはinfoまたはimportantのみ利用可能です",
+                    "data": None
+                }, ensure_ascii=False),
+            }
+
+        if 'target' in body and body.get('target') != 'all':
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "対象ユーザーは全体配信のみ対応しています",
+                    "data": None
+                }, ensure_ascii=False),
+            }
+
         if 'title' in body:
             update_parts.append('title = :title')
             expression_values[':title'] = body['title']
@@ -426,7 +476,7 @@ def update_notification(event, context):
         
         if 'target' in body:
             update_parts.append('target = :target')
-            expression_values[':target'] = body['target']
+            expression_values[':target'] = 'all'
         
         if 'startDate' in body:
             update_parts.append('startDate = :startDate')

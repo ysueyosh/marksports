@@ -4,27 +4,16 @@ Shopping cart handler for DB-based cart management
 
 import json
 import logging
-import boto3
-import os
 from datetime import datetime
 from decimal import Decimal
 from src.utils.jwt import verify_token
 from src.utils.cors import cors_headers
+from src.utils.dynamodb import get_cart_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# DynamoDB
-dynamodb = boto3.resource(
-    'dynamodb',
-    region_name='ap-northeast-1',
-    endpoint_url=os.environ.get('DYNAMODB_ENDPOINT_URL', None)
-)
-CART_TABLE_NAME = os.environ.get('CART_TABLE_NAME', 'User')
-
-def get_cart_table():
-    """Get Cart table"""
-    return dynamodb.Table(CART_TABLE_NAME)
+# DynamoDB (utilsで一元管理)
 
 class DecimalEncoder(json.JSONEncoder):
     """Helper class to convert DynamoDB Decimal type to JSON"""

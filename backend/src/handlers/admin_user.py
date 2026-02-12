@@ -6,25 +6,11 @@ import json
 import logging
 from datetime import datetime
 from decimal import Decimal
-import boto3
-import os
 from src.utils.auth import require_admin_auth
+from src.utils.dynamodb import get_users_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'User')
-
-
-def get_users_table():
-    """Get DynamoDB Users table"""
-    dynamodb = boto3.resource(
-        'dynamodb',
-        region_name='ap-northeast-1',
-        endpoint_url=os.environ.get('DYNAMODB_ENDPOINT_URL', None)
-    )
-    return dynamodb.Table(USERS_TABLE_NAME)
-
 
 class DecimalEncoder(json.JSONEncoder):
     """Helper class to convert DynamoDB Decimal type to JSON"""
@@ -54,26 +40,36 @@ def get_all_users(event, context):
         query_params = event.get('queryStringParameters', {}) or {}
         page = int(query_params.get('page', 1))
         limit = int(query_params.get('limit', 10))
+        email_filter = query_params.get('email')  # メール検索フィルタ
+        name_filter = query_params.get('name')    # 名前検索フィルタ
+        status_filter = query_params.get('status') # ステータス検索フィルタ
         
         if page < 1 or limit < 1:
             page, limit = 1, 10
         
-        logger.info(f"Get all users - page: {page}, limit: {limit}")
+        logger.info(f"Get all users - page: {page}, limit: {limit}, email: {email_filter}, name: {name_filter}, status: {status_filter}")
         
         table = get_users_table()
         
         # Calculate offset for pagination
         offset = (page - 1) * limit
         
-        # Scan Users table (no PK/SK structure, just userId as PK)
+        # Scan Users table with FilterExpression to get only PROFILE items
+        # This avoids scanning ADDRESS, etc. items
         try:
             response = table.scan(
-                Limit=limit + 1  # +1 to check if there are more pages
+                FilterExpression="begins_with(#sk, :sk_prefix)",
+                ExpressionAttributeNames={
+                    "#sk": "SK"
+                },
+                ExpressionAttributeValues={
+                    ":sk_prefix": "PROFILE#"
+                }
             )
             logger.info(f"Scan response items count: {len(response.get('Items', []))}")
         except Exception as e:
-            logger.error(f"Scan failed: {str(e)}, trying with pagination token")
-            response = table.scan()
+            logger.error(f"Scan failed: {str(e)}")
+            raise
         
         items = response.get('Items', [])
         
@@ -83,13 +79,25 @@ def get_all_users(event, context):
             if item.get('deletedAt'):  # Skip soft-deleted users
                 continue
             
+            email = item.get('email', '')
+            name = item.get('name', '')
+            status = item.get('status', '')
+            
+            # Apply search filters
+            if email_filter and email_filter.lower() not in email.lower():
+                continue
+            if name_filter and name_filter.lower() not in name.lower():
+                continue
+            if status_filter and status != status_filter:
+                continue
+            
             user = {
                 'userId': item.get('userId'),
-                'email': item.get('email'),
-                'name': item.get('name'),
+                'email': email,
+                'name': name,
                 'phone': item.get('phone'),
                 'sex': item.get('sex'),
-                'status': item.get('status'),
+                'status': status,
                 'createdAt': item.get('createdAt'),
                 'updatedAt': item.get('updatedAt'),
             }

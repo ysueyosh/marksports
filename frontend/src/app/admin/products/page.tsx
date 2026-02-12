@@ -30,6 +30,8 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import {
@@ -82,6 +84,9 @@ let categoryStructure: {
 
 export default function AdminProductsPage() {
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -518,7 +523,7 @@ export default function AdminProductsPage() {
 
   return (
     <>
-      <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+      <Box>
         <Stack spacing={2}>
           <Box
             display="flex"
@@ -837,13 +842,13 @@ export default function AdminProductsPage() {
                 label="特別商品"
               />
               <TextField
-                label="価格"
+                label="価格（税抜き）"
                 type="number"
                 value={formData.price}
                 onChange={(e) =>
                   setFormData({ ...formData, price: e.target.value })
                 }
-                placeholder="価格を入力"
+                placeholder="税抜き価格を入力"
                 fullWidth
               />
               <TextField
@@ -990,19 +995,30 @@ export default function AdminProductsPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>商品名</TableCell>
-                  <TableCell>価格</TableCell>
-                  <TableCell>説明</TableCell>
-                  <TableCell>公開状態</TableCell>
-                  <TableCell>作成日</TableCell>
+                  {!isMobile && !isTablet && <TableCell>商品名</TableCell>}
+                  {isMobile && <TableCell>商品名</TableCell>}
+                  {isTablet && (
+                    <>
+                      <TableCell>商品名</TableCell>
+                      <TableCell>価格</TableCell>
+                    </>
+                  )}
+                  {!isMobile && !isTablet && (
+                    <>
+                      <TableCell>価格</TableCell>
+                      <TableCell>説明</TableCell>
+                      <TableCell>公開状態</TableCell>
+                      <TableCell>作成日</TableCell>
+                    </>
+                  )}
+                  {(isMobile || isTablet) && <TableCell>公開状態</TableCell>}
                   <TableCell>アクション</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {paginatedProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={isMobile ? 3 : isTablet ? 4 : 6}>
                       <Typography
                         textAlign="center"
                         color="text.secondary"
@@ -1016,24 +1032,52 @@ export default function AdminProductsPage() {
                   paginatedProducts.map((product) => (
                     <React.Fragment key={product.id}>
                       <TableRow hover selected={editingId === product.id}>
-                        <TableCell>{product.id}</TableCell>
                         <TableCell>{product.name}</TableCell>
-                        <TableCell>¥{product.price.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {product.description}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            label={product.published ? '公開' : '非公開'}
-                            color={product.published ? 'success' : 'default'}
-                          />
-                        </TableCell>
-                        <TableCell>{product.createdDate}</TableCell>
+                        {(isTablet || (!isMobile && !isTablet)) && (
+                          <TableCell>
+                            ¥{product.price.toLocaleString()}
+                          </TableCell>
+                        )}
+                        {!isMobile && !isTablet && (
+                          <>
+                            <TableCell>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {product.description}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={product.published ? '公開' : '非公開'}
+                                color={
+                                  product.published ? 'success' : 'default'
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>{product.createdDate}</TableCell>
+                          </>
+                        )}
+                        {(isMobile || isTablet) && (
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={product.published ? '公開' : '非公開'}
+                              color={product.published ? 'success' : 'default'}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell>
                           <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => handleEditProduct(product)}
+                            >
+                              編集
+                            </Button>
                             <Button
                               size="small"
                               variant="outlined"
@@ -1046,29 +1090,28 @@ export default function AdminProductsPage() {
                             >
                               統計
                             </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => handleEditProduct(product)}
-                            >
-                              編集
-                            </Button>
                           </Stack>
                         </TableCell>
                       </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={7}>
-                          <Typography variant="caption" color="text.secondary">
-                            {categories.find(
-                              (c) => c.categoryId === product.parentCategoryId,
-                            )?.categoryName || '親'}{' '}
-                            &gt;{' '}
-                            {categories.find(
-                              (c) => c.categoryId === product.categoryId,
-                            )?.categoryName || '子'}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
+                      {!isMobile && (
+                        <TableRow>
+                          <TableCell colSpan={isTablet ? 4 : 6}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {categories.find(
+                                (c) =>
+                                  c.categoryId === product.parentCategoryId,
+                              )?.categoryName || '親'}{' '}
+                              &gt;{' '}
+                              {categories.find(
+                                (c) => c.categoryId === product.categoryId,
+                              )?.categoryName || '子'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </React.Fragment>
                   ))
                 )}

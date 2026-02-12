@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext';
 import MainLayout from '@/components/Layout/MainLayout';
+import { getPriceWithTax } from '@/utils/price';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useRef } from 'react';
@@ -139,12 +140,16 @@ export default function ReceiptPage() {
     );
   }
 
-  const subtotal = order.items.reduce(
+  const subtotalExcludingTax = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
-  const shipping = subtotal > 10000 ? 0 : 800;
-  const tax = Math.floor(subtotal * 0.1);
+  const subtotalWithTax = order.items.reduce(
+    (sum, item) => sum + getPriceWithTax(item.price) * item.quantity,
+    0,
+  );
+  const shipping = subtotalExcludingTax > 10000 ? 0 : 800;
+  const tax = subtotalWithTax - subtotalExcludingTax;
 
   return (
     <MainLayout>
@@ -245,7 +250,7 @@ export default function ReceiptPage() {
             <Stack spacing={1} mb={2}>
               <Stack direction="row" justifyContent="space-between">
                 <Typography color="text.secondary">小計</Typography>
-                <Typography>¥{(subtotal + tax).toLocaleString()}</Typography>
+                <Typography>¥{subtotalWithTax.toLocaleString()}</Typography>
               </Stack>
               <Typography
                 variant="caption"

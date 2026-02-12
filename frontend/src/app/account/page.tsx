@@ -79,7 +79,12 @@ export default function AccountPage() {
                 </ListItemButton>
               ))}
             </List>
-            <Button variant="outlined" color="error" onClick={handleLogout}>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleLogout}
+              sx={{ width: '100%', mt: 2 }}
+            >
               ログアウト
             </Button>
           </CardContent>

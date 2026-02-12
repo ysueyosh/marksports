@@ -29,7 +29,7 @@ from src.handlers.product import get_featured_products, get_product_detail, get_
 from src.handlers.search import search_products
 from src.handlers.coupon import apply_coupon
 from src.handlers.notification import get_notifications, get_notification_detail, get_notification_count
-from src.handlers.order import get_orders, get_order_detail, cancel_order, revoke_cancel_request, save_order, get_all_orders, update_order_status, get_admin_order_detail
+from src.handlers.order import get_orders, get_order_detail, cancel_order, revoke_cancel_request, save_order, get_all_orders, update_order_status, get_admin_order_detail, get_dashboard_pending_orders, get_dashboard_payment_confirmation
 from src.handlers.admin import admin_login, admin_refresh_token, admin_verify_token, create_admin, get_admin_settings, update_admin_settings, manual_refund
 from src.handlers.admin_product import create_product, update_product, delete_product, get_all_products
 from src.handlers.admin_category import admin_create_category_route, admin_get_all_categories_route, admin_update_category_route, admin_delete_category_route
@@ -890,6 +890,26 @@ def manual_refund_route():
         'body': request.data.decode()
     }
     result = manual_refund(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+@app.route('/admin/dashboard/pending-orders', methods=['GET'])
+def get_dashboard_pending_orders_route():
+    """Get dashboard pending orders - Requires admin authentication"""
+    event = {
+        'headers': dict(request.headers)
+    }
+    result = get_dashboard_pending_orders(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+@app.route('/admin/dashboard/payment-confirmation', methods=['GET'])
+def get_dashboard_payment_confirmation_route():
+    """Get dashboard payment confirmation - Requires admin authentication"""
+    event = {
+        'headers': dict(request.headers)
+    }
+    result = get_dashboard_payment_confirmation(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 

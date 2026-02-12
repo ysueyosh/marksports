@@ -1,9 +1,9 @@
 /**
  * 価格計算ユーティリティ
- * すべての価格を税込表示（消費税10%）で統一
+ * すべての価格を税込表示で統一
  */
 
-const TAX_RATE = 0.1;
+import { TAX_RATE } from '@/constants/tax';
 
 /**
  * 税抜き価格から税込み価格を計算
@@ -21,7 +21,7 @@ export const calculateTaxIncludedPrice = (price: number): number => {
  */
 export const formatPriceIncludedTax = (price: number): string => {
   const taxIncludedPrice = calculateTaxIncludedPrice(price);
-  return `¥${taxIncludedPrice.toLocaleString("ja-JP")}`;
+  return `¥${taxIncludedPrice.toLocaleString('ja-JP')}`;
 };
 
 /**

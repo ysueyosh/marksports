@@ -112,7 +112,12 @@ export default function CartPage() {
     setCouponError('');
 
     try {
-      const response = await applyCoupon(couponCode.trim(), subtotal);
+      // バックエンドに送信する subtotal は税抜き金額
+      const subtotalBeforeTax = cartItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+      const response = await applyCoupon(couponCode.trim(), subtotalBeforeTax);
       if (response.success && response.data) {
         setCoupon({
           code: response.data.coupon_code,
@@ -135,24 +140,26 @@ export default function CartPage() {
     }
   };
 
-  const subtotal = cartItems.reduce(
+  const subtotalExcludingTax = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+  const subtotalWithTax = cartItems.reduce(
     (sum, item) => sum + getPriceWithTax(item.price) * item.quantity,
     0,
   );
   const shipping = cartItems.length > 0 ? 500 : 0;
-  const tax = Math.floor(
-    cartItems.reduce((sum, item) => sum + item.price, 0) * 0.1,
-  );
+  const tax = subtotalWithTax - subtotalExcludingTax;
   const discountAmount = coupon
     ? coupon.discount_type === 'percentage'
-      ? Math.floor((subtotal * coupon.discount_value) / 100)
+      ? Math.floor((subtotalWithTax * coupon.discount_value) / 100)
       : coupon.discount_value
     : 0;
-  const total = subtotal + shipping + tax - discountAmount;
+  const total = subtotalWithTax + shipping - discountAmount;
 
   return (
     <MainLayout>
-      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+      <Box>
         <Stack spacing={3}>
           <Typography variant="h4" fontWeight={700}>
             ショッピングカート
@@ -200,16 +207,17 @@ export default function CartPage() {
                   {cartItems.map((item: CartItem) => (
                     <Paper key={item.id} variant="outlined" sx={{ p: 2 }}>
                       <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
+                        direction={{ xs: 'row', sm: 'row' }}
                         spacing={2}
-                        alignItems={{ xs: 'flex-start', sm: 'center' }}
+                        alignItems={{ xs: 'center', sm: 'center' }}
+                        sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}
                       >
                         <Box
                           component={Link}
                           href={`/product/detail?id=${item.id}`}
                           sx={{
-                            width: { xs: '100%', sm: 120 },
-                            height: 120,
+                            width: { xs: 96, sm: 120 },
+                            height: { xs: 96, sm: 120 },
                             bgcolor: 'grey.100',
                             borderRadius: 1,
                             overflow: 'hidden',
@@ -244,7 +252,13 @@ export default function CartPage() {
                           )}
                         </Box>
 
-                        <Box flex={1}>
+                        <Box
+                          flex={1}
+                          sx={{
+                            minWidth: 0,
+                            width: { xs: '100%', sm: 'auto' },
+                          }}
+                        >
                           <Typography
                             component={Link}
                             href={`/product/detail?id=${item.id}`}
@@ -339,7 +353,7 @@ export default function CartPage() {
                 <Stack spacing={1}>
                   <Stack direction="row" justifyContent="space-between">
                     <Typography color="text.secondary">小計</Typography>
-                    <Typography>¥{subtotal.toLocaleString()}</Typography>
+                    <Typography>¥{subtotalWithTax.toLocaleString()}</Typography>
                   </Stack>
                   <Typography
                     variant="caption"
@@ -444,23 +458,6 @@ export default function CartPage() {
               </Stack>
             </Paper>
           </Box>
-
-          <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={2}
-              justifyContent="space-around"
-            >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography>✓</Typography>
-                <Typography variant="body2">30日間返金保証</Typography>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography>✓</Typography>
-                <Typography variant="body2">送料無料（¥5,000以上）</Typography>
-              </Stack>
-            </Stack>
-          </Paper>
         </Stack>
       </Box>
     </MainLayout>

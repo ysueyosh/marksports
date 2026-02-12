@@ -32,6 +32,7 @@ import {
 
 interface ProfileFormData {
   name: string;
+  email: string;
   phone?: string;
   sex?: string;
 }
@@ -46,6 +47,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
+    email: user?.email || '',
     phone: '',
     sex: '',
   });
@@ -64,6 +66,32 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  const normalizeSex = (value?: string) => {
+    if (!value) return '';
+    const map: Record<string, string> = {
+      male: 'male',
+      female: 'female',
+      other: 'other',
+      男性: 'male',
+      女性: 'female',
+      その他: 'other',
+    };
+    return map[value] ?? value;
+  };
+
+  // 設定ページ遷移時に認証ユーザー情報をフォームへ反映
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        sex: normalizeSex(user.sex || ''),
+      }));
+    }
+  }, [isLoggedIn, user, pathname]);
+
   // ページ読み込み時にユーザープロフィールを取得
   useEffect(() => {
     const loadProfile = async () => {
@@ -73,8 +101,9 @@ export default function SettingsPage() {
           setFormData((prev) => ({
             ...prev,
             name: response.data?.name || prev.name,
+            email: response.data?.email || prev.email,
             phone: response.data?.phone || prev.phone,
-            sex: response.data?.sex || prev.sex,
+            sex: normalizeSex(response.data?.sex) || prev.sex,
           }));
         }
       } catch (err) {
@@ -107,7 +136,9 @@ export default function SettingsPage() {
   }
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -120,6 +151,7 @@ export default function SettingsPage() {
     const errors: Record<string, string> = {};
 
     if (!formData.name) errors.name = 'お名前を入力してください';
+    if (!formData.email) errors.email = 'メールアドレスを入力してください';
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -165,6 +197,7 @@ export default function SettingsPage() {
     try {
       const response = await updateProfile({
         name: formData.name,
+        email: formData.email,
         phone: formData.phone,
         sex: formData.sex,
       });
@@ -210,32 +243,6 @@ export default function SettingsPage() {
     } catch (err) {
       console.error('Password change error:', err);
       showSnackbar('パスワード変更に失敗しました', 'error');
-    }
-  };
-
-  const handleNotificationToggle = () => {
-    const updated = {
-      ...notificationSettings,
-      emailNotifications: !notificationSettings.emailNotifications,
-    };
-    setNotificationSettings(updated);
-    setNotificationSwitchChanged(true);
-  };
-
-  const handleNotificationUpdate = async () => {
-    try {
-      await updateNotificationSettings({
-        emailNotifications: notificationSettings.emailNotifications,
-      });
-      localStorage.setItem(
-        'notificationSettings',
-        JSON.stringify(notificationSettings),
-      );
-      setNotificationSwitchChanged(false);
-      showSnackbar('通知設定を更新しました', 'success');
-    } catch (err) {
-      console.error('Notification settings update error:', err);
-      showSnackbar('通知設定の更新に失敗しました', 'error');
     }
   };
 
@@ -300,6 +307,15 @@ export default function SettingsPage() {
                 onChange={handleInputChange}
                 placeholder="例：山田 太郎"
                 error={fieldErrors.name}
+              />
+
+              <TextInput
+                label="メールアドレス"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="example@example.com"
+                error={fieldErrors.email}
               />
 
               <TextInput

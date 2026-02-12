@@ -11,6 +11,7 @@ import {
 import { useLoading } from '@/context/LoadingContext';
 import { TextInput } from '@/components/Input/TextInput';
 import { searchAddressByPostalCode } from '@/api/address';
+import { PREFECTURE_OPTIONS } from '@/constants/prefectures';
 import {
   Box,
   Typography,
@@ -76,107 +77,8 @@ export default function RegisterPage() {
   const router = useRouter();
   const { setIsLoading } = useLoading();
 
-  // 日本語都道府県名から英語キーへのマッピング
-  const prefectureMap: { [key: string]: string } = {
-    北海道: 'hokkaido',
-    青森県: 'aomori',
-    岩手県: 'iwate',
-    宮城県: 'miyagi',
-    秋田県: 'akita',
-    山形県: 'yamagata',
-    福島県: 'fukushima',
-    茨城県: 'ibaraki',
-    栃木県: 'tochigi',
-    群馬県: 'gunma',
-    埼玉県: 'saitama',
-    千葉県: 'chiba',
-    東京都: 'tokyo',
-    神奈川県: 'kanagawa',
-    新潟県: 'niigata',
-    富山県: 'toyama',
-    石川県: 'ishikawa',
-    福井県: 'fukui',
-    山梨県: 'yamanashi',
-    長野県: 'nagano',
-    岐阜県: 'gifu',
-    静岡県: 'shizuoka',
-    愛知県: 'aichi',
-    三重県: 'mie',
-    滋賀県: 'shiga',
-    京都府: 'kyoto',
-    大阪府: 'osaka',
-    兵庫県: 'hyogo',
-    奈良県: 'nara',
-    和歌山県: 'wakayama',
-    鳥取県: 'tottori',
-    島根県: 'shimane',
-    岡山県: 'okayama',
-    広島県: 'hiroshima',
-    山口県: 'yamaguchi',
-    徳島県: 'tokushima',
-    香川県: 'kagawa',
-    愛媛県: 'ehime',
-    高知県: 'kochi',
-    福岡県: 'fukuoka',
-    佐賀県: 'saga',
-    長崎県: 'nagasaki',
-    熊本県: 'kumamoto',
-    大分県: 'oita',
-    宮崎県: 'miyazaki',
-    鹿児島県: 'kagoshima',
-    沖縄県: 'okinawa',
-  };
-
-  // 都道府県セレクトオプション
-  const prefectureOptions = [
-    { id: 'hokkaido', label: '北海道' },
-    { id: 'aomori', label: '青森県' },
-    { id: 'iwate', label: '岩手県' },
-    { id: 'miyagi', label: '宮城県' },
-    { id: 'akita', label: '秋田県' },
-    { id: 'yamagata', label: '山形県' },
-    { id: 'fukushima', label: '福島県' },
-    { id: 'ibaraki', label: '茨城県' },
-    { id: 'tochigi', label: '栃木県' },
-    { id: 'gunma', label: '群馬県' },
-    { id: 'saitama', label: '埼玉県' },
-    { id: 'chiba', label: '千葉県' },
-    { id: 'tokyo', label: '東京都' },
-    { id: 'kanagawa', label: '神奈川県' },
-    { id: 'niigata', label: '新潟県' },
-    { id: 'toyama', label: '富山県' },
-    { id: 'ishikawa', label: '石川県' },
-    { id: 'fukui', label: '福井県' },
-    { id: 'yamanashi', label: '山梨県' },
-    { id: 'nagano', label: '長野県' },
-    { id: 'gifu', label: '岐阜県' },
-    { id: 'shizuoka', label: '静岡県' },
-    { id: 'aichi', label: '愛知県' },
-    { id: 'mie', label: '三重県' },
-    { id: 'shiga', label: '滋賀県' },
-    { id: 'kyoto', label: '京都府' },
-    { id: 'osaka', label: '大阪府' },
-    { id: 'hyogo', label: '兵庫県' },
-    { id: 'nara', label: '奈良県' },
-    { id: 'wakayama', label: '和歌山県' },
-    { id: 'tottori', label: '鳥取県' },
-    { id: 'shimane', label: '島根県' },
-    { id: 'okayama', label: '岡山県' },
-    { id: 'hiroshima', label: '広島県' },
-    { id: 'yamaguchi', label: '山口県' },
-    { id: 'tokushima', label: '徳島県' },
-    { id: 'kagawa', label: '香川県' },
-    { id: 'ehime', label: '愛媛県' },
-    { id: 'kochi', label: '高知県' },
-    { id: 'fukuoka', label: '福岡県' },
-    { id: 'saga', label: '佐賀県' },
-    { id: 'nagasaki', label: '長崎県' },
-    { id: 'kumamoto', label: '熊本県' },
-    { id: 'oita', label: '大分県' },
-    { id: 'miyazaki', label: '宮崎県' },
-    { id: 'kagoshima', label: '鹿児島県' },
-    { id: 'okinawa', label: '沖縄県' },
-  ];
+  // 都道府県セレクトオプション（日本語）
+  const prefectureOptions = PREFECTURE_OPTIONS;
 
   const genderOptions = [
     { id: 'male', label: '男性' },
@@ -205,12 +107,9 @@ export default function RegisterPage() {
       const response = await searchAddressByPostalCode(postalCode);
 
       if (response.success && response.data) {
-        const prefectureValue =
-          prefectureMap[response.data.prefecture] || response.data.prefecture;
-
         setFormData((prev) => ({
           ...prev,
-          prefecture: prefectureValue,
+          prefecture: response.data!.prefecture,
           address: response.data!.address,
         }));
       } else {

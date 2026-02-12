@@ -38,18 +38,25 @@ export interface AdminUserResponse {
 
 export const adminUserAPI = {
   /**
-   * Get all users with pagination
+   * Get all users with pagination and optional search
    */
   async getAllUsers(
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    email?: string,
+    name?: string,
+    status?: string,
   ): Promise<AdminUserResponse> {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
     });
+    if (email) params.append('email', email);
+    if (name) params.append('name', name);
+    if (status && status !== 'all') params.append('status', status);
+
     return apiClient.get<AdminUserResponse>(
-      `/admin/users?${params.toString()}`
+      `/admin/users?${params.toString()}`,
     );
   },
 
@@ -65,7 +72,7 @@ export const adminUserAPI = {
    */
   async updateUser(
     userId: string,
-    request: UserUpdateRequest
+    request: UserUpdateRequest,
   ): Promise<AdminUserResponse> {
     return apiClient.put<AdminUserResponse>(`/admin/users/${userId}`, request);
   },

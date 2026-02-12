@@ -5,10 +5,10 @@ Authentication handler
 import json
 import logging
 from datetime import datetime, timedelta
-import boto3
-import os
 import bcrypt
 from decimal import Decimal
+from boto3.dynamodb.conditions import Key
+from src.auth import ACCESS_TOKEN_EXPIRE_SECONDS
 from src.models.auth import (
     LoginRequest, LoginResponse, TokenRefreshRequest, TokenRefreshResponse,
     VerifyTokenRequest, VerifyTokenResponse, UpdateProfileRequest,
@@ -25,17 +25,7 @@ from src.utils.dynamodb import get_users_table
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# DynamoDB
-dynamodb = boto3.resource(
-    'dynamodb',
-    region_name='ap-northeast-1',
-    endpoint_url=os.environ.get('DYNAMODB_ENDPOINT_URL', None)
-)
-USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'User')
-
-def get_users_table():
-    """Get Users table"""
-    return dynamodb.Table(USERS_TABLE_NAME)
+# DynamoDB (utilsで一元管理)
 
 class DecimalEncoder(json.JSONEncoder):
     """Helper class to convert DynamoDB Decimal type to JSON"""
@@ -173,7 +163,7 @@ def login(event, context):
                     "phone": user_item.get('phone', ''),
                     "accessToken": access_token,
                     "refreshToken": refresh_token_str,
-                    "expiresIn": 3600  # Token expires in 1 hour (seconds)
+                    "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
                 }
             )
             
@@ -358,7 +348,7 @@ def refresh_token(event, context):
                 "phone": user_data.get("phone", ""),
                 "accessToken": new_access_token,
                 "refreshToken": new_refresh_token,
-                "expiresIn": 3600  # Token expires in 1 hour (seconds)
+                "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
             }
         )
         
@@ -642,6 +632,7 @@ def update_profile(event, context):
     Request body:
     {
         "name": "新しい名前",
+        "email": "new@example.com",
         "phone": "09012345678",
         "sex": "male"
     }
@@ -673,12 +664,9 @@ def update_profile(event, context):
         # Get DynamoDB table
         table = get_users_table()
         
-        # Query current user data using PK
+        # Query current user profile using PK + PROFILE
         user_response = table.query(
-            KeyConditionExpression="PK = :pk",
-            ExpressionAttributeValues={
-                ":pk": f"USER#{user_id}"
-            },
+            KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("PROFILE#"),
             Limit=1
         )
         
@@ -708,6 +696,51 @@ def update_profile(event, context):
             update_expression += ", #name = :name"
             expression_names["#name"] = "name"
             expression_values[":name"] = body["name"]
+
+        if "email" in body:
+            email_value = (body.get("email") or "").strip()
+            if not email_value:
+                return {
+                    "statusCode": 400,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "メールアドレスを入力してください"
+                    }, ensure_ascii=False),
+                }
+
+            current_email = user_item.get("email", "")
+            if email_value != current_email:
+                # Check if email already exists
+                try:
+                    email_response = table.query(
+                        IndexName='GSI_MAIL',
+                        KeyConditionExpression='email = :email',
+                        ExpressionAttributeValues={':email': email_value}
+                    )
+                    if email_response.get('Items'):
+                        for item in email_response['Items']:
+                            if item.get('userId') != user_id:
+                                return {
+                                    "statusCode": 400,
+                                    "headers": {
+                                        "Content-Type": "application/json",
+                                        "Access-Control-Allow-Origin": "*",
+                                    },
+                                    "body": json.dumps({
+                                        "success": False,
+                                        "message": "このメールアドレスは既に登録されています"
+                                    }, ensure_ascii=False),
+                                }
+                except Exception as e:
+                    logger.warning(f"Could not check if email exists: {str(e)}")
+
+            update_expression += ", #email = :email"
+            expression_names["#email"] = "email"
+            expression_values[":email"] = email_value
         
         if "phone" in body:
             update_expression += ", #phone = :phone"
@@ -738,6 +771,7 @@ def update_profile(event, context):
             "message": "プロフィールを更新しました",
             "data": {
                 "name": updated_item.get("name"),
+                "email": updated_item.get("email"),
                 "phone": updated_item.get("phone"),
                 "sex": updated_item.get("sex")
             }
@@ -1009,12 +1043,9 @@ def get_profile(event, context):
         # Get DynamoDB table
         table = get_users_table()
         
-        # Query user profile using PK (same as payment methods)
+        # Query user profile item (PROFILE#) to avoid address items
         user_response = table.query(
-            KeyConditionExpression="PK = :pk",
-            ExpressionAttributeValues={
-                ":pk": f"USER#{user_id}"
-            },
+            KeyConditionExpression=Key("PK").eq(f"USER#{user_id}") & Key("SK").begins_with("PROFILE#"),
             Limit=1
         )
         

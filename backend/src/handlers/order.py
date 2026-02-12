@@ -683,6 +683,7 @@ def get_order_detail(event, context):
             "status": order_data.get('status', 'PENDING'),
             "subtotal": total_amount - tax - shipping_cost + discount + coupon_discount,
             "tax": tax,
+            "taxRate": safe_amount_conversion(order_data.get('taxRate', 0), 0),
             "shippingCost": shipping_cost,
             "discount": discount,
             "couponDiscount": coupon_discount,
@@ -1181,6 +1182,7 @@ def save_order(event, context):
             "status": body.get('status', 'awaiting_shipment'),  # ⭐ リクエストボディからstatus を取得
             "totalAmount": int(body.get('totalAmount', 0)),
             "tax": int(body.get('tax', 0)),
+            "taxRate": Decimal(str(body.get('taxRate', 0))) if body.get('taxRate') is not None else None,
             "shippingCost": int(body.get('shippingCost', 0)),
             "discount": int(body.get('discount', 0)),
             "couponCode": body.get('couponCode'),
@@ -1317,15 +1319,12 @@ def save_order(event, context):
                 
                 # Query Admin table for all admin profiles
                 try:
-                    import os
-                    import boto3
+                    from src.utils.dynamodb import get_admin_table
                     
                     # Get Admin table
-                    dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
-                    admin_table_name = os.environ.get('ADMIN_TABLE_NAME', 'Admin')
-                    admin_table = dynamodb.Table(admin_table_name)
+                    admin_table = get_admin_table()
                     
-                    logger.info(f"[EMAIL] Scanning {admin_table_name} table for admin profiles")
+                    logger.info("[EMAIL] Scanning Admin table for admin profiles")
                     
                     # Scan all items in Admin table
                     admin_scan_response = admin_table.scan()
@@ -1455,6 +1454,10 @@ def get_all_orders(event, context):
         # Get sort parameter (optional, defaults to 'status')
         query_params = event.get('queryStringParameters', {}) or {}
         sort_by = query_params.get('sortBy', 'status')  # 'status', 'date', 'amount'
+        order_number_filter = query_params.get('orderNumber')  # 注文番号で検索
+        status_filter = query_params.get('status')  # ステータスで検索
+        
+        logger.info(f"Search parameters - orderNumber: {order_number_filter}, status: {status_filter}")
         
         table = get_users_table()
         
@@ -1483,14 +1486,23 @@ def get_all_orders(event, context):
             # Handle ORDER# (order master record)
             if sk.startswith('ORDER#'):
                 txn_id = sk.replace('ORDER#', '')
+                order_number = item.get('orderNumber', '')
+                order_status = item.get('status', 'unpaid')
+                
+                # Apply filters
+                if order_number_filter and order_number_filter not in order_number:
+                    continue
+                if status_filter and order_status != status_filter:
+                    continue
+                
                 logger.info(f"Found ORDER# record with txn_id: {txn_id}")
                 if txn_id:
                     all_orders_dict[txn_id] = {
                         "id": txn_id,
                         "userId": item.get('userId'),
-                        "orderNumber": item.get('orderNumber'),
+                        "orderNumber": order_number,
                         "orderDate": item.get('orderDate') or item.get('createdAt'),
-                        "status": item.get('status', 'unpaid'),
+                        "status": order_status,
                         "totalAmount": item.get('totalAmount') or Decimal(0),
                         "shippingAddress": item.get('shippingAddress'),
                         "isCancelRequest": item.get('isCancelRequest', False),
@@ -1932,6 +1944,7 @@ def get_admin_order_detail(event, context):
             "status": order_data.get('status', 'unpaid'),
             "subtotal": total_amount - tax - shipping_cost + discount + coupon_discount,
             "tax": tax,
+            "taxRate": safe_amount_conversion(order_data.get('taxRate', 0), 0),
             "shippingCost": shipping_cost,
             "discount": discount,
             "couponDiscount": coupon_discount,
@@ -1973,5 +1986,259 @@ def get_admin_order_detail(event, context):
             "body": json.dumps({
                 "success": False,
                 "message": f"Failed to get order detail: {str(e)}"
+            }, ensure_ascii=False),
+        }
+
+
+@require_admin_auth
+def get_dashboard_pending_orders(event, context):
+    """
+    Get pending orders for admin dashboard (awaiting_shipment status) - Top 5
+    Requires admin authentication
+    
+    Args:
+        event: Lambda event
+        context: Lambda context
+    
+    Returns:
+        API response with pending orders and count
+    """
+    try:
+        logger.info(f"Get dashboard pending orders event: {event}")
+        
+        # Get admin ID from payload injected by decorator
+        admin_payload = event.get('admin_payload', {})
+        admin_id = admin_payload.get('user_id')
+        
+        if not admin_id:
+            logger.error("No admin_id in admin_payload")
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Internal server error"
+                }, ensure_ascii=False),
+            }
+        
+        table = get_users_table()
+        
+        # Scan for orders with awaiting_shipment status
+        response = table.scan(
+            FilterExpression="begins_with(SK, :order_prefix) AND #status = :awaiting_status",
+            ExpressionAttributeNames={
+                "#status": "status"
+            },
+            ExpressionAttributeValues={
+                ":order_prefix": "ORDER#",
+                ":awaiting_status": "awaiting_shipment"
+            }
+        )
+        
+        items = response.get('Items', [])
+        
+        # Handle pagination
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(
+                FilterExpression="begins_with(SK, :order_prefix) AND #status = :awaiting_status",
+                ExpressionAttributeNames={
+                    "#status": "status"
+                },
+                ExpressionAttributeValues={
+                    ":order_prefix": "ORDER#",
+                    ":awaiting_status": "awaiting_shipment"
+                },
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            items.extend(response.get('Items', []))
+        
+        logger.info(f"Found {len(items)} pending orders")
+        
+        # Parse orders
+        orders = []
+        for item in items:
+            user_name = item.get('userName', '不明')
+            shipping_address = item.get('shippingAddress', {})
+            if not user_name or user_name == '不明':
+                # Try to construct name from shipping address
+                given_name = shipping_address.get('givenName', '')
+                family_name = shipping_address.get('familyName', '')
+                if given_name or family_name:
+                    user_name = f"{family_name}{given_name}".strip()
+                else:
+                    user_name = '不明'
+            
+            orders.append({
+                "id": item.get('orderId'),
+                "orderNumber": item.get('orderNumber'),
+                "customerName": user_name,
+                "orderDate": item.get('orderDate') or item.get('createdAt'),
+                "amount": safe_amount_conversion(item.get('totalAmount', 0), 0),
+                "status": "awaiting_shipment",
+                "paymentMethod": item.get('paymentMethod', 'unknown')
+            })
+        
+        # Sort by order date (most recent first) and get top 5
+        orders.sort(key=lambda x: x.get('orderDate', ''), reverse=True)
+        top_orders = orders[:5]
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": True,
+                "message": "Pending orders retrieved successfully",
+                "data": {
+                    "orders": top_orders,
+                    "count": len(orders)
+                }
+            }, ensure_ascii=False, default=convert_decimal),
+        }
+    
+    except Exception as e:
+        logger.error(f"Error getting dashboard pending orders: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": False,
+                "message": f"Failed to get pending orders: {str(e)}"
+            }, ensure_ascii=False),
+        }
+
+
+@require_admin_auth
+def get_dashboard_payment_confirmation(event, context):
+    """
+    Get orders awaiting payment confirmation for admin dashboard (unpaid with bank_transfer) - Top 5
+    Requires admin authentication
+    
+    Args:
+        event: Lambda event
+        context: Lambda context
+    
+    Returns:
+        API response with payment confirmation orders and count
+    """
+    try:
+        logger.info(f"Get dashboard payment confirmation event: {event}")
+        
+        # Get admin ID from payload injected by decorator
+        admin_payload = event.get('admin_payload', {})
+        admin_id = admin_payload.get('user_id')
+        
+        if not admin_id:
+            logger.error("No admin_id in admin_payload")
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "Internal server error"
+                }, ensure_ascii=False),
+            }
+        
+        table = get_users_table()
+        
+        # Scan for orders with unpaid status and bank_transfer payment method
+        response = table.scan(
+            FilterExpression="begins_with(SK, :order_prefix) AND #status = :unpaid_status AND paymentMethod = :bank_transfer",
+            ExpressionAttributeNames={
+                "#status": "status"
+            },
+            ExpressionAttributeValues={
+                ":order_prefix": "ORDER#",
+                ":unpaid_status": "unpaid",
+                ":bank_transfer": "bank_transfer"
+            }
+        )
+        
+        items = response.get('Items', [])
+        
+        # Handle pagination
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(
+                FilterExpression="begins_with(SK, :order_prefix) AND #status = :unpaid_status AND paymentMethod = :bank_transfer",
+                ExpressionAttributeNames={
+                    "#status": "status"
+                },
+                ExpressionAttributeValues={
+                    ":order_prefix": "ORDER#",
+                    ":unpaid_status": "unpaid",
+                    ":bank_transfer": "bank_transfer"
+                },
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            items.extend(response.get('Items', []))
+        
+        logger.info(f"Found {len(items)} payment confirmation orders")
+        
+        # Parse orders
+        orders = []
+        for item in items:
+            user_name = item.get('userName', '不明')
+            shipping_address = item.get('shippingAddress', {})
+            if not user_name or user_name == '不明':
+                # Try to construct name from shipping address
+                given_name = shipping_address.get('givenName', '')
+                family_name = shipping_address.get('familyName', '')
+                if given_name or family_name:
+                    user_name = f"{family_name}{given_name}".strip()
+                else:
+                    user_name = '不明'
+            
+            orders.append({
+                "id": item.get('orderId'),
+                "orderNumber": item.get('orderNumber'),
+                "customerName": user_name,
+                "orderDate": item.get('orderDate') or item.get('createdAt'),
+                "amount": safe_amount_conversion(item.get('totalAmount', 0), 0),
+                "status": "unpaid",
+                "paymentMethod": "bank_transfer"
+            })
+        
+        # Sort by order date (most recent first) and get top 5
+        orders.sort(key=lambda x: x.get('orderDate', ''), reverse=True)
+        top_orders = orders[:5]
+        
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": True,
+                "message": "Payment confirmation orders retrieved successfully",
+                "data": {
+                    "orders": top_orders,
+                    "count": len(orders)
+                }
+            }, ensure_ascii=False, default=convert_decimal),
+        }
+    
+    except Exception as e:
+        logger.error(f"Error getting dashboard payment confirmation orders: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps({
+                "success": False,
+                "message": f"Failed to get payment confirmation orders: {str(e)}"
             }, ensure_ascii=False),
         }

@@ -39,7 +39,7 @@ export default function Home() {
   return (
     <MainLayout>
       <Box display="flex" flexDirection="column" gap={5}>
-        <Box textAlign="center">
+        <Box>
           <Typography variant="h3" fontWeight={800} gutterBottom>
             Mark Sports
           </Typography>
@@ -56,9 +56,10 @@ export default function Home() {
             display="grid"
             gap={2}
             gridTemplateColumns={{
-              xs: '1fr',
-              sm: 'repeat(2, 1fr)',
-              md: 'repeat(3, 1fr)',
+              xs: 'repeat(3, 1fr)',
+              sm: 'repeat(3, 1fr)',
+              md: 'repeat(4, 1fr)',
+              lg: 'repeat(5, 1fr)',
             }}
           >
             {Array.from(
@@ -106,9 +107,10 @@ export default function Home() {
               display="grid"
               gap={2}
               gridTemplateColumns={{
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(3, 1fr)',
+                xs: 'repeat(3, 1fr)',
+                sm: 'repeat(3, 1fr)',
+                md: 'repeat(4, 1fr)',
+                lg: 'repeat(5, 1fr)',
               }}
             >
               {featuredProducts[category.id]?.map((product, index) => (

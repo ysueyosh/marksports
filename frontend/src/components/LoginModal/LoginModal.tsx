@@ -33,6 +33,20 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const { setUserIdentifier, fetchCart } = useCart();
   const { isLoading, setIsLoading } = useLoading();
 
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      e.currentTarget.requestSubmit();
+    }
+  };
+
+  const handlePasswordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -82,7 +96,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>ログイン</DialogTitle>
-      <Box component="form" onSubmit={handleSubmit}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        onKeyDown={handleFormKeyDown}
+      >
         <DialogContent
           sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
         >
@@ -119,6 +137,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={handlePasswordKeyDown}
             required
             disabled={isLoading}
             placeholder="パスワード"

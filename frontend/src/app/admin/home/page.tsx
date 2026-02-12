@@ -5,158 +5,67 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/Admin/LoadingSpinner';
 import AdminTable from '@/components/Admin/AdminTable';
-import { Box, Typography, Paper, Chip, Stack, Button } from '@mui/material';
-
-interface Order {
-  id: number;
-  customerName: string;
-  amount: number;
-  paymentStatus: 'pending' | 'completed' | 'failed';
-  shippingStatus: 'pending' | 'shipped' | 'delivered';
-  orderDate: string;
-  items: {
-    name: string;
-    quantity: number;
-    price: number;
-    productId?: number;
-  }[];
-  customerEmail: string;
-  shippingCost?: number;
-  couponDiscount?: number;
-}
+import {
+  Box,
+  Typography,
+  Paper,
+  Chip,
+  Stack,
+  Button,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import {
+  getPendingOrders,
+  getPaymentConfirmation,
+  DashboardOrder,
+} from '@/api/admin-dashboard';
 
 export default function AdminHomePage() {
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const [isLoading, setIsLoading] = useState(true);
-  const [unshippedOrders, setUnshippedOrders] = useState<Order[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<DashboardOrder[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [paymentOrders, setPaymentOrders] = useState<DashboardOrder[]>([]);
+  const [paymentCount, setPaymentCount] = useState(0);
 
   useEffect(() => {
-    // 管理者ログイン状態を確認
-    const adminLogged = localStorage.getItem('adminLogged');
-    if (!adminLogged) {
-      router.push('/admin/login');
-      setIsLoading(false);
-    } else {
-      setIsLoggedIn(true);
-      // ダミーの注文データから未配送を取得
-      const allOrders: Order[] = [
-        {
-          id: 101,
-          customerName: '山田太郎',
-          amount: 8700,
-          paymentStatus: 'completed',
-          shippingStatus: 'pending',
-          orderDate: '2024-12-27',
-          customerEmail: 'yamada@example.com',
-          items: [{ name: 'バレーボール', quantity: 1, price: 8700 }],
-        },
-        {
-          id: 102,
-          customerName: '佐藤花子',
-          amount: 5200,
-          paymentStatus: 'completed',
-          shippingStatus: 'shipped',
-          orderDate: '2024-12-26',
-          customerEmail: 'sato@example.com',
-          items: [{ name: 'バスケットシューズ', quantity: 1, price: 5200 }],
-        },
-        {
-          id: 103,
-          customerName: '鈴木次郎',
-          amount: 4500,
-          paymentStatus: 'pending',
-          shippingStatus: 'pending',
-          orderDate: '2024-12-25',
-          customerEmail: 'suzuki@example.com',
-          items: [{ name: '卓球ラケット', quantity: 1, price: 4500 }],
-        },
-        {
-          id: 104,
-          customerName: '田中美咲',
-          amount: 2800,
-          paymentStatus: 'completed',
-          shippingStatus: 'pending',
-          orderDate: '2024-12-24',
-          customerEmail: 'tanaka@example.com',
-          items: [{ name: 'バレーユニフォーム', quantity: 1, price: 2800 }],
-        },
-        {
-          id: 105,
-          customerName: '伊藤健太',
-          amount: 3500,
-          paymentStatus: 'completed',
-          shippingStatus: 'delivered',
-          orderDate: '2024-12-23',
-          customerEmail: 'itou@example.com',
-          items: [{ name: 'バスケットボール', quantity: 1, price: 3500 }],
-        },
-        {
-          id: 106,
-          customerName: '渡辺由美',
-          amount: 6200,
-          paymentStatus: 'completed',
-          shippingStatus: 'pending',
-          orderDate: '2024-12-22',
-          customerEmail: 'watanabe@example.com',
-          items: [{ name: 'ヨガマット', quantity: 1, price: 6200 }],
-        },
-        {
-          id: 107,
-          customerName: '木村翔太',
-          amount: 12500,
-          paymentStatus: 'completed',
-          shippingStatus: 'pending',
-          orderDate: '2024-12-21',
-          customerEmail: 'kimura@example.com',
-          items: [{ name: 'テニスラケット', quantity: 1, price: 12500 }],
-        },
-        {
-          id: 108,
-          customerName: '清水優子',
-          amount: 3900,
-          paymentStatus: 'completed',
-          shippingStatus: 'pending',
-          orderDate: '2024-12-20',
-          customerEmail: 'shimizu@example.com',
-          items: [{ name: 'バドミントンシャトル', quantity: 1, price: 3900 }],
-        },
-      ];
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
 
-      const unshipped = allOrders
-        .filter(
-          (o) =>
-            o.shippingStatus === 'pending' && o.paymentStatus === 'completed',
-        )
-        .slice(0, 5);
-      setUnshippedOrders(unshipped);
+        // Fetch pending orders (awaiting_shipment)
+        const pendingResponse = await getPendingOrders();
+        if (pendingResponse.success && pendingResponse.data) {
+          setPendingOrders(pendingResponse.data.orders);
+          setPendingCount(pendingResponse.data.count);
+        }
 
-      // 1秒間スピナーを表示
-      const timer = setTimeout(() => {
+        // Fetch payment confirmation orders (unpaid + bank_transfer)
+        const paymentResponse = await getPaymentConfirmation();
+        if (paymentResponse.success && paymentResponse.data) {
+          setPaymentOrders(paymentResponse.data.orders);
+          setPaymentCount(paymentResponse.data.count);
+        }
+
         setIsLoading(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [router]);
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        setIsLoading(false);
+      }
+    };
 
-  // ページ遷移時にスピナーを表示
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [router]);
-
-  if (!isLoggedIn) {
-    return null;
-  }
+    loadData();
+  }, []);
 
   return (
     <>
       {isLoading && <LoadingSpinner />}
-      <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
-        <Stack spacing={4}>
+      <Box>
+        <Stack spacing={2}>
           <Typography variant="h4" fontWeight={700}>
             ダッシュボード
           </Typography>
@@ -165,39 +74,213 @@ export default function AdminHomePage() {
             <Stack spacing={2}>
               <Typography variant="h6" fontWeight={700}>
                 未配送の注文（上位5件）
+                {pendingCount > 0 && (
+                  <Chip
+                    label={`${pendingCount}件`}
+                    size="small"
+                    color="warning"
+                    sx={{ ml: 1 }}
+                  />
+                )}
               </Typography>
               <AdminTable
-                columns={[
-                  { key: 'id', label: '注文ID', width: '100px' },
-                  { key: 'customerName', label: '顧客名', width: '150px' },
-                  { key: 'orderDate', label: '注文日', width: '120px' },
-                  { key: 'amount', label: '金額', width: '120px' },
-                  {
-                    key: 'paymentStatus',
-                    label: '決済状況',
-                    render: (value: string) => (
-                      <Chip
-                        size="small"
-                        label={value === 'completed' ? '決済済' : '決済待ち'}
-                        color={value === 'completed' ? 'success' : 'warning'}
-                        variant="outlined"
-                      />
-                    ),
-                  },
-                ]}
-                data={unshippedOrders.map((order) => ({
-                  id: `#${order.id}`,
+                columns={
+                  isMobile
+                    ? [
+                        { key: 'customerName', label: '顧客名', width: '50%' },
+                        {
+                          key: 'status',
+                          label: 'ステータス',
+                          width: '50%',
+                          render: (value: string) => (
+                            <Chip
+                              size="small"
+                              label={
+                                value === 'awaiting_shipment'
+                                  ? '配送待ち'
+                                  : value
+                              }
+                              color="warning"
+                              variant="outlined"
+                            />
+                          ),
+                        },
+                      ]
+                    : isTablet
+                      ? [
+                          {
+                            key: 'customerName',
+                            label: '顧客名',
+                            width: '35%',
+                          },
+                          { key: 'amount', label: '金額', width: '30%' },
+                          {
+                            key: 'status',
+                            label: 'ステータス',
+                            width: '35%',
+                            render: (value: string) => (
+                              <Chip
+                                size="small"
+                                label={
+                                  value === 'awaiting_shipment'
+                                    ? '配送待ち'
+                                    : value
+                                }
+                                color="warning"
+                                variant="outlined"
+                              />
+                            ),
+                          },
+                        ]
+                      : [
+                          {
+                            key: 'orderNumber',
+                            label: '注文番号',
+                            width: '150px',
+                          },
+                          {
+                            key: 'customerName',
+                            label: '顧客名',
+                            width: '150px',
+                          },
+                          { key: 'orderDate', label: '注文日', width: '120px' },
+                          { key: 'amount', label: '金額', width: '120px' },
+                          {
+                            key: 'status',
+                            label: 'ステータス',
+                            render: (value: string) => (
+                              <Chip
+                                size="small"
+                                label={
+                                  value === 'awaiting_shipment'
+                                    ? '配送待ち'
+                                    : value
+                                }
+                                color="warning"
+                                variant="outlined"
+                              />
+                            ),
+                          },
+                        ]
+                }
+                data={pendingOrders.map((order) => ({
+                  id: order.id,
+                  orderNumber: order.orderNumber,
                   customerName: order.customerName,
                   orderDate: order.orderDate,
                   amount: `¥${order.amount.toLocaleString()}`,
-                  paymentStatus: order.paymentStatus,
+                  status: order.status,
                 }))}
-                rowKey="id"
+                rowKey="orderNumber"
                 onRowClick={(row) => {
-                  const orderId = row.id.replace('#', '');
-                  router.push(`/admin/orders/detail?id=${orderId}`);
+                  router.push(`/admin/orders/detail?id=${row.id}`);
                 }}
                 emptyMessage="未配送の注文はありません"
+              />
+              <Button
+                component={Link}
+                href="/admin/orders"
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                すべての注文を見る →
+              </Button>
+            </Stack>
+          </Paper>
+
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" fontWeight={700}>
+                支払確認待ち（銀行振込）
+                {paymentCount > 0 && (
+                  <Chip
+                    label={`${paymentCount}件`}
+                    size="small"
+                    color="error"
+                    sx={{ ml: 1 }}
+                  />
+                )}
+              </Typography>
+              <AdminTable
+                columns={
+                  isMobile
+                    ? [
+                        { key: 'customerName', label: '顧客名', width: '50%' },
+                        {
+                          key: 'status',
+                          label: 'ステータス',
+                          width: '50%',
+                          render: () => (
+                            <Chip
+                              size="small"
+                              label="未払い"
+                              color="error"
+                              variant="outlined"
+                            />
+                          ),
+                        },
+                      ]
+                    : isTablet
+                      ? [
+                          {
+                            key: 'customerName',
+                            label: '顧客名',
+                            width: '35%',
+                          },
+                          { key: 'amount', label: '金額', width: '30%' },
+                          {
+                            key: 'status',
+                            label: 'ステータス',
+                            width: '35%',
+                            render: () => (
+                              <Chip
+                                size="small"
+                                label="未払い"
+                                color="error"
+                                variant="outlined"
+                              />
+                            ),
+                          },
+                        ]
+                      : [
+                          {
+                            key: 'orderNumber',
+                            label: '注文番号',
+                            width: '150px',
+                          },
+                          {
+                            key: 'customerName',
+                            label: '顧客名',
+                            width: '150px',
+                          },
+                          { key: 'orderDate', label: '注文日', width: '120px' },
+                          { key: 'amount', label: '金額', width: '120px' },
+                          {
+                            key: 'status',
+                            label: 'ステータス',
+                            render: (value: string) => (
+                              <Chip
+                                size="small"
+                                label={value === 'unpaid' ? '未払い' : value}
+                                color="error"
+                                variant="outlined"
+                              />
+                            ),
+                          },
+                        ]
+                }
+                data={paymentOrders.map((order) => ({
+                  id: order.id,
+                  orderNumber: order.orderNumber,
+                  customerName: order.customerName,
+                  orderDate: order.orderDate,
+                  amount: `¥${order.amount.toLocaleString()}`,
+                  status: order.status,
+                }))}
+                rowKey="orderNumber"
+                onRowClick={(row) => {
+                  router.push(`/admin/orders/detail?id=${row.id}`);
+                }}
+                emptyMessage="支払確認待ちの注文はありません"
               />
               <Button
                 component={Link}

@@ -7,6 +7,7 @@ import MainLayout from '@/components/Layout/MainLayout';
 import Pagination from '@/components/Pagination/Pagination';
 import Link from 'next/link';
 import { getAddresses, deleteAddress, setDefaultAddress } from '@/api/address';
+import { convertPrefectureToJapanese } from '@/constants/prefectures';
 import {
   Box,
   Typography,
@@ -182,7 +183,8 @@ export default function AddressPage() {
                           gap={1}
                         >
                           <Typography variant="subtitle1" fontWeight={700}>
-                            {addr.postalCode} {addr.prefecture}
+                            {addr.postalCode}{' '}
+                            {convertPrefectureToJapanese(addr.prefecture)}
                           </Typography>
                           {addr.isMain && (
                             <Chip label="メイン" color="primary" />

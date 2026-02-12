@@ -13,6 +13,7 @@ import {
   deleteAddress,
   searchAddressByPostalCode,
 } from '@/api/address';
+import { PREFECTURE_OPTIONS } from '@/constants/prefectures';
 import {
   Box,
   Typography,
@@ -46,55 +47,7 @@ interface AddressFormData {
   option?: string;
 }
 
-const prefectureOptions = [
-  { id: 'hokkaido', label: '北海道' },
-  { id: 'aomori', label: '青森県' },
-  { id: 'iwate', label: '岩手県' },
-  { id: 'miyagi', label: '宮城県' },
-  { id: 'akita', label: '秋田県' },
-  { id: 'yamagata', label: '山形県' },
-  { id: 'fukushima', label: '福島県' },
-  { id: 'ibaraki', label: '茨城県' },
-  { id: 'tochigi', label: '栃木県' },
-  { id: 'gunma', label: '群馬県' },
-  { id: 'saitama', label: '埼玉県' },
-  { id: 'chiba', label: '千葉県' },
-  { id: 'tokyo', label: '東京都' },
-  { id: 'kanagawa', label: '神奈川県' },
-  { id: 'niigata', label: '新潟県' },
-  { id: 'toyama', label: '富山県' },
-  { id: 'ishikawa', label: '石川県' },
-  { id: 'fukui', label: '福井県' },
-  { id: 'yamanashi', label: '山梨県' },
-  { id: 'nagano', label: '長野県' },
-  { id: 'gifu', label: '岐阜県' },
-  { id: 'shizuoka', label: '静岡県' },
-  { id: 'aichi', label: '愛知県' },
-  { id: 'mie', label: '三重県' },
-  { id: 'shiga', label: '滋賀県' },
-  { id: 'kyoto', label: '京都府' },
-  { id: 'osaka', label: '大阪府' },
-  { id: 'hyogo', label: '兵庫県' },
-  { id: 'nara', label: '奈良県' },
-  { id: 'wakayama', label: '和歌山県' },
-  { id: 'tottori', label: '鳥取県' },
-  { id: 'shimane', label: '島根県' },
-  { id: 'okayama', label: '岡山県' },
-  { id: 'hiroshima', label: '広島県' },
-  { id: 'yamaguchi', label: '山口県' },
-  { id: 'tokushima', label: '徳島県' },
-  { id: 'kagawa', label: '香川県' },
-  { id: 'ehime', label: '愛媛県' },
-  { id: 'kochi', label: '高知県' },
-  { id: 'fukuoka', label: '福岡県' },
-  { id: 'saga', label: '佐賀県' },
-  { id: 'nagasaki', label: '長崎県' },
-  { id: 'kumamoto', label: '熊本県' },
-  { id: 'oita', label: '大分県' },
-  { id: 'miyazaki', label: '宮崎県' },
-  { id: 'kagoshima', label: '鹿児島県' },
-  { id: 'okinawa', label: '沖縄県' },
-];
+const prefectureOptions = PREFECTURE_OPTIONS;
 
 const prefectureMap: Record<string, string> = prefectureOptions.reduce(
   (acc, opt) => {
@@ -135,9 +88,12 @@ export default function AddressDetailPage() {
           const foundAddress = response.data.find((a) => a.id === addressId);
           if (foundAddress) {
             setAddress(foundAddress);
+            // prefectureが日本語で保存されている場合、IDに変換
+            const prefectureId =
+              prefectureMap[foundAddress.prefecture] || foundAddress.prefecture;
             setFormData({
               postalCode: foundAddress.postalCode,
-              prefecture: foundAddress.prefecture,
+              prefecture: prefectureId,
               address: foundAddress.address,
               option: foundAddress.option || '',
             });
@@ -359,11 +315,7 @@ export default function AddressDetailPage() {
         </Typography>
 
         <Box component="form" display="flex" flexDirection="column" gap={2}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            alignItems="flex-end"
-          >
+          <Stack direction="row" spacing={2} alignItems="flex-end">
             <Box flex={1}>
               <TextInput
                 label="郵便番号"

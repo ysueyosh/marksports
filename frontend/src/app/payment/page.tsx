@@ -152,13 +152,13 @@ export default function PaymentPage() {
 
   return (
     <MainLayout>
-      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+      <Box>
         <Stack spacing={3}>
           <Breadcrumbs>
             <MuiLink
               component={Link}
               href="/"
-              underline="hover"
+              underline="always"
               color="inherit"
             >
               ホーム
@@ -166,7 +166,7 @@ export default function PaymentPage() {
             <MuiLink
               component={Link}
               href="/account"
-              underline="hover"
+              underline="always"
               color="inherit"
             >
               アカウント

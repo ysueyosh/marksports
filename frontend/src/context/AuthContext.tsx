@@ -4,9 +4,7 @@ import React, { ReactNode, useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { verifyToken, refreshToken } from '@/api/token';
-
-// Token expiration constants
-const ACCESS_TOKEN_EXPIRE_MINUTES = 60;
+import { DEFAULT_TOKEN_EXPIRY_SECONDS } from '@/constants/auth';
 
 interface ShippingAddress {
   name: string;
@@ -22,6 +20,7 @@ interface User {
   name: string;
   email: string;
   phone?: string;
+  sex?: string;
   address?: string;
   shippingAddress?: ShippingAddress;
 }
@@ -80,9 +79,17 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     const tokens: AuthTokens = {
       accessToken: userData.accessToken || '',
       refreshToken: userData.refreshToken || '',
-      expiresIn: userData.expiresIn || 3600,
-      expiresAt: Date.now() + (userData.expiresIn || 3600) * 1000,
+      expiresIn: userData.expiresIn || DEFAULT_TOKEN_EXPIRY_SECONDS,
+      expiresAt:
+        Date.now() +
+        (userData.expiresIn || DEFAULT_TOKEN_EXPIRY_SECONDS) * 1000,
     };
+
+    console.log('[AUTH] 🔐 Token saved on login', {
+      expiresIn: tokens.expiresIn,
+      expiresAt: new Date(tokens.expiresAt).toISOString(),
+      currentTime: new Date(Date.now()).toISOString(),
+    });
 
     set({
       isLoggedIn: true,
@@ -201,11 +208,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   refreshToken:
                     response.data.refreshToken || parsedTokens.refreshToken,
                   expiresIn:
-                    response.data.expiresIn || ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+                    response.data.expiresIn || DEFAULT_TOKEN_EXPIRY_SECONDS,
                   expiresAt:
                     Date.now() +
-                    (response.data.expiresIn ||
-                      ACCESS_TOKEN_EXPIRE_MINUTES * 60) *
+                    (response.data.expiresIn || DEFAULT_TOKEN_EXPIRY_SECONDS) *
                       1000,
                 };
 

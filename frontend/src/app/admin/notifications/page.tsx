@@ -21,8 +21,8 @@ import {
 
 interface Notification {
   notificationId: string;
-  type: 'info' | 'important' | 'sale';
-  target: 'all' | 'members';
+  type: 'info' | 'important';
+  target: 'all';
   title: string;
   content: string;
   startDate: string;
@@ -39,8 +39,8 @@ export default function AdminNotificationsPage() {
   const [newNotification, setNewNotification] = useState({
     title: '',
     content: '',
-    type: 'info' as 'info' | 'important' | 'sale',
-    target: 'all' as 'all' | 'members',
+    type: 'info' as 'info' | 'important',
+    target: 'all' as 'all',
     startDate: '',
     endDate: '',
   });
@@ -101,7 +101,7 @@ export default function AdminNotificationsPage() {
         setLoading(true);
         const response = await adminNotificationAPI.createNotification({
           type: newNotification.type,
-          target: newNotification.target,
+          target: 'all',
           title: newNotification.title,
           content: newNotification.content,
           startDate: newNotification.startDate,
@@ -192,7 +192,7 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+    <Box>
       <Stack spacing={2}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h4" fontWeight={700}>
@@ -359,27 +359,12 @@ export default function AdminNotificationsPage() {
                   onChange={(e) =>
                     setNewNotification({
                       ...newNotification,
-                      type: e.target.value as 'info' | 'important' | 'sale',
+                      type: e.target.value as 'info' | 'important',
                     })
                   }
                 >
                   <MenuItem value="info">一般情報</MenuItem>
                   <MenuItem value="important">重要</MenuItem>
-                  <MenuItem value="sale">セール</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl fullWidth>
-                <Select
-                  value={newNotification.target}
-                  onChange={(e) =>
-                    setNewNotification({
-                      ...newNotification,
-                      target: e.target.value as 'all' | 'members',
-                    })
-                  }
-                >
-                  <MenuItem value="all">すべてのユーザー</MenuItem>
-                  <MenuItem value="members">登録済みユーザーのみ</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -422,26 +407,12 @@ export default function AdminNotificationsPage() {
                       <Chip
                         size="small"
                         label={
-                          notification.type === 'important'
-                            ? '🔴 重要'
-                            : notification.type === 'sale'
-                              ? '🎉 セール'
-                              : 'ℹ️ 情報'
+                          notification.type === 'important' ? '重要' : '情報'
                         }
                         color={
                           notification.type === 'important'
                             ? 'error'
-                            : notification.type === 'sale'
-                              ? 'success'
-                              : 'default'
-                        }
-                      />
-                      <Chip
-                        size="small"
-                        label={
-                          notification.target === 'all'
-                            ? '👥 全ユーザー'
-                            : '👤 会員のみ'
+                            : 'default'
                         }
                       />
                     </Stack>

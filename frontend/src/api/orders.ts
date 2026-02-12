@@ -171,6 +171,7 @@ export interface SaveOrderRequest {
   orderNumber?: string;
   totalAmount: number;
   tax: number;
+  taxRate?: number;
   shippingCost: number;
   discount: number;
   couponCode?: string;

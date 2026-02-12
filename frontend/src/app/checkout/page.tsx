@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import '@/styles/square-payment.css';
 import {
   PaymentForm,
   CreditCard,
@@ -28,6 +29,8 @@ import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
 import { CardFormComponent } from '@/components/CardFormComponent/CardFormComponent';
 import { CardAddModal } from '@/components/CardAddModal/CardAddModal';
+import { TAX_RATE } from '@/constants/tax';
+import { convertPrefectureToJapanese } from '@/constants/prefectures';
 import {
   Box,
   Stack,
@@ -100,9 +103,15 @@ export default function CheckoutPage() {
     building: '',
   });
 
-  // 金額計算（税率10%を仮定）
-  const TAX_RATE = 0.1;
   const SHIPPING_FEE_NORMAL = 500; // 通常配送料金
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ステップ変更時にトップへスムーズスクロール
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [currentStep]);
 
   // 金額計算のメモ化
   const priceInfo = useMemo(() => {
@@ -658,8 +667,6 @@ export default function CheckoutPage() {
           console.log('Saving order...');
 
           // Build order items from cart (with tax included)
-          // 消費税率 10%
-          const TAX_RATE = 0.1;
           const orderItems = cartItems.map((item) => {
             // 商品の税抜き価格
             const priceExcludingTax = item.price;
@@ -711,11 +718,16 @@ export default function CheckoutPage() {
             (addr) => addr.id === selectedAddressId,
           );
 
+          const normalizedPrefecture = convertPrefectureToJapanese(
+            addressData?.prefecture || formData.prefecture,
+          );
+
           const orderSaveResult = await saveOrder({
             orderId: result.id,
             orderNumber: String(Date.now()),
             totalAmount: priceInfo.total,
             tax: priceInfo.tax,
+            taxRate: TAX_RATE,
             shippingCost: priceInfo.shippingFee,
             discount: priceInfo.discountAmount,
             couponCode: coupon?.code,
@@ -726,6 +738,7 @@ export default function CheckoutPage() {
                   email: formData.email,
                   phone: formData.phone,
                   name: formData.name,
+                  prefecture: normalizedPrefecture,
                 }
               : {
                   givenName: formData.name.split(' ')[0] || '',
@@ -735,7 +748,7 @@ export default function CheckoutPage() {
                   phone: formData.phone,
                   addressLine1: formData.address,
                   addressLine2: formData.building,
-                  administrativeDistrictLevel1: formData.prefecture,
+                  administrativeDistrictLevel1: normalizedPrefecture,
                   postalCode: formData.postalCode,
                   country: 'JP',
                 },
@@ -747,7 +760,7 @@ export default function CheckoutPage() {
               phone: formData.phone,
               addressLine1: formData.address,
               addressLine2: formData.building,
-              administrativeDistrictLevel1: formData.prefecture,
+              administrativeDistrictLevel1: normalizedPrefecture,
               postalCode: formData.postalCode,
               country: 'JP',
             },
@@ -792,24 +805,21 @@ export default function CheckoutPage() {
 
   return (
     <CheckoutLayout>
+      <div ref={scrollRef} />
       {/* Navigation Buttons */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        sx={{ px: { xs: 2, md: 3 }, pt: 2 }}
-      >
-        <Button variant="text" onClick={() => router.push('/')}>
+      <Stack direction="row" spacing={1.5} sx={{ pb: 2 }}>
+        <Button variant="outlined" onClick={() => router.push('/')}>
           ← トップに戻る
         </Button>
         {currentStep !== 4 && (
-          <Button variant="text" onClick={() => router.push('/cart')}>
+          <Button variant="outlined" onClick={() => router.push('/cart')}>
             ← カートに戻る
           </Button>
         )}
       </Stack>
 
       {currentStep !== 4 && (
-        <Box sx={{ px: { xs: 2, md: 3 }, pb: 2 }}>
+        <Box sx={{ pb: 2 }}>
           <Paper sx={{ p: { xs: 2, md: 3 } }}>
             <Stack spacing={1.5}>
               <Typography variant="h4" fontWeight={700}>
@@ -833,7 +843,7 @@ export default function CheckoutPage() {
         </Box>
       )}
 
-      <Box sx={{ px: { xs: 2, md: 3 }, pb: 6 }}>
+      <Box sx={{ pb: 6 }}>
         {currentStep !== 4 && (
           <>
             <Box
@@ -1306,6 +1316,8 @@ export default function CheckoutPage() {
                             style={{
                               display: 'flex',
                               gap: '8px',
+                              alignItems: 'flex-start',
+                              flexWrap: 'nowrap',
                             }}
                           >
                             <input
@@ -1321,7 +1333,8 @@ export default function CheckoutPage() {
                               placeholder="8112108"
                               disabled={isSearchingAddressInModal}
                               style={{
-                                flex: 1,
+                                flex: '1 1 auto',
+                                minWidth: '0',
                                 padding: '10px',
                                 border: '1px solid #ddd',
                                 borderRadius: '4px',
@@ -1346,6 +1359,7 @@ export default function CheckoutPage() {
                                 whiteSpace: 'nowrap',
                                 opacity: isSearchingAddressInModal ? 0.6 : 1,
                                 transition: 'background-color 0.2s',
+                                flexShrink: 0,
                               }}
                               onMouseEnter={(e) => {
                                 if (!isSearchingAddressInModal) {
@@ -1615,7 +1629,9 @@ export default function CheckoutPage() {
                               <>
                                 <p>〒{selectedAddress.postalCode}</p>
                                 <p>
-                                  {selectedAddress.prefecture}{' '}
+                                  {convertPrefectureToJapanese(
+                                    selectedAddress.prefecture,
+                                  )}{' '}
                                   {selectedAddress.address}
                                 </p>
                                 {selectedAddress.option && (
@@ -1628,7 +1644,8 @@ export default function CheckoutPage() {
                           <>
                             <p>〒{formData.postalCode}</p>
                             <p>
-                              {formData.prefecture} {formData.address}
+                              {convertPrefectureToJapanese(formData.prefecture)}{' '}
+                              {formData.address}
                             </p>
                             {formData.building && <p>{formData.building}</p>}
                           </>

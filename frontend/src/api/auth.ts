@@ -25,6 +25,7 @@ export interface LoginResponse {
 
 export interface UpdateProfileRequest {
   name: string;
+  email?: string;
   phone?: string;
   sex?: string;
 }
@@ -34,6 +35,7 @@ export interface UpdateProfileResponse {
   message: string;
   data?: {
     name: string;
+    email?: string;
     phone?: string;
     sex?: string;
   };
@@ -105,7 +107,7 @@ export interface ResetPasswordResponse {
  */
 export async function login(
   email: string,
-  password: string
+  password: string,
 ): Promise<LoginResponse> {
   const response = await apiClient.post<LoginResponse>('/login', {
     email,
@@ -119,11 +121,11 @@ export async function login(
  * Update user profile
  */
 export async function updateProfile(
-  data: UpdateProfileRequest
+  data: UpdateProfileRequest,
 ): Promise<UpdateProfileResponse> {
   const response = await apiClient.post<UpdateProfileResponse>(
     '/update-profile',
-    data
+    data,
   );
 
   return response;
@@ -133,11 +135,11 @@ export async function updateProfile(
  * Change password
  */
 export async function changePassword(
-  data: ChangePasswordRequest
+  data: ChangePasswordRequest,
 ): Promise<ChangePasswordResponse> {
   const response = await apiClient.post<ChangePasswordResponse>(
     '/change-password',
-    data
+    data,
   );
 
   return response;
@@ -149,7 +151,7 @@ export async function changePassword(
 export async function deleteAccount(): Promise<DeleteAccountResponse> {
   const response = await apiClient.post<DeleteAccountResponse>(
     '/delete-account',
-    {}
+    {},
   );
 
   return response;
@@ -166,11 +168,11 @@ export async function getUserProfile(): Promise<GetProfileResponse> {
  * Request password reset email
  */
 export async function requestPasswordReset(
-  data: RequestPasswordResetRequest
+  data: RequestPasswordResetRequest,
 ): Promise<RequestPasswordResetResponse> {
   const response = await apiClient.post<RequestPasswordResetResponse>(
     '/password-reset/request',
-    data
+    data,
   );
 
   return response;
@@ -180,11 +182,11 @@ export async function requestPasswordReset(
  * Verify password reset token
  */
 export async function verifyResetToken(
-  data: VerifyResetTokenRequest
+  data: VerifyResetTokenRequest,
 ): Promise<VerifyResetTokenResponse> {
   const response = await apiClient.post<VerifyResetTokenResponse>(
     '/password-reset/verify',
-    data
+    data,
   );
 
   return response;
@@ -194,11 +196,11 @@ export async function verifyResetToken(
  * Reset password with token
  */
 export async function resetPassword(
-  data: ResetPasswordRequest
+  data: ResetPasswordRequest,
 ): Promise<ResetPasswordResponse> {
   const response = await apiClient.post<ResetPasswordResponse>(
     '/password-reset/reset',
-    data
+    data,
   );
 
   return response;

@@ -58,14 +58,18 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   useEffect(() => {
     // ログインページと新規管理者作成ページは常に表示（リダイレクト処理なし）
     if (pathname === '/admin/login' || pathname === '/admin/create-admin') {
+      console.log('[AdminLayout] Login/Create page, skipping auth check');
       setIsLoading(false);
       return;
     }
 
     const initializeAdminAuth = async () => {
+      console.log('[AdminLayout] Starting auth initialization...');
       const adminLogged = localStorage.getItem('adminLogged');
+      console.log('[AdminLayout] adminLogged:', adminLogged);
 
       if (!adminLogged) {
+        console.log('[AdminLayout] No adminLogged, redirecting to login');
         router.push('/admin/login');
         setIsLoading(false);
         return;
@@ -73,17 +77,28 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
 
       // トークンが保存されている場合、検証を実行
       const savedTokens = localStorage.getItem('adminTokens');
+      console.log('[AdminLayout] savedTokens exists:', !!savedTokens);
 
       if (savedTokens) {
         try {
           const parsedTokens = JSON.parse(savedTokens) as AdminTokens;
+          console.log(
+            '[AdminLayout] Token expires at:',
+            new Date(parsedTokens.expiresAt),
+          );
+          console.log('[AdminLayout] Current time:', new Date(Date.now()));
 
           // アクセストークンが有効か確認
           if (parsedTokens.expiresAt > Date.now()) {
             // トークンがまだ有効 → /admin/verify-token で自動ログイン
+            console.log('[AdminLayout] Token still valid, verifying...');
             const response = await verifyAdminToken(parsedTokens.accessToken);
+            console.log('[AdminLayout] Verify response:', response);
 
             if (response.success) {
+              console.log(
+                '[AdminLayout] Verification successful, setting isLoggedIn=true',
+              );
               setIsLoggedIn(true);
               setIsLoading(false);
               return;
@@ -169,18 +184,22 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   };
 
   if (isLoading) {
+    console.log('[AdminLayout] Still loading, returning null');
     return null;
   }
 
   // ログインページと新規管理者作成ページはレイアウトを表示しない（ログイン状態に関わらず）
   if (pathname === '/admin/login' || pathname === '/admin/create-admin') {
+    console.log('[AdminLayout] Login/Create page, rendering children directly');
     return children;
   }
 
   if (!isLoggedIn) {
+    console.log('[AdminLayout] Not logged in, returning null');
     return null;
   }
 
+  console.log('[AdminLayout] Logged in, rendering layout with children');
   return (
     <Box display="flex" flexDirection="column" minHeight="100vh">
       <AdminHeader

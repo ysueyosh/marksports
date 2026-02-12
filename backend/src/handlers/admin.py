@@ -4,10 +4,9 @@ Admin authentication handler
 
 import json
 import logging
-import os
-import boto3
 from datetime import datetime
 from decimal import Decimal
+from src.auth import ACCESS_TOKEN_EXPIRE_SECONDS
 from src.models.admin import (
     AdminLoginRequest, AdminLoginResponse, AdminRefreshTokenRequest,
     AdminRefreshTokenResponse, AdminVerifyTokenRequest, AdminVerifyTokenResponse,
@@ -18,14 +17,13 @@ from src.utils.jwt import (
     verify_password, hash_password, hash_refresh_token
 )
 from src.utils.auth import require_admin_auth
+from src.utils.dynamodb import get_admin_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # DynamoDB client
-dynamodb = boto3.resource('dynamodb')
-table_name = os.environ.get('ADMIN_TABLE_NAME', 'Admin')
-table = dynamodb.Table(table_name)
+table = get_admin_table()
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -122,7 +120,7 @@ def admin_login(event, context):
                 "name": admin['name'],
                 "accessToken": access_token,
                 "refreshToken": refresh_token,
-                "expiresIn": 3600  # Token expires in 1 hour (seconds)
+                "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
             }
         )
         
@@ -310,7 +308,7 @@ def admin_refresh_token(event, context):
                 "name": admin_data.get("name", ""),
                 "accessToken": new_access_token,
                 "refreshToken": new_refresh_token,
-                "expiresIn": 3600  # Token expires in 1 hour (seconds)
+                "expiresIn": ACCESS_TOKEN_EXPIRE_SECONDS
             }
         )
         

@@ -155,7 +155,7 @@ export default function AdminSettingsPage() {
   return (
     <>
       {isLoading && <LoadingSpinner />}
-      <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+      <Box>
         <Stack spacing={2}>
           <Button
             component={Link}

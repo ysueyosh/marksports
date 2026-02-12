@@ -1,17 +1,5 @@
-'use client';
-
 import { Geist, Geist_Mono } from 'next/font/google';
-import { AuthProvider } from '@/context/AuthContext';
-import { SnackbarProvider } from '@/context/SnackbarContext';
-import { CartProvider } from '@/context/CartContext';
-import { NotificationProvider } from '@/context/NotificationContext';
-import { LoadingProvider } from '@/context/LoadingContext';
-import { CategoryProvider } from '@/context/CategoryContext';
-import { SearchProvider } from '@/context/SearchContext';
-import { SidebarProvider } from '@/context/SidebarContext';
-import GlobalLoadingSpinner from '@/components/GlobalLoadingSpinner';
-import { ThemeProvider, CssBaseline } from '@mui/material';
-import theme from '@/theme';
+import ClientProviders from '@/app/ClientProviders';
 import './globals.css';
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -22,6 +10,8 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 });
+
+export const dynamic = 'force-dynamic';
 
 export default function RootLayout({
   children,
@@ -43,25 +33,7 @@ export default function RootLayout({
         ></script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <LoadingProvider>
-            <GlobalLoadingSpinner />
-            <SnackbarProvider>
-              <AuthProvider>
-                <NotificationProvider>
-                  <CartProvider>
-                    <CategoryProvider>
-                      <SearchProvider>
-                        <SidebarProvider>{children}</SidebarProvider>
-                      </SearchProvider>
-                    </CategoryProvider>
-                  </CartProvider>
-                </NotificationProvider>
-              </AuthProvider>
-            </SnackbarProvider>
-          </LoadingProvider>
-        </ThemeProvider>
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   );

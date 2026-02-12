@@ -2,14 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import {
-  Card,
-  CardActionArea,
-  CardContent,
-  Box,
-  Typography,
-  Button,
-} from '@mui/material';
+import { Card, CardContent, Box, Typography, Button } from '@mui/material';
 import { formatPriceIncludedTax } from '@/utils/price';
 
 interface ProductCardProps {
@@ -37,7 +30,22 @@ export default function ProductCard({
 
   const content = (
     <Card elevation={1} sx={{ height: '100%' }}>
-      <CardActionArea onClick={handleClick} sx={{ height: '100%' }}>
+      <Box
+        onClick={handleClick}
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          cursor: onClick ? 'pointer' : 'default',
+          '&:hover': onClick
+            ? {
+                '& .MuiCard-root': {
+                  boxShadow: 3,
+                },
+              }
+            : {},
+        }}
+      >
         <Box sx={{ position: 'relative', width: '100%', pt: '75%' }}>
           {image ? (
             <Image
@@ -64,34 +72,55 @@ export default function ProductCard({
           )}
         </Box>
         {showDetails && (
-          <CardContent>
+          <CardContent sx={{ p: { xs: 1, sm: 2 }, flexGrow: 1 }}>
             {name && (
-              <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+              <Typography
+                variant="subtitle1"
+                fontWeight={700}
+                gutterBottom
+                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+              >
                 {name}
               </Typography>
             )}
             {price != null && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+              >
                 {formatPriceIncludedTax(price)}
               </Typography>
             )}
           </CardContent>
         )}
         {onClick && (
-          <Box px={2} pb={2}>
+          <Box px={{ xs: 1, sm: 2 }} pb={{ xs: 1, sm: 2 }}>
             <Button
               variant="outlined"
               fullWidth
+              size="small"
               onClick={(e) => {
                 e.stopPropagation();
                 onClick();
               }}
             >
-              詳細を見る
+              <Box
+                component="span"
+                sx={{ display: { xs: 'inline', sm: 'none' } }}
+              >
+                詳細
+              </Box>
+              <Box
+                component="span"
+                sx={{ display: { xs: 'none', sm: 'inline' } }}
+              >
+                詳細を見る
+              </Box>
             </Button>
           </Box>
         )}
-      </CardActionArea>
+      </Box>
     </Card>
   );
 

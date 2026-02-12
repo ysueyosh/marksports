@@ -60,14 +60,13 @@ export default function Header({
 
   return (
     <AppBar position="sticky" color="primary" elevation={1}>
-      <Toolbar sx={{ gap: 1 }}>
+      <Toolbar sx={{ gap: { xs: 0.5, sm: 1 } }}>
         {!isLargeScreen && (
           <IconButton
             color="inherit"
             edge="start"
             onClick={onMenuClick}
             aria-label="メニュー"
-            sx={{ mr: 1 }}
           >
             <MenuIcon />
           </IconButton>

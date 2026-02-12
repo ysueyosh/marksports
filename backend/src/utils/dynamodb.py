@@ -6,12 +6,18 @@ import boto3
 import os
 
 # DynamoDB resource
-dynamodb = boto3.resource('dynamodb', region_name='ap-northeast-1')
+dynamodb = boto3.resource(
+    'dynamodb',
+    region_name='ap-northeast-1',
+    endpoint_url=os.environ.get('DYNAMODB_ENDPOINT_URL', None)
+)
 
 # Table name
-COMMERCE_TABLE_NAME = os.environ.get('COMMERCE_TABLE_NAME', 'Commerce')
-USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'User')
-ADMIN_TABLE_NAME = os.environ.get('ADMIN_TABLE_NAME', 'Admin')
+COMMERCE_TABLE_NAME = "Commerce-" + os.environ.get('STAGE', '')
+USERS_TABLE_NAME = "User-" + os.environ.get('STAGE', '')
+ADMIN_TABLE_NAME = "Admin-" + os.environ.get('STAGE', '')
+NOTIFICATION_TABLE_NAME = "Notification-" + os.environ.get('STAGE', '')
+CART_TABLE_NAME = "User-" + os.environ.get('STAGE', '')
 
 def get_commerce_table():
     """Get Commerce table instance"""
@@ -19,11 +25,19 @@ def get_commerce_table():
 
 def get_users_table():
     """Get Users table instance"""
-    return dynamodb.Table(USERS_TABLE_NAME)
+    return dynamodb.Table(USERS_TABLE_NAME) 
 
 def get_admin_table():
     """Get Admin table instance"""
     return dynamodb.Table(ADMIN_TABLE_NAME)
+
+def get_notification_table():
+    """Get Notification table instance"""
+    return dynamodb.Table(NOTIFICATION_TABLE_NAME)
+
+def get_cart_table():
+    """Get Cart table instance"""
+    return dynamodb.Table(CART_TABLE_NAME)
 
 # PK/SK prefixes
 PRODUCT_PK = 'PRODUCT'

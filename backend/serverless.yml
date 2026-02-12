@@ -570,6 +570,20 @@ functions:
           path: /admin/orders/status
           method: post
 
+  getDashboardPendingOrders:
+    handler: src.handlers.order.get_dashboard_pending_orders
+    events:
+      - httpApi:
+          path: /admin/dashboard/pending-orders
+          method: get
+
+  getDashboardPaymentConfirmation:
+    handler: src.handlers.order.get_dashboard_payment_confirmation
+    events:
+      - httpApi:
+          path: /admin/dashboard/payment-confirmation
+          method: get
+
   manualRefund:
     handler: src.handlers.admin.manual_refund
     events:

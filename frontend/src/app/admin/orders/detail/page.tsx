@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { getOrderDetail, OrderDetail } from '@/api/orders';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { getAdminOrderDetail, AdminOrderDetail } from '@/api/admin-orders';
 import { updateOrderStatus } from '@/api/admin-orders';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
 import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
@@ -39,26 +39,36 @@ const ORDER_STATUSES = [
 
 export default function AdminOrderDetailPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const orderId = searchParams.get('id') as string;
 
-  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [order, setOrder] = useState<AdminOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('unpaid');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
+  // Check admin authentication
+  useEffect(() => {
+    const adminLogged = localStorage.getItem('adminLogged');
+    if (!adminLogged) {
+      router.push('/admin/login');
+    }
+  }, [router]);
+
   // 初回アクセス時に注文詳細を取得
   useEffect(() => {
     const fetchOrderDetail = async () => {
       try {
         setLoading(true);
-        const response = await getOrderDetail(orderId);
+        const response = await getAdminOrderDetail(orderId);
         if (response.success && response.data) {
           setOrder(response.data);
           setSelectedStatus(response.data.status || 'unpaid');
         } else {
           setError('注文情報の取得に失敗しました');
+          console.error('API error:', response.message);
         }
       } catch (err) {
         console.error('Error fetching order detail:', err);
@@ -91,7 +101,16 @@ export default function AdminOrderDetailPage() {
           | 'cancelled_internal',
       });
       if (response.success) {
-        setOrder({ ...order, status: selectedStatus });
+        setOrder({
+          ...order,
+          status: selectedStatus as
+            | 'unpaid'
+            | 'awaiting_shipment'
+            | 'in_transit'
+            | 'delivered'
+            | 'cancelled_customer'
+            | 'cancelled_internal',
+        });
         setUpdateSuccess(true);
         setTimeout(() => setUpdateSuccess(false), 3000);
       } else {
@@ -125,19 +144,28 @@ export default function AdminOrderDetailPage() {
     typeof order.paymentMethod === 'string'
       ? order.paymentMethod === 'bank_transfer'
         ? '銀行振込'
-        : order.paymentMethod === 'card'
+        : order.paymentMethod === 'credit_card' ||
+            order.paymentMethod === 'card'
           ? 'クレジットカード'
-          : 'その他'
+          : order.paymentMethod === 'apple_pay' ||
+              order.paymentMethod === 'applepay'
+            ? 'Apple Pay'
+            : order.paymentMethod === 'google_pay' ||
+                order.paymentMethod === 'googlepay'
+              ? 'Google Pay'
+              : 'その他'
       : 'クレジットカード';
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
+    <Box>
       <Stack spacing={3}>
         <Box>
           <Typography variant="h4" fontWeight={700} gutterBottom>
             注文詳細
           </Typography>
-          <Typography color="text.secondary">注文ID: {order.id}</Typography>
+          <Typography color="text.secondary">
+            注文番号: {order.orderNumber}
+          </Typography>
         </Box>
 
         {updateSuccess && (
@@ -149,7 +177,7 @@ export default function AdminOrderDetailPage() {
             <Box
               display="flex"
               justifyContent="space-between"
-              alignItems="center"
+              alignItems="flex-start"
             >
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">

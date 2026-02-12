@@ -87,18 +87,16 @@ export default function OrdersPage() {
 
   return (
     <MainLayout>
-      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
+      <Box>
         <Stack spacing={3}>
           <Breadcrumbs>
-            <MuiLink
-              component={Link}
-              href="/"
-              underline="hover"
-              color="inherit"
-            >
+            <MuiLink component={Link} href="/" color="inherit">
               ホーム
             </MuiLink>
-            <Typography color="text.secondary">注文履歴</Typography>
+            <MuiLink component={Link} href="/account" color="inherit">
+              アカウント
+            </MuiLink>
+            <Typography color="text.primary">注文履歴</Typography>
           </Breadcrumbs>
 
           <Typography variant="h4" fontWeight={700}>

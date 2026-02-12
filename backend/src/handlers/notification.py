@@ -5,21 +5,14 @@ Notification handler
 import json
 import logging
 from decimal import Decimal
-import boto3
-import os
 from src.utils.cors import cors_headers
+from src.utils.dynamodb import get_notification_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Constants
-NOTIFICATION_TABLE_NAME = os.environ.get('NOTIFICATION_TABLE_NAME', 'Notification')
 NOTIFICATION_PK = 'NOTIFICATION'
-
-def get_notification_table():
-    """Get DynamoDB Notification table"""
-    dynamodb = boto3.resource('dynamodb')
-    return dynamodb.Table(NOTIFICATION_TABLE_NAME)
 
 class DecimalEncoder(json.JSONEncoder):
     """JSON encoder that converts Decimal to float"""

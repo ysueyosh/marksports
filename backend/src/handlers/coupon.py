@@ -36,7 +36,7 @@ def apply_coupon(event, context):
     try:
         # Get coupon code and subtotal from request body
         body = json.loads(event.get("body", "{}"))
-        coupon_code = body.get("coupon_code", "").strip().upper()
+        coupon_code = body.get("coupon_code", "").strip()
         subtotal = body.get("subtotal", 0)
         
         logger.info(f"Apply coupon: {coupon_code}, subtotal: {subtotal}")
@@ -58,14 +58,24 @@ def apply_coupon(event, context):
         
         table = get_commerce_table()
         
-        # Query coupon by couponCode (using GSI_COUPON_CODE)
-        response = table.query(
-            IndexName='GSI_COUPON_CODE',
-            KeyConditionExpression='couponCode = :code',
-            ExpressionAttributeValues={':code': coupon_code}
-        )
+        # Query coupon by couponCode
+        # First try using GSI_COUPON_CODE if it exists
+        try:
+            response = table.query(
+                IndexName='GSI_COUPON_CODE',
+                KeyConditionExpression='couponCode = :code',
+                ExpressionAttributeValues={':code': coupon_code}
+            )
+            items = response.get('Items', [])
+        except Exception as gsi_error:
+            # If GSI doesn't exist, fall back to scanning the entire table
+            logger.warning(f"GSI_COUPON_CODE query failed, using Scan: {str(gsi_error)}")
+            response = table.scan(
+                FilterExpression='couponCode = :code',
+                ExpressionAttributeValues={':code': coupon_code}
+            )
+            items = response.get('Items', [])
         
-        items = response.get('Items', [])
         if not items:
             return {
                 "statusCode": 404,
@@ -135,6 +145,7 @@ def apply_coupon(event, context):
         discount_type = coupon.get("discountType", "percentage")
         discount_value = coupon.get("discountValue", 0)
         
+        # Check minimum order amount for fixed discount type
         if discount_type == "amount" and "minOrderAmount" in coupon:
             if subtotal < coupon["minOrderAmount"]:
                 return {

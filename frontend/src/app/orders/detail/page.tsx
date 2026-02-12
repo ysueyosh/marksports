@@ -118,9 +118,14 @@ export default function OrderDetailPage() {
 
   return (
     <MainLayout>
-      <Box sx={{ px: { xs: 2, md: 3 }, py: 4 }}>
-        <Stack spacing={4}>
-          <Button component={Link} href="/orders" variant="text">
+      <Box>
+        <Stack spacing={2}>
+          <Button
+            component={Link}
+            href="/orders"
+            variant="outlined"
+            sx={{ alignSelf: 'flex-start' }}
+          >
             ← 注文履歴に戻る
           </Button>
 
@@ -183,12 +188,18 @@ export default function OrderDetailPage() {
             variant="outlined"
             sx={{ p: { xs: 2, md: 3 }, overflow: 'auto' }}
           >
-            <Stack spacing={2}>
-              <Typography variant="h6" fontWeight={700}>
+            <Stack spacing={0}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
                 注文内容
               </Typography>
-              <Divider />
-              <Box sx={{ overflowX: 'auto' }}>
+              <Divider sx={{ my: 0 }} />
+              <Box
+                sx={{
+                  overflowX: 'auto',
+                  mx: { xs: -2, md: -3 },
+                  px: { xs: 2, md: 3 },
+                }}
+              >
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f9fafb' }}>
@@ -225,9 +236,7 @@ export default function OrderDetailPage() {
                 </Table>
               </Box>
 
-              <Divider />
-
-              <Stack spacing={1}>
+              <Stack spacing={1} sx={{ mt: 2 }}>
                 <Stack
                   direction="row"
                   justifyContent="space-between"
@@ -235,7 +244,10 @@ export default function OrderDetailPage() {
                 >
                   <Typography>小計</Typography>
                   <Typography>
-                    ¥{order.subtotal ? order.subtotal.toLocaleString() : '0'}
+                    ¥
+                    {(
+                      (order.subtotal || 0) + (order.tax || 0)
+                    ).toLocaleString()}
                   </Typography>
                 </Stack>
                 <Typography
@@ -347,13 +359,13 @@ export default function OrderDetailPage() {
 
           {/* アクション */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <Button
+            {/* <Button
               variant="contained"
               component={Link}
               href={`/receipt/detail?orderId=${order.id}`}
             >
               領収証を表示
-            </Button>
+            </Button> */}
             {order.status !== 'cancelled' &&
               order.status !== 'delivered' &&
               order.status !== 'cancelled_customer' &&
@@ -363,7 +375,7 @@ export default function OrderDetailPage() {
                   color="error"
                   onClick={() => setIsCancelModalOpen(true)}
                 >
-                  注文をキャンセル
+                  注文のキャンセルをリクエスト
                 </Button>
               )}
           </Stack>

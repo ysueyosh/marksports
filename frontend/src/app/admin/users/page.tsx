@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AdminModal from '@/components/Admin/AdminModal';
 import AdminTable from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
 import Snackbar from '@/components/Snackbar/Snackbar';
 import { adminUserAPI, User } from '@/api/admin-users';
+import { useTheme, useMediaQuery } from '@mui/material';
 import {
   Box,
   Typography,
@@ -28,10 +30,18 @@ interface UserForm {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [users, setUsers] = useState<User[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchEmail, setSearchEmail] = useState('');
+  const [searchName, setSearchName] = useState('');
+  const [searchStatus, setSearchStatus] = useState<
+    'all' | 'active' | 'inactive'
+  >('all');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const [isSearching, setIsSearching] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -39,6 +49,7 @@ export default function AdminUsersPage() {
   const [deleteInputValue, setDeleteInputValue] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     message: string;
     type: 'success' | 'error';
@@ -51,13 +62,84 @@ export default function AdminUsersPage() {
     status: 'active',
   });
 
-  // ページロード時の初期化
+  // ページロード時の認証チェック
   useEffect(() => {
-    loadUsers();
-  }, [currentPage]);
+    const adminLogged = localStorage.getItem('adminLogged');
+    if (!adminLogged) {
+      router.push('/admin/login');
+    } else {
+      setIsLoggedIn(true);
+    }
+  }, [router]);
+
+  // ページロード時にユーザー一覧を初期化
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadUsers();
+    }
+  }, [currentPage, isLoggedIn]);
+
+  // 検索実行
+  const handleSearch = async () => {
+    try {
+      setIsSearching(true);
+      setCurrentPage(1);
+      const response = await adminUserAPI.getAllUsers(
+        1,
+        pageSize,
+        searchEmail || undefined,
+        searchName || undefined,
+        searchStatus,
+      );
+      if (response.success && response.data) {
+        const data = response.data as any;
+        if (data && 'users' in data && Array.isArray(data.users)) {
+          setUsers(data.users);
+        } else if (Array.isArray(data)) {
+          setUsers(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setSnackbar({
+        message: 'ユーザー検索に失敗しました',
+        type: 'error',
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // リセット
+  const handleResetSearch = async () => {
+    try {
+      setSearchEmail('');
+      setSearchName('');
+      setSearchStatus('all');
+      setCurrentPage(1);
+      setIsSearching(true);
+      const response = await adminUserAPI.getAllUsers(1, pageSize);
+      if (response.success && response.data) {
+        const data = response.data as any;
+        if (data && 'users' in data && Array.isArray(data.users)) {
+          setUsers(data.users);
+        } else if (Array.isArray(data)) {
+          setUsers(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting search:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   // ユーザー一覧を読み込み
   const loadUsers = async () => {
+    if (!isLoggedIn) {
+      return;
+    }
+
     try {
       setIsLoading(true);
       console.log('Loading users for page:', currentPage);
@@ -225,35 +307,77 @@ export default function AdminUsersPage() {
     });
   };
 
-  // フィルタリング
-  const filteredUsers = users.filter(
-    (user) =>
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
   // ページネーション
-  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const totalPages = Math.ceil(users.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
-  const displayedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
+  const displayedUsers = users.slice(startIndex, startIndex + pageSize);
+
+  if (!isLoggedIn) {
+    return null;
+  }
 
   return (
-    <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+    <Box>
       <Stack spacing={2}>
         <Typography variant="h4" fontWeight={700}>
           ユーザー管理
         </Typography>
 
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <TextField
-            fullWidth
-            placeholder="メールアドレスまたは名前で検索..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                placeholder="メールアドレスで検索..."
+                value={searchEmail}
+                onChange={(e) => setSearchEmail(e.target.value)}
+                fullWidth
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+              />
+              <TextField
+                placeholder="名前で検索..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                fullWidth
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+              />
+              <FormControl sx={{ minWidth: { xs: '100%', sm: 150 } }}>
+                <Select
+                  value={searchStatus}
+                  onChange={(e) => setSearchStatus(e.target.value as any)}
+                >
+                  <MenuItem value="all">ステータス: すべて</MenuItem>
+                  <MenuItem value="active">アクティブ</MenuItem>
+                  <MenuItem value="inactive">非アクティブ</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="contained"
+                onClick={handleSearch}
+                disabled={isSearching}
+                sx={{ flexShrink: 0 }}
+              >
+                {isSearching ? '検索中...' : '検索'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleResetSearch}
+                disabled={isSearching}
+                sx={{ flexShrink: 0 }}
+              >
+                リセット
+              </Button>
+            </Stack>
+          </Stack>
         </Paper>
 
         <AdminTable
@@ -264,6 +388,7 @@ export default function AdminUsersPage() {
               render: (value) => (
                 <Typography fontWeight={600}>{value}</Typography>
               ),
+              hide: { mobile: true },
             },
             {
               key: 'name',

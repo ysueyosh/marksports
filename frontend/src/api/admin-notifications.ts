@@ -6,8 +6,8 @@ import { apiClient } from './client';
 
 export interface AdminNotification {
   notificationId: string;
-  type: 'info' | 'important' | 'sale';
-  target: 'all' | 'members';
+  type: 'info' | 'important';
+  target: 'all';
   title: string;
   content: string;
   startDate: string;
@@ -16,8 +16,8 @@ export interface AdminNotification {
 }
 
 export interface CreateNotificationRequest {
-  type: 'info' | 'important' | 'sale';
-  target: 'all' | 'members';
+  type: 'info' | 'important';
+  target: 'all';
   title: string;
   content: string;
   startDate: string;
@@ -27,8 +27,8 @@ export interface CreateNotificationRequest {
 export interface UpdateNotificationRequest {
   title?: string;
   content?: string;
-  type?: 'info' | 'important' | 'sale';
-  target?: 'all' | 'members';
+  type?: 'info' | 'important';
+  target?: 'all';
   startDate?: string;
   endDate?: string;
 }
@@ -59,7 +59,7 @@ const adminNotificationAPI = {
    */
   getAllNotifications: async (
     page = 1,
-    limit = 10
+    limit = 10,
   ): Promise<AdminNotificationResponse> => {
     return apiClient.get(`/admin/notifications?page=${page}&limit=${limit}`);
   },
@@ -68,7 +68,7 @@ const adminNotificationAPI = {
    * Get a single notification
    */
   getNotification: async (
-    notificationId: string
+    notificationId: string,
   ): Promise<AdminNotificationResponse> => {
     return apiClient.get(`/admin/notifications/${notificationId}`);
   },
@@ -77,7 +77,7 @@ const adminNotificationAPI = {
    * Create a new notification
    */
   createNotification: async (
-    request: CreateNotificationRequest
+    request: CreateNotificationRequest,
   ): Promise<AdminNotificationResponse> => {
     return apiClient.post(`/admin/notifications`, request);
   },
@@ -87,7 +87,7 @@ const adminNotificationAPI = {
    */
   updateNotification: async (
     notificationId: string,
-    request: UpdateNotificationRequest
+    request: UpdateNotificationRequest,
   ): Promise<AdminNotificationResponse> => {
     return apiClient.put(`/admin/notifications/${notificationId}`, request);
   },
@@ -96,7 +96,7 @@ const adminNotificationAPI = {
    * Delete a notification
    */
   deleteNotification: async (
-    notificationId: string
+    notificationId: string,
   ): Promise<AdminNotificationResponse> => {
     return apiClient.delete(`/admin/notifications/${notificationId}`);
   },

@@ -32,7 +32,7 @@ export default function AdminHeader({
     localStorage.removeItem('adminId');
     localStorage.removeItem('adminName');
     localStorage.removeItem('adminTokens');
-    router.push('/');
+    router.push('/admin/login');
   };
 
   return (
@@ -57,6 +57,17 @@ export default function AdminHeader({
           </Typography>
         </Button>
         <Box flex={1} />
+        <IconButton
+          color="inherit"
+          component={Link}
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="サイトへ"
+          sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+        >
+          <OpenInNewIcon />
+        </IconButton>
         <Button
           color="inherit"
           component={Link}
@@ -64,10 +75,26 @@ export default function AdminHeader({
           target="_blank"
           rel="noopener noreferrer"
           endIcon={<OpenInNewIcon />}
+          variant="outlined"
+          sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
         >
           サイトへ
         </Button>
-        <Button color="inherit" onClick={handleLogout} endIcon={<LogoutIcon />}>
+        <IconButton
+          color="inherit"
+          onClick={handleLogout}
+          aria-label="ログアウト"
+          sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+        >
+          <LogoutIcon />
+        </IconButton>
+        <Button
+          color="inherit"
+          onClick={handleLogout}
+          endIcon={<LogoutIcon />}
+          variant="outlined"
+          sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+        >
           ログアウト
         </Button>
       </Toolbar>

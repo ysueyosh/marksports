@@ -4,7 +4,6 @@ User registration handler
 
 import json
 import logging
-import boto3
 import os
 import uuid
 import secrets
@@ -13,21 +12,12 @@ from decimal import Decimal
 import bcrypt
 from src.models.auth import RegisterRequest, RegisterResponse
 from src.utils.ses import send_registration_verification_email
+from src.utils.dynamodb import get_users_table
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# DynamoDB
-dynamodb = boto3.resource(
-    'dynamodb',
-    region_name='ap-northeast-1',
-    endpoint_url=os.environ.get('DYNAMODB_ENDPOINT_URL', None)
-)
-USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'User')
-
-def get_users_table():
-    """Get Users table"""
-    return dynamodb.Table(USERS_TABLE_NAME)
+# DynamoDB (utilsで一元管理)
 
 class DecimalEncoder(json.JSONEncoder):
     """Helper class to convert DynamoDB Decimal type to JSON"""

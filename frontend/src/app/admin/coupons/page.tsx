@@ -35,7 +35,6 @@ interface CouponForm {
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -317,21 +316,13 @@ export default function AdminCouponsPage() {
     });
   };
 
-  // フィルタリング
-  const filteredCoupons = coupons.filter((coupon) =>
-    coupon.couponCode?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
   // ページネーション
-  const totalPages = Math.ceil(filteredCoupons.length / pageSize);
+  const totalPages = Math.ceil(coupons.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
-  const displayedCoupons = filteredCoupons.slice(
-    startIndex,
-    startIndex + pageSize,
-  );
+  const displayedCoupons = coupons.slice(startIndex, startIndex + pageSize);
 
   return (
-    <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+    <Box>
       <Stack spacing={2}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h4" fontWeight={700}>
@@ -345,18 +336,6 @@ export default function AdminCouponsPage() {
             新規クーポン
           </Button>
         </Box>
-
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <TextField
-            fullWidth
-            placeholder="クーポンコードで検索..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </Paper>
 
         <AdminTable
           columns={[

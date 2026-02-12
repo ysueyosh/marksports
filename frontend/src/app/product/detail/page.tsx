@@ -25,6 +25,7 @@ import {
   Button,
   Stack,
   Chip,
+  Divider,
 } from '@mui/material';
 
 export default function ProductDetailPage() {
@@ -39,6 +40,10 @@ export default function ProductDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const { conditions } = useSearch();
   const { show: showSnackbar } = useSnackbar();
+
+  const handleProductClick = (productId: number | string) => {
+    router.push(`/product/detail?id=${productId}`);
+  };
 
   // Build search URL from Context conditions
   useEffect(() => {
@@ -179,13 +184,22 @@ export default function ProductDetailPage() {
                 product.imageUrls.map((imageUrl, index) => (
                   <Button
                     key={index}
-                    variant={
-                      selectedImageIndex === index ? 'contained' : 'outlined'
-                    }
                     onClick={() => setSelectedImageIndex(index)}
-                    sx={{ minWidth: 60, p: 0, height: 60 }}
+                    sx={{
+                      minWidth: 60,
+                      p: 0,
+                      minHeight: 60,
+                      overflow: 'hidden',
+                      border:
+                        selectedImageIndex === index ? '2px solid' : '0px',
+                    }}
                   >
-                    <Box position="relative" width={60} height={60}>
+                    <Box
+                      position="relative"
+                      width={60}
+                      height={60}
+                      overflow="hidden"
+                    >
                       <Image
                         src={imageUrl}
                         alt={`${product?.name || '商品'} - 画像${index + 1}`}
@@ -248,6 +262,8 @@ export default function ProductDetailPage() {
           </Box>
         </Box>
 
+        <Divider />
+
         <Box>
           <Typography variant="h5" fontWeight={700} gutterBottom>
             関連商品
@@ -256,9 +272,10 @@ export default function ProductDetailPage() {
             display="grid"
             gap={2}
             gridTemplateColumns={{
-              xs: '1fr',
-              sm: 'repeat(2, 1fr)',
+              xs: 'repeat(3, 1fr)',
+              sm: 'repeat(3, 1fr)',
               md: 'repeat(4, 1fr)',
+              lg: 'repeat(5, 1fr)',
             }}
           >
             {relatedProducts.length > 0 ? (
@@ -270,6 +287,7 @@ export default function ProductDetailPage() {
                   price={relatedProduct.price}
                   showDetails={true}
                   image={relatedProduct.image}
+                  onClick={() => handleProductClick(relatedProduct.id)}
                 />
               ))
             ) : (

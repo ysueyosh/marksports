@@ -103,9 +103,18 @@ export interface ManualRefundResponse {
   message?: string;
 }
 
-export async function getAllOrders(): Promise<GetAllOrdersResponse> {
+export async function getAllOrders(
+  orderNumber?: string,
+  status?: string,
+): Promise<GetAllOrdersResponse> {
   try {
-    const response = await apiClient.get<GetAllOrdersResponse>(`/admin/orders`);
+    const params = new URLSearchParams();
+    if (orderNumber) params.append('orderNumber', orderNumber);
+    if (status && status !== 'all') params.append('status', status);
+
+    const query = params.toString();
+    const url = query ? `/admin/orders?${query}` : '/admin/orders';
+    const response = await apiClient.get<GetAllOrdersResponse>(url);
     return response;
   } catch (error) {
     console.error('Failed to get all orders:', error);

@@ -4,6 +4,7 @@
  */
 
 import { API_BASE_URL } from './constants';
+import { DEFAULT_TOKEN_EXPIRY_SECONDS } from '@/constants/auth';
 
 export const API_CONFIG = {
   baseURL: API_BASE_URL,
@@ -165,9 +166,11 @@ export async function apiRequest<T>(
             const refreshData = await refreshResponse.json();
 
             if (refreshData.success && refreshData.data?.accessToken) {
-              console.log(
-                '[TOKEN_REFRESH] New access token obtained, retrying request...',
-              );
+              console.log('[TOKEN_REFRESH] ✅ Token refreshed successfully!', {
+                type: isAdminEndpoint ? 'admin' : 'user',
+                expiresIn: refreshData.data.expiresIn,
+                timestamp: new Date().toISOString(),
+              });
 
               // localStorage に新しいトークンを保存
               if (typeof window !== 'undefined') {
@@ -177,10 +180,21 @@ export async function apiRequest<T>(
                   refreshToken: refreshData.data.refreshToken,
                   expiresIn: refreshData.data.expiresIn,
                   expiresAt:
-                    Date.now() + (refreshData.data.expiresIn || 3600) * 1000,
+                    Date.now() +
+                    (refreshData.data.expiresIn ||
+                      DEFAULT_TOKEN_EXPIRY_SECONDS) *
+                      1000,
                 };
                 localStorage.setItem(tokenKey, JSON.stringify(newTokens));
+                console.log('[TOKEN_REFRESH] 💾 Token saved to localStorage', {
+                  tokenKey,
+                  expiresAt: new Date(newTokens.expiresAt).toISOString(),
+                });
               }
+
+              console.log('[TOKEN_REFRESH] 🔄 Retrying original request...', {
+                endpoint,
+              });
 
               // 元のリクエストを再試行（新しいアクセストークンで）
               headers['Authorization'] =
@@ -208,22 +222,35 @@ export async function apiRequest<T>(
               }
 
               const data: T = await retryResponse.json();
+              console.log(
+                '[TOKEN_REFRESH] ✨ Original request succeeded after refresh',
+                { status: retryResponse.status, hasData: !!data },
+              );
               return data;
             }
           } else {
-            console.warn(
-              '[TOKEN_REFRESH] Token refresh failed, keeping user on the current page',
-            );
-            // リフレッシュ失敗時の処理をここに追加可能
-            localStorage.removeItem('authTokens');
+            console.warn('[TOKEN_REFRESH] ❌ Token refresh failed', {
+              status: refreshResponse.status,
+              statusText: refreshResponse.statusText,
+            });
+            // リフレッシュ失敗時：対応するトークンを削除
+            if (typeof window !== 'undefined') {
+              const tokenKey = isAdminEndpoint ? 'adminTokens' : 'authTokens';
+              localStorage.removeItem(tokenKey);
+              console.log(`[TOKEN_REFRESH] Removed ${tokenKey}`);
+            }
           }
         } catch (refreshError) {
           console.error(
             '[TOKEN_REFRESH] Error during token refresh:',
             refreshError,
           );
-          // リフレッシュ失敗時の処理をここに追加可能
-          localStorage.removeItem('authTokens');
+          // リフレッシュ失敗時：対応するトークンを削除
+          if (typeof window !== 'undefined') {
+            const tokenKey = isAdminEndpoint ? 'adminTokens' : 'authTokens';
+            localStorage.removeItem(tokenKey);
+            console.log(`[TOKEN_REFRESH] Removed ${tokenKey} due to error`);
+          }
         }
       } else {
         console.warn(

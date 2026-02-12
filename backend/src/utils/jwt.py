@@ -9,6 +9,7 @@ import hashlib
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Tuple
+from src.auth import ACCESS_TOKEN_EXPIRE_SECONDS, REFRESH_TOKEN_EXPIRE_DAYS
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -16,8 +17,6 @@ logger.setLevel(logging.INFO)
 # JWT configuration
 JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-this-in-production')
 JWT_ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 def hash_password(password: str) -> str:
@@ -69,7 +68,7 @@ def generate_access_token(user_id: str, email: str, user_type: str = "admin") ->
         'email': email,
         'user_type': user_type,
         'iat': datetime.utcnow(),
-        'exp': datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        'exp': datetime.utcnow() + timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
     }
     
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
