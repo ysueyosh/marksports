@@ -56,6 +56,28 @@ export interface SetDefaultCardResponse {
   data?: SavedCard;
 }
 
+export interface PaymentRequest {
+  sourceId: string;
+  amount: number;
+  currency?: string;
+  orderId?: string;
+}
+
+export interface PaymentResponse {
+  id: string;
+  status: string;
+  receipt_number?: string;
+  receipt_url?: string;
+  [key: string]: any;
+}
+
+interface SubmitPaymentApiResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: PaymentResponse;
+}
+
 /**
  * Get user's saved cards
  */
@@ -108,4 +130,41 @@ export async function setDefaultCard(
     `/payment-methods/${cardId}/default`,
     {},
   );
+}
+
+/**
+ * Submit payment to backend API (client-side)
+ */
+export async function submitPayment(
+  paymentRequest: PaymentRequest,
+  authToken?: string,
+): Promise<PaymentResponse> {
+  const { sourceId, amount, currency = 'JPY', orderId } = paymentRequest;
+
+  const options: RequestInit = authToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    : {};
+
+  const response = await apiClient.post<SubmitPaymentApiResponse>(
+    '/payments',
+    {
+      sourceId,
+      amount: Math.round(amount),
+      currency,
+      orderId,
+    },
+    options,
+  );
+
+  if (!response.success || !response.data) {
+    throw new Error(
+      response.message || response.error || 'Payment processing failed',
+    );
+  }
+
+  return response.data;
 }

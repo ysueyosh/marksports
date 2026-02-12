@@ -10,7 +10,6 @@ import {
   GooglePay,
 } from 'react-square-web-payments-sdk';
 import CheckoutLayout from '@/components/Layout/CheckoutLayout';
-import { submitPayment } from '@/app/actions/actions';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { usePaymentMethod } from '@/context/PaymentMethodContext';
@@ -22,7 +21,12 @@ import {
   addAddress,
   AddressItem,
 } from '@/api/address';
-import { getSavedCards, SavedCard, addCard } from '@/api/payment';
+import {
+  getSavedCards,
+  SavedCard,
+  addCard,
+  submitPayment,
+} from '@/api/payment';
 import { saveOrder } from '@/api/orders';
 import TextInput from '@/components/Input/TextInput';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
