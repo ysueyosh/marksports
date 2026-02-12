@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "export": "next export",
-    "pages:build": "next build && npx @cloudflare/next-on-pages",
+    "pages:build": "npm ci --legacy-peer-deps && NPM_CONFIG_LEGACY_PEER_DEPS=true next build && NPM_CONFIG_LEGACY_PEER_DEPS=true npx @cloudflare/next-on-pages",
     "start": "next start",
     "lint": "eslint"
   },
