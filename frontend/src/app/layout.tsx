@@ -12,6 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 export default function RootLayout({
   children,
