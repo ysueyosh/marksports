@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import Pagination from '@/components/Pagination/Pagination';

@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useAuth } from '@/context/AuthContext';
 import MainLayout from '@/components/Layout/MainLayout';
 import { getPriceWithTax } from '@/utils/price';

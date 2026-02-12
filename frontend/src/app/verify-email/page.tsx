@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { verifyEmail } from '@/api/register';
