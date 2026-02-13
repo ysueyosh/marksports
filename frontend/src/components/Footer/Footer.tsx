@@ -73,16 +73,15 @@ export default function Footer() {
             <Typography variant="subtitle1" fontWeight={700} gutterBottom>
               会社情報
             </Typography>
-            <Typography color="text.secondary">Mark Sports</Typography>
+            <Typography color="text.secondary">Marshall Step</Typography>
             <Typography color="text.secondary">
-              〒000-0000 東京都渋谷区
-            </Typography>
-            <Typography color="text.secondary">電話：0120-XXX-XXXX</Typography>
-            <Typography color="text.secondary">
-              メール：info@sports-store.jp
+              問い合わせ先：070-8957-7058
             </Typography>
             <Typography color="text.secondary">
-              営業時間：9:00～18:00（日祝除く）
+              メール：marshall.step.0025@gmail.com
+            </Typography>
+            <Typography color="text.secondary">
+              営業時間：9:00～17:00（土日祝休）
             </Typography>
           </Box>
 

@@ -36,11 +36,10 @@ export default function SpecificTransactionPage() {
               <Table size="small">
                 <TableBody>
                   {[
-                    ['販売業者', 'Mark Sports'],
-                    ['代表者', '〇〇 〇〇'],
-                    ['住所', '〒000-0000 東京都渋谷区〇〇〇〇'],
-                    ['電話番号', '0120-XXX-XXXX'],
-                    ['メール', 'info@sports-store.jp'],
+                    ['販売業者', 'Marshall Step'],
+                    ['代表者', '漆谷 諒士'],
+                    ['電話番号', '070-8957-7058'],
+                    ['メール', 'marshall.step.0025@gmail.com'],
                   ].map(([label, value]) => (
                     <TableRow key={label}>
                       <TableCell sx={{ width: 160, fontWeight: 700 }}>
@@ -111,7 +110,7 @@ export default function SpecificTransactionPage() {
               営業時間
             </Typography>
             <Typography color="text.secondary">
-              月～金：9:00～18:00（土日祝日を除く）
+              9:00～17:00（土日祝日を除く）
             </Typography>
             <Typography color="text.secondary">
               メール・オンラインストアは24時間受け付けております。

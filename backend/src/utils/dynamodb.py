@@ -13,11 +13,11 @@ dynamodb = boto3.resource(
 )
 
 # Table name
-COMMERCE_TABLE_NAME = "Commerce-" + os.environ.get('STAGE', '')
-USERS_TABLE_NAME = "User-" + os.environ.get('STAGE', '')
-ADMIN_TABLE_NAME = "Admin-" + os.environ.get('STAGE', '')
-NOTIFICATION_TABLE_NAME = "Notification-" + os.environ.get('STAGE', '')
-CART_TABLE_NAME = "User-" + os.environ.get('STAGE', '')
+COMMERCE_TABLE_NAME = os.environ.get('COMMERCE_TABLE_NAME', 'Commerce-dev')
+USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'User-dev')
+ADMIN_TABLE_NAME = os.environ.get('ADMIN_TABLE_NAME', 'Admin-dev')
+NOTIFICATION_TABLE_NAME = os.environ.get('NOTIFICATION_TABLE_NAME', 'Notification-dev')
+CART_TABLE_NAME = os.environ.get('CART_TABLE_NAME', 'User-dev')
 
 def get_commerce_table():
     """Get Commerce table instance"""

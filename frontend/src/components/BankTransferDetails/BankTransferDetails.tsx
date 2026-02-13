@@ -13,19 +13,19 @@ const BankTransferDetails: React.FC = () => {
     >
       <h4 style={{ marginBottom: '10px' }}>口座振込情報</h4>
       <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-        <strong>銀行:</strong> 〇〇銀行
+        <strong>銀行:</strong> 福岡銀行（0177）
       </p>
       <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-        <strong>支店:</strong> 〇〇支店
+        <strong>支店:</strong> 中間支店（512）
       </p>
       <p style={{ marginBottom: '8px', fontSize: '14px' }}>
         <strong>口座種別:</strong> 普通
       </p>
       <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-        <strong>口座番号:</strong> 1234567
+        <strong>口座番号:</strong> 1919017
       </p>
       <p style={{ marginBottom: '8px', fontSize: '14px' }}>
-        <strong>名義人:</strong> マークスポーツ
+        <strong>名義人:</strong> ＭａｒｓｈａｌｌＳｔｅｐ　代表　漆谷　諒士
       </p>
     </div>
   );

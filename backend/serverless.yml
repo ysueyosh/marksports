@@ -18,7 +18,7 @@ provider:
   runtime: python3.11
   region: ap-northeast-1
   layers:
-    - arn:aws:lambda:ap-northeast-1:681816819085:layer:ecsite-python-dependencies:2
+    - arn:aws:lambda:ap-northeast-1:681816819085:layer:ecsite-python-dependencies:3
   environment:
     DYNAMODB_TABLE: ${self:service}
     # Table names (stage-specific)
@@ -26,13 +26,12 @@ provider:
     ADMIN_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.admin}
     COMMERCE_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.commerce}
     CART_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.user}
+    NOTIFICATION_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.notification}
     # Square API (Lambda デプロイ時に AWS SSM Parameter Store から取得)
     SQUARE_ACCESS_TOKEN: ${ssm:/ecsite/${sls:stage}/SQUARE_ACCESS_TOKEN}
     SQUARE_ENVIRONMENT: ${sls:stage}
     # Email configuration (SES)
     ORDER_FROM_EMAIL: ${ssm:/ecsite/${sls:stage}/ORDER_FROM_EMAIL}
-    # Notification table (DynamoDB)
-    NOTIFICATION_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.notification}
     # Frontend URL
     FRONTEND_URL: ${self:custom.frontendUrl.${sls:stage}}
     # S3 bucket for product images
@@ -70,18 +69,32 @@ provider:
             - dynamodb:DeleteItem
             - dynamodb:BatchWriteItem
           Resource:
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.USERS_TABLE_NAME}'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.ADMIN_TABLE_NAME}'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.COMMERCE_TABLE_NAME}'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.NOTIFICATION_TABLE_NAME}'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-dev'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-dev'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-dev'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Notification-dev'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-stage'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-stage'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-stage'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Notification-stage'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-prod'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-prod'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-prod'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Notification-prod'
         - Effect: Allow
           Action:
             - dynamodb:Query
             - dynamodb:Scan
           Resource:
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.USERS_TABLE_NAME}/index/GSI_MAIL'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.ADMIN_TABLE_NAME}/index/GSI_MAIL'
-            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.COMMERCE_TABLE_NAME}/index/GSI_COUPON_CODE'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-dev/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-dev/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-dev/index/GSI_COUPON_CODE'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-stage/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-stage/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-stage/index/GSI_COUPON_CODE'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-prod/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-prod/index/GSI_MAIL'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-prod/index/GSI_COUPON_CODE'
         - Effect: Allow
           Action:
             - ses:SendEmail
@@ -111,10 +124,10 @@ custom:
   # DynamoDB tables per stage
   dynamoTables:
     dev:
-      user: User
-      admin: Admin
-      commerce: Commerce
-      notification: Notification
+      user: User-dev
+      admin: Admin-dev
+      commerce: Commerce-dev
+      notification: Notification-dev
     stage:
       user: User-stage
       admin: Admin-stage

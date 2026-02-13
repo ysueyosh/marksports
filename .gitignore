@@ -67,3 +67,7 @@ yarn-error.log*
 
 # Backend (Python) - ignore all changes
 backend/
+
+# Deployment guides with sensitive information
+BACKEND_DEPLOYMENT_GUIDE.md
+CLOUDFLARE_DEPLOYMENT_GUIDE.md
