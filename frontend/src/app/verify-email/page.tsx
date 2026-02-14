@@ -5,14 +5,7 @@ import { useEffect, useState } from 'react';
 import { verifyEmail } from '@/api/register';
 import MainLayout from '@/components/Layout/MainLayout';
 import LoginModal from '@/components/LoginModal/LoginModal';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  CircularProgress,
-  Stack,
-} from '@mui/material';
+import { Box, Typography, Button, Paper, Stack } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 
@@ -68,7 +61,9 @@ export default function VerifyEmailPage() {
           sx={{ p: { xs: 3, md: 4 }, textAlign: 'center', maxWidth: 480 }}
         >
           <Stack spacing={2} alignItems="center">
-            {status === 'loading' && <CircularProgress />}
+            {status === 'loading' && (
+              <Typography color="text.secondary">処理中...</Typography>
+            )}
             {status === 'success' && (
               <CheckCircleIcon color="success" sx={{ fontSize: 56 }} />
             )}

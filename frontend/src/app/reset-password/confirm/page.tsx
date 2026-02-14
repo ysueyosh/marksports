@@ -7,7 +7,6 @@ import MainLayout from '@/components/Layout/MainLayout';
 import { TextInput } from '@/components/Input/TextInput';
 import { verifyResetToken, resetPassword } from '@/api/auth';
 import { useSnackbar } from '@/context/SnackbarContext';
-import { useLoading } from '@/context/LoadingContext';
 import {
   Box,
   Typography,
@@ -15,14 +14,12 @@ import {
   Link as MuiLink,
   Button,
   Paper,
-  CircularProgress,
 } from '@mui/material';
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { show: showSnackbar } = useSnackbar();
-  const { isLoading, setIsLoading } = useLoading();
 
   const token = searchParams.get('token') as string;
 
@@ -32,6 +29,7 @@ export default function ResetPasswordPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [tokenVerified, setTokenVerified] = useState(false);
   const [tokenVerifying, setTokenVerifying] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Verify token on page load
   useEffect(() => {
@@ -58,7 +56,7 @@ export default function ResetPasswordPage() {
     } else {
       router.push('/forgot-password');
     }
-  }, [token, router, showSnackbar]);
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -82,7 +80,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       const response = await resetPassword({
@@ -104,7 +102,7 @@ export default function ResetPasswordPage() {
       showSnackbar('エラーが発生しました', 'error');
       console.error('Error:', err);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -112,7 +110,7 @@ export default function ResetPasswordPage() {
     return (
       <MainLayout>
         <Box display="flex" justifyContent="center" py={6}>
-          <CircularProgress />
+          <Typography color="text.secondary">検証中...</Typography>
         </Box>
       </MainLayout>
     );
@@ -164,7 +162,7 @@ export default function ResetPasswordPage() {
                   }
                 }}
                 placeholder="8文字以上のパスワード"
-                disabled={isLoading}
+                disabled={isSubmitting}
                 required
                 error={errors.newPassword}
               />
@@ -181,13 +179,13 @@ export default function ResetPasswordPage() {
                   }
                 }}
                 placeholder="パスワードを再度入力"
-                disabled={isLoading}
+                disabled={isSubmitting}
                 required
                 error={errors.confirmPassword}
               />
 
-              <Button type="submit" variant="contained" disabled={isLoading}>
-                {isLoading ? 'リセット中...' : 'パスワードリセット'}
+              <Button type="submit" variant="contained" disabled={isSubmitting}>
+                {isSubmitting ? 'リセット中...' : 'パスワードリセット'}
               </Button>
 
               <MuiLink

@@ -27,6 +27,7 @@ provider:
     COMMERCE_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.commerce}
     CART_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.user}
     NOTIFICATION_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.notification}
+    PAGE_VIEW_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.pageViewDaily}
     # Square API (Lambda デプロイ時に AWS SSM Parameter Store から取得)
     SQUARE_ACCESS_TOKEN: ${ssm:/ecsite/${sls:stage}/SQUARE_ACCESS_TOKEN}
     SQUARE_ENVIRONMENT: ${sls:stage}
@@ -73,14 +74,17 @@ provider:
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-dev'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-dev'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Notification-dev'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/PageViewDaily-dev'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-stage'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-stage'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-stage'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Notification-stage'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/PageViewDaily-stage'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/User-prod'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Admin-prod'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Commerce-prod'
             - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/Notification-prod'
+            - 'arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/PageViewDaily-prod'
         - Effect: Allow
           Action:
             - dynamodb:Query
@@ -128,16 +132,19 @@ custom:
       admin: Admin-dev
       commerce: Commerce-dev
       notification: Notification-dev
+      pageViewDaily: PageViewDaily-dev
     stage:
       user: User-stage
       admin: Admin-stage
       commerce: Commerce-stage
       notification: Notification-stage
+      pageViewDaily: PageViewDaily-stage
     prod:
       user: User-prod
       admin: Admin-prod
       commerce: Commerce-prod
       notification: Notification-prod
+      pageViewDaily: PageViewDaily-prod
 
   # S3 bucket per stage (provided stage bucket name)
   s3Bucket:
@@ -726,6 +733,20 @@ functions:
     events:
       - httpApi:
           path: /notifications/count
+          method: get
+
+  recordPageView:
+    handler: src.handlers.page_view.record_page_view
+    events:
+      - httpApi:
+          path: /page-views
+          method: post
+
+  getAdminPageViewStats:
+    handler: src.handlers.page_view.get_page_view_stats
+    events:
+      - httpApi:
+          path: /admin/page-views
           method: get
 
   health:

@@ -25,27 +25,9 @@ import {
   Checkbox,
   FormControlLabel,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 
 interface Product {
   id: number;
@@ -65,10 +47,6 @@ interface Product {
   subImages: string[];
   stock?: number;
   redirectUrl?: string;
-  accessStats?: {
-    date: string;
-    count: number;
-  }[];
 }
 
 // カテゴリー構造定義
@@ -101,9 +79,6 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const [deleteInputValue, setDeleteInputValue] = useState('');
-  const [showAccessStatsModal, setShowAccessStatsModal] = useState(false);
-  const [selectedProductForStats, setSelectedProductForStats] =
-    useState<Product | null>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -1078,18 +1053,6 @@ export default function AdminProductsPage() {
                             >
                               編集
                             </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => {
-                                setTimeout(() => {
-                                  setSelectedProductForStats(product);
-                                  setShowAccessStatsModal(true);
-                                }, 1000);
-                              }}
-                            >
-                              統計
-                            </Button>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -1119,40 +1082,6 @@ export default function AdminProductsPage() {
             </Table>
           </Paper>
 
-          {showAccessStatsModal && selectedProductForStats && (
-            <Dialog
-              open={showAccessStatsModal}
-              onClose={() => setShowAccessStatsModal(false)}
-              maxWidth="md"
-              fullWidth
-              PaperProps={{
-                sx: {
-                  maxHeight: '90vh',
-                  overflow: 'auto',
-                },
-              }}
-            >
-              <DialogTitle
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                アクセス統計 - {selectedProductForStats.name}
-                <IconButton
-                  onClick={() => setShowAccessStatsModal(false)}
-                  size="small"
-                >
-                  <CloseIcon />
-                </IconButton>
-              </DialogTitle>
-              <DialogContent>
-                <AccessStatsDisplay product={selectedProductForStats} />
-              </DialogContent>
-            </Dialog>
-          )}
-
           <Box display="flex" justifyContent="center">
             <Pagination
               currentPage={currentPage}
@@ -1163,203 +1092,5 @@ export default function AdminProductsPage() {
         </Stack>
       </Box>
     </>
-  );
-}
-
-interface AccessStatsDisplayProps {
-  product: Product;
-}
-
-function AccessStatsDisplay({ product }: AccessStatsDisplayProps) {
-  const [displayMode, setDisplayMode] = useState<
-    'all' | 'year' | 'month' | 'day'
-  >('month');
-  const stats = product.accessStats || [];
-
-  // 全期間の合計
-  const totalAccess = stats.reduce((sum, s) => sum + s.count, 0);
-
-  // 年別アクセス数
-  const yearStats = stats.reduce(
-    (acc, stat) => {
-      const year = stat.date.split('-')[0];
-      const existing = acc.find((s) => s.name === year);
-      if (existing) {
-        existing.count += stat.count;
-      } else {
-        acc.push({ name: year, count: stat.count });
-      }
-      return acc;
-    },
-    [] as { name: string; count: number }[],
-  );
-
-  // 月別アクセス数
-  const monthStats = stats.reduce(
-    (acc, stat) => {
-      const month = stat.date.substring(0, 7); // YYYY-MM
-      const existing = acc.find((s) => s.name === month);
-      if (existing) {
-        existing.count += stat.count;
-      } else {
-        acc.push({ name: month, count: stat.count });
-      }
-      return acc;
-    },
-    [] as { name: string; count: number }[],
-  );
-
-  // 日別アクセス数（最新30日）
-  const dayStats = stats.slice(-30).map((stat) => ({
-    name: stat.date.split('-')[2], // DD
-    fullDate: stat.date,
-    count: stat.count,
-  }));
-
-  let chartData;
-  let title;
-
-  switch (displayMode) {
-    case 'year':
-      chartData = yearStats;
-      title = '年別アクセス数';
-      break;
-    case 'month':
-      chartData = monthStats;
-      title = '月別アクセス数';
-      break;
-    case 'day':
-      chartData = dayStats;
-      title = '日別アクセス数（最新30日）';
-      break;
-    case 'all':
-    default:
-      chartData = [{ name: '全期間', count: totalAccess }];
-      title = '全期間アクセス数';
-  }
-
-  return (
-    <Stack spacing={3}>
-      <Paper variant="outlined" sx={{ p: 2 }}>
-        <Stack spacing={2}>
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-              表示期間
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              {[
-                { value: 'all' as const, label: '全期間' },
-                { value: 'year' as const, label: '年別' },
-                { value: 'month' as const, label: '月別' },
-                { value: 'day' as const, label: '日別' },
-              ].map((option) => (
-                <Button
-                  key={option.value}
-                  onClick={() => setDisplayMode(option.value)}
-                  variant={
-                    displayMode === option.value ? 'contained' : 'outlined'
-                  }
-                  size="small"
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </Stack>
-          </Box>
-
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-              {title}
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fafafa' }}>
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  {displayMode === 'all' ? (
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#3b82f6" name="アクセス数" />
-                    </BarChart>
-                  ) : (
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="name"
-                        angle={displayMode === 'day' ? -45 : 0}
-                        textAnchor={displayMode === 'day' ? 'end' : 'middle'}
-                        height={displayMode === 'day' ? 80 : 30}
-                      />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="count"
-                        stroke="#3b82f6"
-                        name="アクセス数"
-                        dot={{ fill: '#3b82f6', r: 4 }}
-                      />
-                    </LineChart>
-                  )}
-                </ResponsiveContainer>
-              ) : (
-                <Typography color="text.secondary" textAlign="center" py={3}>
-                  アクセスデータがありません
-                </Typography>
-              )}
-            </Paper>
-          </Box>
-
-          <Box
-            display="grid"
-            gridTemplateColumns="repeat(auto-fit, minmax(150px, 1fr))"
-            gap={1.5}
-          >
-            <Paper sx={{ p: 1.5, bgcolor: 'info.light', textAlign: 'center' }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                mb={0.5}
-              >
-                全期間
-              </Typography>
-              <Typography variant="h6" fontWeight={700}>
-                {totalAccess}
-              </Typography>
-            </Paper>
-            <Paper sx={{ p: 1.5, bgcolor: 'info.light', textAlign: 'center' }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                mb={0.5}
-              >
-                最大アクセス日
-              </Typography>
-              <Typography variant="h6" fontWeight={700}>
-                {Math.max(...stats.map((s) => s.count), 0)} 回
-              </Typography>
-            </Paper>
-            <Paper sx={{ p: 1.5, bgcolor: 'info.light', textAlign: 'center' }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                display="block"
-                mb={0.5}
-              >
-                平均アクセス/日
-              </Typography>
-              <Typography variant="h6" fontWeight={700}>
-                {stats.length > 0 ? Math.round(totalAccess / stats.length) : 0}{' '}
-                回
-              </Typography>
-            </Paper>
-          </Box>
-        </Stack>
-      </Paper>
-    </Stack>
   );
 }

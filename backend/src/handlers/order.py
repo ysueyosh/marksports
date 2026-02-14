@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from src.utils.auth import require_auth_handler, require_admin_auth
 from src.utils.dynamodb import get_users_table
-from src.utils.ses import send_email, ORDER_FROM_EMAIL
+from src.utils.ses import send_email
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -129,7 +129,7 @@ def send_cancel_request_notification_email(order_number: str, user_name: str, us
             to_addresses=admin_emails,
             subject=subject,
             body_text=body,
-            from_email=ORDER_FROM_EMAIL
+            from_email=os.environ.get('ORDER_FROM_EMAIL', 'info@mark-sports.com')
         )
         
         if result.get('success'):
@@ -275,7 +275,7 @@ def send_order_status_update_email(user_email: str, user_name: str, order_number
             to_addresses=[user_email],
             subject=message_data['subject'],
             body_text=message_data['body'],
-            from_email=ORDER_FROM_EMAIL
+            from_email=os.environ.get('ORDER_FROM_EMAIL', 'info@mark-sports.com')
         )
         
         if result.get('success'):
@@ -346,7 +346,7 @@ def send_refund_completed_email(user_email: str, user_name: str, order_number: s
             to_addresses=[user_email],
             subject=subject,
             body_text=body,
-            from_email=ORDER_FROM_EMAIL
+            from_email=os.environ.get('ORDER_FROM_EMAIL', 'info@mark-sports.com')
         )
         
         if result.get('success'):

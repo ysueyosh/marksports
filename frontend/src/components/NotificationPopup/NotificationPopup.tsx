@@ -14,7 +14,6 @@ import {
   Typography,
   Box,
   Button,
-  CircularProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { Notification, getNotifications } from '@/api/notifications';
@@ -75,7 +74,7 @@ export default function NotificationPopup({
             justifyContent="center"
             py={4}
           >
-            <CircularProgress />
+            <Typography color="text.secondary">読み込み中...</Typography>
           </Box>
         ) : notifications.length === 0 ? (
           <Typography color="text.secondary" align="center">

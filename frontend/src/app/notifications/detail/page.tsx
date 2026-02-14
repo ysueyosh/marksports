@@ -13,7 +13,6 @@ import {
   Link as MuiLink,
   Paper,
   Button,
-  CircularProgress,
 } from '@mui/material';
 
 export default function NotificationDetailPage() {
@@ -51,7 +50,7 @@ export default function NotificationDetailPage() {
     return (
       <MainLayout>
         <Box display="flex" justifyContent="center" py={6}>
-          <CircularProgress />
+          <Typography color="text.secondary">読み込み中...</Typography>
         </Box>
       </MainLayout>
     );

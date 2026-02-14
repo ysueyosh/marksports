@@ -7,6 +7,7 @@ import ProductCard from '@/components/ProductCard/ProductCard';
 import Link from 'next/link';
 import { useCategories } from '@/context/CategoryContext';
 import { getFeaturedProducts, Product } from '@/api/products';
+import { recordPageViewIfNeeded } from '@/utils/page-view';
 import { Box, Typography, Button } from '@mui/material';
 
 export default function Home() {
@@ -19,6 +20,10 @@ export default function Home() {
   const handleProductClick = (productId: number) => {
     router.push(`/product/detail?id=${productId}`);
   };
+
+  useEffect(() => {
+    recordPageViewIfNeeded('/');
+  }, []);
 
   useEffect(() => {
     const fetchFeaturedProducts = async () => {

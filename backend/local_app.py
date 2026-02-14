@@ -9,11 +9,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Set environment variables for local testing
-os.environ['ADMIN_TABLE_NAME'] = 'Admin'
-os.environ['COMMERCE_TABLE_NAME'] = 'Commerce'
-os.environ['USERS_TABLE_NAME'] = 'User'
-os.environ['CART_TABLE_NAME'] = 'User'
+os.environ['ADMIN_TABLE_NAME'] = 'Admin-dev'
+os.environ['COMMERCE_TABLE_NAME'] = 'Commerce-dev'
+os.environ['USERS_TABLE_NAME'] = 'User-dev'
+os.environ['CART_TABLE_NAME'] = 'User-dev'
 os.environ['FRONTEND_URL'] = 'http://localhost:3000'
+os.environ['PAGE_VIEW_TABLE_NAME'] = 'PageViewDaily-dev'
+os.environ['RESET_EMAIL_FROM'] = 'info@mark-sports.com'
+os.environ['COMPANY_NAME'] = 'MARK SPORTS'
+os.environ['COMPANY_EMAIL'] = 'info@mark-sports.com'
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -29,6 +33,7 @@ from src.handlers.product import get_featured_products, get_product_detail, get_
 from src.handlers.search import search_products
 from src.handlers.coupon import apply_coupon
 from src.handlers.notification import get_notifications, get_notification_detail, get_notification_count
+from src.handlers.page_view import record_page_view, get_page_view_stats
 from src.handlers.order import get_orders, get_order_detail, cancel_order, revoke_cancel_request, save_order, get_all_orders, update_order_status, get_admin_order_detail, get_dashboard_pending_orders, get_dashboard_payment_confirmation
 from src.handlers.admin import admin_login, admin_refresh_token, admin_verify_token, create_admin, get_admin_settings, update_admin_settings, manual_refund
 from src.handlers.admin_product import create_product, update_product, delete_product, get_all_products
@@ -36,6 +41,7 @@ from src.handlers.admin_category import admin_create_category_route, admin_get_a
 from src.handlers.admin_coupon import create_coupon, update_coupon, delete_coupon, get_all_coupons
 from src.handlers.admin_user import get_all_users, get_user, update_user, delete_user
 from src.handlers.admin_notification import get_all_notifications, get_notification, create_notification, update_notification, delete_notification
+from src.utils.ses import send_unified_email, send_registration_verification_email, send_order_confirmation_email, send_admin_order_notification_email, send_bank_transfer_instructions_email, send_password_reset_email, send_email, send_template_email
 import json
 
 app = Flask(__name__)
@@ -378,6 +384,18 @@ def delete_notification_route(notification_id):
     return jsonify(body), result['statusCode']
 
 
+@app.route('/admin/page-views', methods=['GET'])
+def admin_page_view_stats_route():
+    """Get page view stats endpoint (admin only)"""
+    event = {
+        'queryStringParameters': request.args.to_dict() or {},
+        'headers': dict(request.headers)
+    }
+    result = get_page_view_stats(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
 @app.route('/admin/images/upload', methods=['POST'])
 def upload_image_route():
     """Upload image to S3 (admin only)"""
@@ -511,6 +529,18 @@ def get_notifications_route():
 def get_notification_count_route():
     """Get notification count endpoint"""
     result = get_notification_count(None, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/page-views', methods=['POST'])
+def record_page_view_route():
+    """Record page view endpoint"""
+    event = {
+        'body': request.data.decode(),
+        'headers': dict(request.headers)
+    }
+    result = record_page_view(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 

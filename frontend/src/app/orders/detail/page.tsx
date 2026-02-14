@@ -21,7 +21,6 @@ import {
   TableCell,
   Divider,
   Alert,
-  CircularProgress,
   Link as MuiLink,
 } from '@mui/material';
 
@@ -64,7 +63,6 @@ export default function OrderDetailPage() {
       <MainLayout>
         <Box sx={{ px: { xs: 2, md: 3 }, py: 6 }}>
           <Stack alignItems="center" spacing={2}>
-            <CircularProgress />
             <Typography color="text.secondary">読み込み中...</Typography>
           </Stack>
         </Box>

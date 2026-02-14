@@ -15,7 +15,6 @@ import {
   Link as MuiLink,
 } from '@mui/material';
 import { useAuth } from '@/context/AuthContext';
-import { useLoading } from '@/context/LoadingContext';
 import { useCart } from '@/context/CartContext';
 import { login as apiLogin } from '@/api/auth';
 
@@ -28,10 +27,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { loginWithUserData } = useAuth();
   const { setUserIdentifier, fetchCart } = useCart();
-  const { isLoading, setIsLoading } = useLoading();
 
   const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -52,8 +51,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setError('');
 
     try {
-      // ローディング状態を手動で制御
-      setIsLoading(true);
+      setIsSubmitting(true);
       // APIでログイン
       const response = await apiLogin(email, password);
 
@@ -86,8 +84,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       console.error('Login error:', err);
       setError('ログイン処理に失敗しました。時間をおいて再度お試しください。');
     } finally {
-      // 最後に必ずローディング状態を解除
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -110,7 +107,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            disabled={isLoading}
+            disabled={isSubmitting}
             placeholder="example@example.com"
             fullWidth
           />
@@ -139,7 +136,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={handlePasswordKeyDown}
             required
-            disabled={isLoading}
+            disabled={isSubmitting}
             placeholder="パスワード"
             fullWidth
           />
@@ -152,9 +149,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             type="submit"
             variant="contained"
             fullWidth
-            disabled={isLoading}
+            disabled={isSubmitting}
           >
-            {isLoading ? 'ログイン中...' : 'ログイン'}
+            {isSubmitting ? 'ログイン中...' : 'ログイン'}
           </Button>
           <Typography variant="body2" color="text.secondary">
             アカウントをお持ちでない方は{' '}

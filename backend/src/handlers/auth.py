@@ -4,8 +4,10 @@ Authentication handler
 
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 import bcrypt
+import secrets
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key
 from src.auth import ACCESS_TOKEN_EXPIRE_SECONDS
@@ -21,6 +23,7 @@ from src.utils.jwt import (
     hash_refresh_token, verify_refresh_token
 )
 from src.utils.dynamodb import get_users_table
+from src.utils.ses import send_email, send_unified_email
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -1124,28 +1127,148 @@ def request_password_reset(event, context):
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Email is required"
-                }),
+                    "message": "メールアドレスを入力してください"
+                }, ensure_ascii=False),
             }
         
-        # TODO: Generate reset token and send email
-        # For now, return success with a dummy token
-        reset_token = f"reset_{email}_{int(datetime.now().timestamp())}"
-        
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": True,
-                "message": "Password reset email sent successfully",
-                "data": {
-                    "token": reset_token  # For development only
+        # Find user by email
+        users_table = get_users_table()
+        try:
+            response = users_table.query(
+                IndexName='GSI_MAIL',
+                KeyConditionExpression='email = :email',
+                ExpressionAttributeValues={':email': email}
+            )
+            
+            if not response.get('Items'):
+                # Return success even if user doesn't exist (security best practice)
+                # This prevents email enumeration attacks
+                return {
+                    "statusCode": 200,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": True,
+                        "message": "パスワードリセットメールを送信しました。メールが届かない場合は迷惑メールフォルダをご確認ください。"
+                    }, ensure_ascii=False),
                 }
-            }),
-        }
+            
+            user_item = response['Items'][0]
+            user_id = user_item.get('userId')
+            user_name = user_item.get('name', '')
+            
+            # Generate reset token (secure random token)
+            reset_token = secrets.token_urlsafe(32)
+            
+            # Store reset token in user record with expiration (30 minutes)
+            expiration_time = datetime.now() + timedelta(minutes=30)
+            
+            users_table.update_item(
+                Key={
+                    'PK': f'USER#{user_id}',
+                    'SK': f'PROFILE#{user_id}'
+                },
+                UpdateExpression='SET passwordResetToken = :token, passwordResetExpiry = :expiry',
+                ExpressionAttributeValues={
+                    ':token': reset_token,
+                    ':expiry': int(expiration_time.timestamp())
+                }
+            )
+            
+            # Build reset URL
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+            reset_url = f"{frontend_url}/reset-password/confirm?token={reset_token}"
+            
+            # Send password reset email
+            email_body_text = f"""パスワードリセットのリクエストを受け付けました。
+
+以下のリンクからパスワードをリセットしてください。
+{reset_url}
+
+このリンクは30分間有効です。
+
+このリクエストに心当たりがない場合は、このメールは無視して構いません。
+"""
+
+            email_body_html = f"""<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">パスワードリセット</h2>
+    
+    <p>パスワードリセットのリクエストを受け付けました。</p>
+    
+    <p>以下のボタンをクリックして、新しいパスワードを設定してください。</p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{reset_url}" 
+           style="background-color: #2563eb; color: white; padding: 12px 30px; 
+                  text-decoration: none; border-radius: 5px; display: inline-block;">
+            パスワードをリセット
+        </a>
+    </div>
+    
+    <p style="color: #666; font-size: 14px;">
+        上記のボタンがクリックできない場合は、以下のURLをコピーしてブラウザに貼り付けてください：
+    </p>
+    <p style="word-break: break-all; background-color: #f9f9f9; padding: 10px; border-left: 3px solid #2563eb; font-size: 12px;">
+        {reset_url}
+    </p>
+    
+    <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+        <p style="margin: 0; font-weight: bold;">このリンクは30分間有効です。</p>
+    </div>
+    
+    <p style="color: #666; font-size: 14px;">
+        このリクエストに心当たりがない場合は、このメールを無視してください。
+    </p>
+</div>
+</body>
+</html>
+"""
+            
+            send_result = send_unified_email(
+                to_addresses=[email],
+                subject="パスワードリセット",
+                body_text=email_body_text,
+                body_html=email_body_html,
+                from_email=os.environ.get('RESET_EMAIL_FROM', 'info@mark-sports.com')
+            )
+            
+            if not send_result.get('success'):
+                logger.error(f"Failed to send reset email: {send_result.get('error')}")
+            
+            # Return success (always, to prevent email enumeration)
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": True,
+                    "message": "パスワードリセットメールを送信しました。メールが届かない場合は迷惑メールフォルダをご確認ください。"
+                }, ensure_ascii=False),
+            }
+        
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            # Return success even on error (don't expose database issues)
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": True,
+                    "message": "パスワードリセットメールを送信しました。メールが届かない場合は迷惑メールフォルダをご確認ください。"
+                }, ensure_ascii=False),
+            }
     
     except Exception as e:
         logger.error(f"Error requesting password reset: {str(e)}")
@@ -1157,8 +1280,8 @@ def request_password_reset(event, context):
             },
             "body": json.dumps({
                 "success": False,
-                "message": f"Failed to request password reset: {str(e)}"
-            }),
+                "message": f"エラーが發生しました"
+            }, ensure_ascii=False),
         }
 
 
@@ -1189,13 +1312,64 @@ def verify_reset_token(event, context):
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Token is required"
-                }),
+                    "message": "トークンが必要です"
+                }, ensure_ascii=False),
             }
         
-        # TODO: Verify token from database
-        # For now, accept any token starting with "reset_"
-        if not token.startswith("reset_"):
+        # Find user by reset token
+        users_table = get_users_table()
+        try:
+            # Scan for user with matching reset token
+            response = users_table.scan(
+                FilterExpression='passwordResetToken = :token',
+                ExpressionAttributeValues={':token': token}
+            )
+            
+            if not response.get('Items'):
+                return {
+                    "statusCode": 400,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "無効または有効期限切れのリンクです"
+                    }, ensure_ascii=False),
+                }
+            
+            user_item = response['Items'][0]
+            reset_expiry = user_item.get('passwordResetExpiry', 0)
+            
+            # Check if token is expired
+            current_time = datetime.now().timestamp()
+            if current_time > reset_expiry:
+                return {
+                    "statusCode": 400,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "リンクの有効期限が切れています。もう一度リセットをリクエストしてください。"
+                    }, ensure_ascii=False),
+                }
+            
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": True,
+                    "message": "トークンは有効です"
+                }, ensure_ascii=False),
+            }
+        
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
             return {
                 "statusCode": 400,
                 "headers": {
@@ -1204,21 +1378,9 @@ def verify_reset_token(event, context):
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Invalid or expired token"
-                }),
+                    "message": "無効または有効期限切れのリンクです"
+                }, ensure_ascii=False),
             }
-        
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": True,
-                "message": "Token is valid"
-            }),
-        }
     
     except Exception as e:
         logger.error(f"Error verifying reset token: {str(e)}")
@@ -1230,8 +1392,8 @@ def verify_reset_token(event, context):
             },
             "body": json.dumps({
                 "success": False,
-                "message": f"Failed to verify token: {str(e)}"
-            }),
+                "message": f"エラーが発生しました"
+            }, ensure_ascii=False),
         }
 
 
@@ -1253,8 +1415,9 @@ def reset_password(event, context):
         body = json.loads(event.get("body", "{}"))
         token = body.get("token")
         new_password = body.get("newPassword")
+        confirm_password = body.get("confirmPassword")
         
-        if not token or not new_password:
+        if not token or not new_password or not confirm_password:
             return {
                 "statusCode": 400,
                 "headers": {
@@ -1263,13 +1426,12 @@ def reset_password(event, context):
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Token and new password are required"
-                }),
+                    "message": "トークンと新しいパスワードは必須です"
+                }, ensure_ascii=False),
             }
         
-        # TODO: Verify token and update password in database
-        # For now, accept any token starting with "reset_"
-        if not token.startswith("reset_"):
+        # Validate password match
+        if new_password != confirm_password:
             return {
                 "statusCode": 400,
                 "headers": {
@@ -1278,21 +1440,110 @@ def reset_password(event, context):
                 },
                 "body": json.dumps({
                     "success": False,
-                    "message": "Invalid or expired token"
-                }),
+                    "message": "パスワードが一致しません"
+                }, ensure_ascii=False),
             }
         
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-            },
-            "body": json.dumps({
-                "success": True,
-                "message": "Password reset successfully"
-            }),
-        }
+        # Validate password length
+        if len(new_password) < 8:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "パスワードは8文字以上である必要があります"
+                }, ensure_ascii=False),
+            }
+        
+        # Find user by reset token
+        users_table = get_users_table()
+        try:
+            # Scan for user with matching reset token
+            response = users_table.scan(
+                FilterExpression='passwordResetToken = :token',
+                ExpressionAttributeValues={':token': token}
+            )
+            
+            if not response.get('Items'):
+                return {
+                    "statusCode": 400,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "無効または有効期限切れのリンクです"
+                    }, ensure_ascii=False),
+                }
+            
+            user_item = response['Items'][0]
+            user_id = user_item.get('userId')
+            reset_expiry = user_item.get('passwordResetExpiry', 0)
+            
+            # Check if token is expired
+            current_time = datetime.now().timestamp()
+            if current_time > reset_expiry:
+                return {
+                    "statusCode": 400,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                    "body": json.dumps({
+                        "success": False,
+                        "message": "リンクの有効期限が切れています。もう一度リセットをリクエストしてください。"
+                    }, ensure_ascii=False),
+                }
+            
+            # Hash new password
+            password_hash = bcrypt.hashpw(
+                new_password.encode('utf-8'),
+                bcrypt.gensalt()
+            ).decode('utf-8')
+            
+            # Update password and clear reset token
+            users_table.update_item(
+                Key={
+                    'PK': f'USER#{user_id}',
+                    'SK': f'PROFILE#{user_id}'
+                },
+                UpdateExpression='SET passwordHash = :hash, passwordResetToken = :token, passwordResetExpiry = :expiry',
+                ExpressionAttributeValues={
+                    ':hash': password_hash,
+                    ':token': None,
+                    ':expiry': None
+                }
+            )
+            
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": True,
+                    "message": "パスワードをリセットしました"
+                }, ensure_ascii=False),
+            }
+        
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            return {
+                "statusCode": 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({
+                    "success": False,
+                    "message": "パスワードリセットに失敗しました"
+                }, ensure_ascii=False),
+            }
     
     except Exception as e:
         logger.error(f"Error resetting password: {str(e)}")
@@ -1304,7 +1555,7 @@ def reset_password(event, context):
             },
             "body": json.dumps({
                 "success": False,
-                "message": f"Failed to reset password: {str(e)}"
-            }),
+                "message": f"パスワードリセットに失敗しました"
+            }, ensure_ascii=False),
         }
 

@@ -24,7 +24,6 @@ import {
   Divider,
   Link as MuiLink,
   Alert,
-  CircularProgress,
 } from '@mui/material';
 
 const ITEMS_PER_PAGE = 20;
@@ -190,7 +189,7 @@ export default function PaymentPage() {
 
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
+              <Typography color="text.secondary">読み込み中...</Typography>
             </Box>
           ) : cards.length === 0 ? (
             <Paper sx={{ p: { xs: 2, md: 3 } }}>

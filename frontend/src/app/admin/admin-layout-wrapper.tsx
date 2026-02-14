@@ -38,6 +38,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
   const navItems = [
     { href: '/admin/home', label: 'ホーム' },
     { href: '/admin/products', label: '商品管理' },
+    { href: '/admin/access', label: 'アクセス管理' },
     { href: '/admin/orders', label: '注文管理' },
     { href: '/admin/coupons', label: 'クーポン管理' },
     { href: '/admin/users', label: 'ユーザー管理' },

@@ -9,6 +9,7 @@ import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
 import { formatPriceIncludedTax } from '@/utils/price';
+import { recordPageViewIfNeeded } from '@/utils/page-view';
 import {
   getProductDetail,
   ProductDetail,
@@ -67,6 +68,11 @@ export default function ProductDetailPage() {
       setSearchUrl(`/search?${params.toString()}`);
     }
   }, [conditions]);
+
+  useEffect(() => {
+    if (!id) return;
+    recordPageViewIfNeeded(`/${id}`);
+  }, [id]);
 
   // Fetch product detail
   useEffect(() => {

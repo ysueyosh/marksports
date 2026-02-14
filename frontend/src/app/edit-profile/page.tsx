@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import MainLayout from '@/components/Layout/MainLayout';
-import LoadingSpinner from '@/components/Admin/LoadingSpinner';
 import Link from 'next/link';
 import { TextInput } from '@/components/Input/TextInput';
 import { updateProfile, changePassword } from '@/api/auth';
@@ -36,7 +35,6 @@ export default function EditProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoggedIn, user } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState<ProfileFormData>({
     name: user?.name || '',
     gender: '',
@@ -59,23 +57,6 @@ export default function EditProfilePage() {
     { id: 'female', label: '女性' },
     { id: 'other', label: 'その他' },
   ];
-
-  // 1秒間スピナーを表示
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // ページ遷移時にスピナーを表示
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [pathname]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -134,7 +115,6 @@ export default function EditProfilePage() {
   if (!isLoggedIn || !user) {
     return (
       <MainLayout>
-        {isLoading && <LoadingSpinner />}
         <Box textAlign="center" py={6}>
           <Typography variant="h5" fontWeight={700} gutterBottom>
             プロフィール編集
@@ -211,7 +191,6 @@ export default function EditProfilePage() {
 
   return (
     <MainLayout>
-      {isLoading && <LoadingSpinner />}
       <Box display="flex" flexDirection="column" gap={3}>
         <Breadcrumbs>
           <MuiLink component={Link} href="/" color="inherit">

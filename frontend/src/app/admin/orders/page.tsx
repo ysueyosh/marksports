@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminTable from '@/components/Admin/AdminTable';
 import Pagination from '@/components/Pagination/Pagination';
-import LoadingSpinner from '@/components/Admin/LoadingSpinner';
 import OrderStatusChip from '@/components/OrderStatusChip/OrderStatusChip';
 import { getAllOrders, AdminOrder } from '@/api/admin-orders';
 import {
@@ -44,7 +43,6 @@ export default function AdminOrdersPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,7 +57,6 @@ export default function AdminOrdersPage() {
     const adminLogged = localStorage.getItem('adminLogged');
     if (!adminLogged) {
       router.push('/admin/login');
-      setIsLoading(false);
     } else {
       setIsLoggedIn(true);
       // 初回読み込み時はすべての注文を取得
@@ -77,8 +74,6 @@ export default function AdminOrdersPage() {
           }
         } catch (error) {
           console.error('Error fetching orders:', error);
-        } finally {
-          setIsLoading(false);
         }
       };
 
@@ -133,15 +128,6 @@ export default function AdminOrdersPage() {
     }
   };
 
-  // ページ遷移時にスピナーを表示
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [currentPage]);
-
   if (!isLoggedIn) {
     return null;
   }
@@ -172,73 +158,118 @@ export default function AdminOrdersPage() {
   );
 
   return (
-    <>
-      {isLoading && <LoadingSpinner />}
-      <Box>
-        <Stack spacing={2}>
-          <Typography variant="h4" fontWeight={700}>
-            受注管理
-          </Typography>
+    <Box>
+      <Stack spacing={2}>
+        <Typography variant="h4" fontWeight={700}>
+          受注管理
+        </Typography>
 
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={2}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  placeholder="注文番号で検索..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  fullWidth
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSearch();
-                    }
-                  }}
-                />
-                <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                  <Select
-                    value={filterPaymentStatus}
-                    onChange={(e) =>
-                      setFilterPaymentStatus(e.target.value as any)
-                    }
-                  >
-                    <MenuItem value="all">ステータス: すべて</MenuItem>
-                    <MenuItem value="unpaid">決済待ち</MenuItem>
-                    <MenuItem value="awaiting_shipment">配送待ち</MenuItem>
-                    <MenuItem value="in_transit">配送中</MenuItem>
-                    <MenuItem value="delivered">配送完了</MenuItem>
-                  </Select>
-                </FormControl>
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button
-                  variant="contained"
-                  onClick={handleSearch}
-                  disabled={isSearching}
-                  sx={{ flexShrink: 0 }}
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                placeholder="注文番号で検索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                fullWidth
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+              />
+              <FormControl sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                <Select
+                  value={filterPaymentStatus}
+                  onChange={(e) =>
+                    setFilterPaymentStatus(e.target.value as any)
+                  }
                 >
-                  {isSearching ? '検索中...' : '検索'}
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={handleResetSearch}
-                  disabled={isSearching}
-                  sx={{ flexShrink: 0 }}
-                >
-                  リセット
-                </Button>
-              </Stack>
+                  <MenuItem value="all">ステータス: すべて</MenuItem>
+                  <MenuItem value="unpaid">決済待ち</MenuItem>
+                  <MenuItem value="awaiting_shipment">配送待ち</MenuItem>
+                  <MenuItem value="in_transit">配送中</MenuItem>
+                  <MenuItem value="delivered">配送完了</MenuItem>
+                </Select>
+              </FormControl>
             </Stack>
-          </Paper>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                variant="contained"
+                onClick={handleSearch}
+                disabled={isSearching}
+                sx={{ flexShrink: 0 }}
+              >
+                {isSearching ? '検索中...' : '検索'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleResetSearch}
+                disabled={isSearching}
+                sx={{ flexShrink: 0 }}
+              >
+                リセット
+              </Button>
+            </Stack>
+          </Stack>
+        </Paper>
 
-          <AdminTable
-            columns={
-              isMobile
+        <AdminTable
+          columns={
+            isMobile
+              ? [
+                  {
+                    key: 'orderNumber',
+                    label: '注文番号',
+                    width: '100px',
+                    render: (v) => `#${v}`,
+                  },
+                  {
+                    key: 'status',
+                    label: 'ステータス',
+                    render: (v, row: Order) => (
+                      <Stack spacing={1} alignItems="flex-start">
+                        {row.isCancelRequest &&
+                          v !== 'cancelled_customer' &&
+                          v !== 'cancelled_internal' && (
+                            <Chip
+                              size="small"
+                              label="キャンセル申請中"
+                              color="error"
+                            />
+                          )}
+                        {row.refundAt && (
+                          <Chip
+                            size="small"
+                            label="返金処理完了"
+                            color="success"
+                          />
+                        )}
+                        <OrderStatusChip
+                          status={
+                            v as
+                              | 'unpaid'
+                              | 'awaiting_shipment'
+                              | 'in_transit'
+                              | 'delivered'
+                          }
+                        />
+                      </Stack>
+                    ),
+                  },
+                ]
+              : isTablet
                 ? [
                     {
                       key: 'orderNumber',
                       label: '注文番号',
-                      width: '100px',
+                      width: '120px',
                       render: (v) => `#${v}`,
+                    },
+                    {
+                      key: 'totalAmount',
+                      label: '金額',
+                      render: (v) => `¥${(v || 0).toLocaleString()}`,
                     },
                     {
                       key: 'status',
@@ -274,127 +305,79 @@ export default function AdminOrdersPage() {
                       ),
                     },
                   ]
-                : isTablet
-                  ? [
-                      {
-                        key: 'orderNumber',
-                        label: '注文番号',
-                        width: '120px',
-                        render: (v) => `#${v}`,
-                      },
-                      {
-                        key: 'totalAmount',
-                        label: '金額',
-                        render: (v) => `¥${(v || 0).toLocaleString()}`,
-                      },
-                      {
-                        key: 'status',
-                        label: 'ステータス',
-                        render: (v, row: Order) => (
-                          <Stack spacing={1} alignItems="flex-start">
-                            {row.isCancelRequest &&
-                              v !== 'cancelled_customer' &&
-                              v !== 'cancelled_internal' && (
-                                <Chip
-                                  size="small"
-                                  label="キャンセル申請中"
-                                  color="error"
-                                />
-                              )}
-                            {row.refundAt && (
+                : [
+                    {
+                      key: 'orderNumber',
+                      label: '注文番号',
+                      width: '80px',
+                      render: (v) => `#${v}`,
+                    },
+                    {
+                      key: 'totalAmount',
+                      label: '金額',
+                      render: (v) => `¥${(v || 0).toLocaleString()}`,
+                    },
+                    {
+                      key: 'status',
+                      label: 'ステータス',
+                      render: (v, row: Order) => (
+                        <Stack spacing={1} alignItems="flex-start">
+                          {row.isCancelRequest &&
+                            v !== 'cancelled_customer' &&
+                            v !== 'cancelled_internal' && (
                               <Chip
                                 size="small"
-                                label="返金処理完了"
-                                color="success"
+                                label="キャンセル申請中"
+                                color="error"
                               />
                             )}
-                            <OrderStatusChip
-                              status={
-                                v as
-                                  | 'unpaid'
-                                  | 'awaiting_shipment'
-                                  | 'in_transit'
-                                  | 'delivered'
-                              }
+                          {row.refundAt && (
+                            <Chip
+                              size="small"
+                              label="返金処理完了"
+                              color="success"
                             />
-                          </Stack>
-                        ),
-                      },
-                    ]
-                  : [
-                      {
-                        key: 'orderNumber',
-                        label: '注文番号',
-                        width: '80px',
-                        render: (v) => `#${v}`,
-                      },
-                      {
-                        key: 'totalAmount',
-                        label: '金額',
-                        render: (v) => `¥${(v || 0).toLocaleString()}`,
-                      },
-                      {
-                        key: 'status',
-                        label: 'ステータス',
-                        render: (v, row: Order) => (
-                          <Stack spacing={1} alignItems="flex-start">
-                            {row.isCancelRequest &&
-                              v !== 'cancelled_customer' &&
-                              v !== 'cancelled_internal' && (
-                                <Chip
-                                  size="small"
-                                  label="キャンセル申請中"
-                                  color="error"
-                                />
-                              )}
-                            {row.refundAt && (
-                              <Chip
-                                size="small"
-                                label="返金処理完了"
-                                color="success"
-                              />
-                            )}
-                            <OrderStatusChip
-                              status={
-                                v as
-                                  | 'unpaid'
-                                  | 'awaiting_shipment'
-                                  | 'in_transit'
-                                  | 'delivered'
-                              }
-                            />
-                          </Stack>
-                        ),
-                      },
-                      {
-                        key: 'orderDate',
-                        label: '注文日',
-                        render: (v) => new Date(v).toLocaleDateString('ja-JP'),
-                      },
-                    ]
-            }
-            data={paginatedOrders}
-            rowKey="id"
-            actions={[
-              {
-                label: '詳細表示',
-                onClick: (row) =>
-                  router.push(`/admin/orders/detail?id=${row.id}`),
-                variant: 'primary',
-              },
-            ]}
-            emptyMessage="注文が見つかりません"
-          />
+                          )}
+                          <OrderStatusChip
+                            status={
+                              v as
+                                | 'unpaid'
+                                | 'awaiting_shipment'
+                                | 'in_transit'
+                                | 'delivered'
+                            }
+                          />
+                        </Stack>
+                      ),
+                    },
+                    {
+                      key: 'orderDate',
+                      label: '注文日',
+                      render: (v) => new Date(v).toLocaleDateString('ja-JP'),
+                    },
+                  ]
+          }
+          data={paginatedOrders}
+          rowKey="id"
+          actions={[
+            {
+              label: '詳細表示',
+              onClick: (row) =>
+                router.push(`/admin/orders/detail?id=${row.id}`),
+              variant: 'primary',
+            },
+          ]}
+          emptyMessage="注文が見つかりません"
+        />
 
-          <Box display="flex" justifyContent="center">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-            />
-          </Box>
-        </Stack>
-      </Box>
-    </>
+        <Box display="flex" justifyContent="center">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </Box>
+      </Stack>
+    </Box>
   );
 }

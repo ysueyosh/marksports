@@ -18,6 +18,7 @@ USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'User-dev')
 ADMIN_TABLE_NAME = os.environ.get('ADMIN_TABLE_NAME', 'Admin-dev')
 NOTIFICATION_TABLE_NAME = os.environ.get('NOTIFICATION_TABLE_NAME', 'Notification-dev')
 CART_TABLE_NAME = os.environ.get('CART_TABLE_NAME', 'User-dev')
+PAGE_VIEW_TABLE_NAME = os.environ.get('PAGE_VIEW_TABLE_NAME', 'PageViewDaily-dev')
 
 def get_commerce_table():
     """Get Commerce table instance"""
@@ -38,6 +39,10 @@ def get_notification_table():
 def get_cart_table():
     """Get Cart table instance"""
     return dynamodb.Table(CART_TABLE_NAME)
+
+def get_page_view_table():
+    """Get Page view daily table instance"""
+    return dynamodb.Table(PAGE_VIEW_TABLE_NAME)
 
 # PK/SK prefixes
 PRODUCT_PK = 'PRODUCT'

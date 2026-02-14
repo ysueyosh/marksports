@@ -8,7 +8,6 @@ import {
   verifyEmail,
   resendVerificationEmail,
 } from '@/api/register';
-import { useLoading } from '@/context/LoadingContext';
 import { TextInput } from '@/components/Input/TextInput';
 import { searchAddressByPostalCode } from '@/api/address';
 import { PREFECTURE_OPTIONS } from '@/constants/prefectures';
@@ -74,8 +73,8 @@ export default function RegisterPage() {
   const [verificationError, setVerificationError] = useState('');
   const [isResendingEmail, setIsResendingEmail] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const router = useRouter();
-  const { setIsLoading } = useLoading();
 
   // 都道府県セレクトオプション（日本語）
   const prefectureOptions = PREFECTURE_OPTIONS;
@@ -100,7 +99,6 @@ export default function RegisterPage() {
     }
 
     setIsSearchingAddress(true);
-    setIsLoading(true);
     setAddressSearchError(null);
 
     try {
@@ -120,7 +118,6 @@ export default function RegisterPage() {
       setAddressSearchError('住所の検索に失敗しました');
     } finally {
       setIsSearchingAddress(false);
-      setIsLoading(false);
     }
   };
 
@@ -194,7 +191,7 @@ export default function RegisterPage() {
 
   const handleConfirm = async () => {
     try {
-      setIsLoading(true);
+      setIsRegistering(true);
       const response = await apiRegister({
         name: formData.name,
         email: formData.email,
@@ -221,7 +218,7 @@ export default function RegisterPage() {
       setError('ユーザー登録に失敗しました。時間をおいて再度お試しください。');
       setStep('form');
     } finally {
-      setIsLoading(false);
+      setIsRegistering(false);
     }
   };
 
@@ -477,7 +474,11 @@ export default function RegisterPage() {
               )}
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mt={3}>
-              <Button variant="contained" onClick={handleConfirm}>
+              <Button
+                variant="contained"
+                onClick={handleConfirm}
+                disabled={isRegistering}
+              >
                 登録
               </Button>
               <Button variant="outlined" onClick={() => setStep('form')}>

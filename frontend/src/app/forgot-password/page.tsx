@@ -6,7 +6,6 @@ import Link from 'next/link';
 import MainLayout from '@/components/Layout/MainLayout';
 import { requestPasswordReset } from '@/api/auth';
 import { useSnackbar } from '@/context/SnackbarContext';
-import { useLoading } from '@/context/LoadingContext';
 import {
   Box,
   Typography,
@@ -24,7 +23,7 @@ import {
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const { show: showSnackbar } = useSnackbar();
-  const { isLoading, setIsLoading } = useLoading();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +45,7 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      setIsLoading(true);
+      setIsSubmitting(true);
 
       const response = await requestPasswordReset({ email });
 
@@ -63,7 +62,7 @@ export default function ForgotPasswordPage() {
       showSnackbar('エラーが発生しました', 'error');
       console.error('Error:', err);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -104,14 +103,14 @@ export default function ForgotPasswordPage() {
                   setError('');
                 }}
                 placeholder="example@example.com"
-                disabled={isLoading}
+                disabled={isSubmitting}
                 error={Boolean(error)}
                 helperText={error}
                 fullWidth
               />
 
-              <Button type="submit" variant="contained" disabled={isLoading}>
-                {isLoading ? '送信中...' : 'リセットメール送信'}
+              <Button type="submit" variant="contained" disabled={isSubmitting}>
+                {isSubmitting ? '送信中...' : 'リセットメール送信'}
               </Button>
 
               <Typography variant="body2">
