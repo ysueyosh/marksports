@@ -30,6 +30,10 @@ export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [infoErrors, setInfoErrors] = useState<Record<string, string>>({});
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>(
+    {},
+  );
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -76,10 +80,25 @@ export default function AdminSettingsPage() {
 
   const handleSaveAdmin = async () => {
     if (editingAdmin) {
-      if (!editingAdmin.name || !editingAdmin.email) {
-        setError('名前と個人メールアドレスは必須です');
+      const errors: Record<string, string> = {};
+
+      if (!editingAdmin.name.trim()) {
+        errors.name = '名前を入力してください';
+      }
+
+      if (!editingAdmin.email.trim()) {
+        errors.email = '個人メールアドレスを入力してください';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editingAdmin.email)) {
+        errors.email = '有効なメールアドレスを入力してください';
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setInfoErrors(errors);
+        setError('');
         return;
       }
+
+      setInfoErrors({});
 
       try {
         setIsSaving(true);
@@ -108,22 +127,29 @@ export default function AdminSettingsPage() {
   };
 
   const handlePasswordChange = () => {
-    if (
-      !passwordForm.currentPassword ||
-      !passwordForm.newPassword ||
-      !passwordForm.confirmPassword
-    ) {
-      setError('すべてのフィールドを入力してください');
+    const errors: Record<string, string> = {};
+
+    if (!passwordForm.currentPassword) {
+      errors.currentPassword = '現在のパスワードを入力してください';
+    }
+    if (!passwordForm.newPassword) {
+      errors.newPassword = '新しいパスワードを入力してください';
+    } else if (passwordForm.newPassword.length < 8) {
+      errors.newPassword = 'パスワードは8文字以上で入力してください';
+    }
+    if (!passwordForm.confirmPassword) {
+      errors.confirmPassword = 'パスワード確認を入力してください';
+    } else if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      errors.confirmPassword = '新しいパスワードが一致しません';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordErrors(errors);
+      setError('');
       return;
     }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError('新しいパスワードが一致しません');
-      return;
-    }
-    if (passwordForm.newPassword.length < 6) {
-      setError('パスワードは6文字以上である必要があります');
-      return;
-    }
+
+    setPasswordErrors({});
     // ここで実際のパスワード変更処理を行う
     setError('');
     setSuccess('パスワードを変更しました');
@@ -226,6 +252,7 @@ export default function AdminSettingsPage() {
                       display="flex"
                       flexDirection="column"
                       gap={2}
+                      noValidate
                     >
                       <TextField
                         label="名前"
@@ -236,6 +263,13 @@ export default function AdminSettingsPage() {
                             name: e.target.value,
                           })
                         }
+                        onBlur={() => {
+                          if (infoErrors.name) {
+                            setInfoErrors((prev) => ({ ...prev, name: '' }));
+                          }
+                        }}
+                        error={Boolean(infoErrors.name)}
+                        helperText={infoErrors.name}
                         required
                         disabled={isSaving}
                       />
@@ -249,6 +283,13 @@ export default function AdminSettingsPage() {
                             email: e.target.value,
                           })
                         }
+                        onBlur={() => {
+                          if (infoErrors.email) {
+                            setInfoErrors((prev) => ({ ...prev, email: '' }));
+                          }
+                        }}
+                        error={Boolean(infoErrors.email)}
+                        helperText={infoErrors.email}
                         required
                         disabled={isSaving}
                       />
@@ -288,6 +329,7 @@ export default function AdminSettingsPage() {
                   display="flex"
                   flexDirection="column"
                   gap={2}
+                  noValidate
                 >
                   <TextField
                     label="現在のパスワード"
@@ -299,6 +341,16 @@ export default function AdminSettingsPage() {
                         currentPassword: e.target.value,
                       })
                     }
+                    onBlur={() => {
+                      if (passwordErrors.currentPassword) {
+                        setPasswordErrors((prev) => ({
+                          ...prev,
+                          currentPassword: '',
+                        }));
+                      }
+                    }}
+                    error={Boolean(passwordErrors.currentPassword)}
+                    helperText={passwordErrors.currentPassword}
                     required
                   />
                   <TextField
@@ -311,6 +363,16 @@ export default function AdminSettingsPage() {
                         newPassword: e.target.value,
                       })
                     }
+                    onBlur={() => {
+                      if (passwordErrors.newPassword) {
+                        setPasswordErrors((prev) => ({
+                          ...prev,
+                          newPassword: '',
+                        }));
+                      }
+                    }}
+                    error={Boolean(passwordErrors.newPassword)}
+                    helperText={passwordErrors.newPassword}
                     required
                   />
                   <TextField
@@ -323,6 +385,16 @@ export default function AdminSettingsPage() {
                         confirmPassword: e.target.value,
                       })
                     }
+                    onBlur={() => {
+                      if (passwordErrors.confirmPassword) {
+                        setPasswordErrors((prev) => ({
+                          ...prev,
+                          confirmPassword: '',
+                        }));
+                      }
+                    }}
+                    error={Boolean(passwordErrors.confirmPassword)}
+                    helperText={passwordErrors.confirmPassword}
                     required
                   />
                   <Button type="submit" variant="contained">

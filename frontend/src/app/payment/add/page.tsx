@@ -24,6 +24,7 @@ export default function AddPaymentPage() {
   const { isLoggedIn, user } = useAuth();
   const { show: showSnackbar } = useSnackbar();
   const [cardholderName, setCardholderName] = useState('');
+  const [cardholderNameError, setCardholderNameError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sqInitialized, setSqInitialized] = useState(false);
 
@@ -35,9 +36,12 @@ export default function AddPaymentPage() {
     e.preventDefault();
 
     if (!cardholderName.trim()) {
+      setCardholderNameError('カード所有者名を入力してください');
       showSnackbar('カード所有者名を入力してください', 'error');
       return;
     }
+
+    setCardholderNameError('');
 
     if (!sqInitialized || !cardInstanceRef.current) {
       showSnackbar('Square が初期化されていません', 'error');
@@ -201,10 +205,21 @@ export default function AddPaymentPage() {
           </Typography>
 
           <Paper sx={{ p: { xs: 2, md: 3 } }}>
-            <Stack component="form" onSubmit={handleSubmit} spacing={3}>
+            <Stack
+              component="form"
+              onSubmit={handleSubmit}
+              spacing={3}
+              noValidate
+            >
               <CardFormComponent
                 cardholderName={cardholderName}
-                onCardholderNameChange={setCardholderName}
+                onCardholderNameChange={(value) => {
+                  setCardholderName(value);
+                  if (cardholderNameError) {
+                    setCardholderNameError('');
+                  }
+                }}
+                cardholderNameError={cardholderNameError}
                 sqInitialized={sqInitialized}
                 onSqInitialized={setSqInitialized}
                 cardInstanceRef={cardInstanceRef}

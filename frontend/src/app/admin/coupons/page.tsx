@@ -59,6 +59,7 @@ export default function AdminCouponsPage() {
     endDate: '',
     isActive: true,
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // ページロード時の初期化
   useEffect(() => {
@@ -112,6 +113,7 @@ export default function AdminCouponsPage() {
       endDate: '',
       isActive: true,
     });
+    setFormErrors({});
     setEditingCoupon(null);
     setIsDeleteConfirming(false);
     setDeleteInputValue('');
@@ -142,28 +144,27 @@ export default function AdminCouponsPage() {
 
   // フォーム送信（作成・更新）
   const handleAddCoupon = async () => {
+    const errors: Record<string, string> = {};
+
     if (!formData.couponCode.trim()) {
-      setSnackbar({
-        message: 'クーポンコードを入力してください',
-        type: 'error',
-      });
-      return;
+      errors.couponCode = 'クーポンコードを入力してください';
+    }
+
+    if (!formData.discountValue) {
+      errors.discountValue = '割引値を入力してください';
+    } else if (
+      Number.isNaN(Number(formData.discountValue)) ||
+      Number(formData.discountValue) <= 0
+    ) {
+      errors.discountValue = '割引値は1以上の数値で入力してください';
     }
 
     if (formData.discountType === 'percentage' && !formData.maxDiscountAmount) {
-      setSnackbar({
-        message: 'パーセンテージ割引の場合、最大割引額を入力してください',
-        type: 'error',
-      });
-      return;
+      errors.maxDiscountAmount = '最大割引額を入力してください';
     }
 
     if (formData.discountType === 'amount' && !formData.minOrderAmount) {
-      setSnackbar({
-        message: '固定額割引の場合、最小注文額を入力してください',
-        type: 'error',
-      });
-      return;
+      errors.minOrderAmount = '最小注文額を入力してください';
     }
 
     if (
@@ -171,12 +172,15 @@ export default function AdminCouponsPage() {
       formData.endDate &&
       formData.startDate >= formData.endDate
     ) {
-      setSnackbar({
-        message: '有効期間を正しく設定してください',
-        type: 'error',
-      });
+      errors.endDate = '有効期間を正しく設定してください';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
+
+    setFormErrors({});
 
     try {
       setIsLoading(true);
@@ -306,6 +310,9 @@ export default function AdminCouponsPage() {
       ...formData,
       [name]: type === 'checkbox' ? checked : value,
     });
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleSelectChange = (e: SelectChangeEvent) => {
@@ -314,6 +321,9 @@ export default function AdminCouponsPage() {
       ...formData,
       [name]: value,
     });
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   // ページネーション
@@ -487,6 +497,8 @@ export default function AdminCouponsPage() {
               value={formData.couponCode}
               onChange={handleFormChange}
               placeholder="例: SUMMER2024"
+              error={Boolean(formErrors.couponCode)}
+              helperText={formErrors.couponCode}
               fullWidth
             />
 
@@ -515,6 +527,8 @@ export default function AdminCouponsPage() {
                 onChange={handleFormChange}
                 placeholder="0"
                 inputProps={{ min: 0, step: 0.01 }}
+                error={Boolean(formErrors.discountValue)}
+                helperText={formErrors.discountValue}
                 fullWidth
               />
             </Box>
@@ -528,6 +542,8 @@ export default function AdminCouponsPage() {
                 onChange={handleFormChange}
                 placeholder="0"
                 inputProps={{ min: 0, step: 0.01 }}
+                error={Boolean(formErrors.maxDiscountAmount)}
+                helperText={formErrors.maxDiscountAmount}
                 fullWidth
               />
             )}
@@ -541,6 +557,8 @@ export default function AdminCouponsPage() {
                 onChange={handleFormChange}
                 placeholder="0"
                 inputProps={{ min: 0, step: 0.01 }}
+                error={Boolean(formErrors.minOrderAmount)}
+                helperText={formErrors.minOrderAmount}
                 fullWidth
               />
             )}
@@ -559,6 +577,8 @@ export default function AdminCouponsPage() {
                 value={formData.startDate}
                 onChange={handleFormChange}
                 InputLabelProps={{ shrink: true }}
+                error={Boolean(formErrors.startDate)}
+                helperText={formErrors.startDate}
               />
               <TextField
                 type="date"
@@ -567,6 +587,8 @@ export default function AdminCouponsPage() {
                 value={formData.endDate}
                 onChange={handleFormChange}
                 InputLabelProps={{ shrink: true }}
+                error={Boolean(formErrors.endDate)}
+                helperText={formErrors.endDate}
               />
             </Box>
 

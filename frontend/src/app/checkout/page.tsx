@@ -854,6 +854,7 @@ export default function CheckoutPage() {
               component="form"
               onSubmit={(e) => e.preventDefault()}
               sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
+              noValidate
             >
               {paymentError && (
                 <Alert severity="error" sx={{ whiteSpace: 'pre-wrap' }}>

@@ -509,6 +509,7 @@ def get_all_products(event, context):
     Query parameters:
         - page: Page number (default: 1)
         - limit: Items per page (default: 10)
+        - keyword: Product name keyword (optional)
     
     Args:
         event: Lambda event
@@ -524,8 +525,11 @@ def get_all_products(event, context):
         query_params = event.get("queryStringParameters") or {}
         page = int(query_params.get("page", "1"))
         limit = int(query_params.get("limit", "10"))
+        keyword = (query_params.get("keyword") or "").strip().lower()
         
-        logger.info(f"Getting all products - page: {page}, limit: {limit}")
+        logger.info(
+            f"Getting all products - page: {page}, limit: {limit}, keyword: {keyword}"
+        )
         
         table = get_commerce_table()
         
@@ -536,6 +540,13 @@ def get_all_products(event, context):
         )
         
         all_products = response.get('Items', [])
+
+        if keyword:
+            all_products = [
+                product
+                for product in all_products
+                if keyword in product.get("name", "").lower()
+            ]
         
         # Pagination
         total_count = len(all_products)

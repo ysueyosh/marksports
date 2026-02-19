@@ -152,6 +152,10 @@ export default function RegisterPage() {
     if (!formData.confirm)
       errors.confirm = 'パスワード（確認）を入力してください';
 
+    if (formData.password && formData.password.length < 8) {
+      errors.password = 'パスワードは8文字以上で入力してください';
+    }
+
     // Validate address fields only if address registration is checked
     if (formData.registerAddress) {
       if (!formData.postalCode)
@@ -237,6 +241,7 @@ export default function RegisterPage() {
               display="flex"
               flexDirection="column"
               gap={3}
+              noValidate
             >
               <Typography variant="h6" fontWeight={700}>
                 基本情報

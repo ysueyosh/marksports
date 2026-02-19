@@ -198,7 +198,7 @@ export function CardAddModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <CardFormComponent
             cardholderName={cardholderName}
             onCardholderNameChange={setCardholderName}

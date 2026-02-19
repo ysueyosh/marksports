@@ -1,18 +1,6 @@
-﻿# Lambda 繝・・繝ｭ繧､逕ｨ蠢・医Λ繧､繝悶Λ繝ｪ
-boto3==1.26.137
+﻿# Lambda デプロイ用必須ライブラリのみ
+# boto3はLambdaに標準搭載されているため不要
 requests==2.31.0
 pydantic[email]>=2.5.0
 PyJWT==2.10.1
 bcrypt==4.1.2
-
-# 繝ｭ繝ｼ繧ｫ繝ｫ髢狗匱蟆ら畑・・ambda 縺ｧ縺ｯ荳崎ｦ√□縺後∝性繧√※繧ょ撫鬘後↑縺暦ｼ・
-python-dotenv==1.0.0
-flask==2.3.2
-flask-cors==4.0.0
-
-# 髢狗匱繝ｻ繝・せ繝育畑・・ambda 繝・・繝ｭ繧､縺ｫ縺ｯ荳崎ｦ・ｼ・
-pytest==7.4.0
-pytest-cov==4.1.0
-black==23.7.0
-flake8==6.0.0
-mypy==1.4.1

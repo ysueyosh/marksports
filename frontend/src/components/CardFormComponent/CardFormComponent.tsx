@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 interface CardFormComponentProps {
   cardholderName: string;
   onCardholderNameChange: (value: string) => void;
+  cardholderNameError?: string;
   sqInitialized: boolean;
   onSqInitialized: (initialized: boolean) => void;
   cardInstanceRef: React.MutableRefObject<any>;
@@ -15,6 +16,7 @@ interface CardFormComponentProps {
 export function CardFormComponent({
   cardholderName,
   onCardholderNameChange,
+  cardholderNameError,
   sqInitialized,
   onSqInitialized,
   cardInstanceRef,
@@ -128,6 +130,11 @@ export function CardFormComponent({
             boxSizing: 'border-box',
           }}
         />
+        {cardholderNameError && (
+          <p style={{ color: '#e74c3c', fontSize: '12px', marginTop: '6px' }}>
+            {cardholderNameError}
+          </p>
+        )}
       </div>
 
       <div style={{ marginBottom: '20px' }}>

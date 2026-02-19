@@ -145,6 +145,7 @@ export default function ResetPasswordPage() {
               component="form"
               onSubmit={handleSubmit}
               sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+              noValidate
             >
               <Typography color="text.secondary">
                 新しいパスワードを入力してください。

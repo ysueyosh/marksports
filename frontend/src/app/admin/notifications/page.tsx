@@ -44,6 +44,7 @@ export default function AdminNotificationsPage() {
     startDate: '',
     endDate: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,6 +93,23 @@ export default function AdminNotificationsPage() {
   }
 
   const handleAddNotification = async () => {
+    const errors: Record<string, string> = {};
+    if (!newNotification.title.trim()) {
+      errors.title = 'タイトルを入力してください';
+    }
+    if (!newNotification.content.trim()) {
+      errors.content = '本文を入力してください';
+    }
+    if (!newNotification.startDate) {
+      errors.startDate = '掲載開始日を入力してください';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     if (
       newNotification.title &&
       newNotification.content &&
@@ -118,6 +136,7 @@ export default function AdminNotificationsPage() {
             startDate: '',
             endDate: '',
           });
+          setFieldErrors({});
           setIsModalOpen(false);
           setTimeout(() => setSuccessMessage(''), 3000);
           loadNotifications();
@@ -186,6 +205,7 @@ export default function AdminNotificationsPage() {
       startDate: '',
       endDate: '',
     });
+    setFieldErrors({});
     setIsDeleteConfirming(false);
     setDeleteTargetId(null);
     setDeleteInputValue('');
@@ -294,8 +314,15 @@ export default function AdminNotificationsPage() {
                   title: e.target.value,
                 })
               }
+              onBlur={() => {
+                if (fieldErrors.title) {
+                  setFieldErrors((prev) => ({ ...prev, title: '' }));
+                }
+              }}
               placeholder="タイトルを入力"
               required
+              error={Boolean(fieldErrors.title)}
+              helperText={fieldErrors.title}
               fullWidth
             />
             <TextField
@@ -307,10 +334,17 @@ export default function AdminNotificationsPage() {
                   content: e.target.value,
                 })
               }
+              onBlur={() => {
+                if (fieldErrors.content) {
+                  setFieldErrors((prev) => ({ ...prev, content: '' }));
+                }
+              }}
               placeholder="本文を入力"
               rows={5}
               multiline
               required
+              error={Boolean(fieldErrors.content)}
+              helperText={fieldErrors.content}
               fullWidth
             />
             <Box
@@ -330,8 +364,15 @@ export default function AdminNotificationsPage() {
                     startDate: e.target.value,
                   })
                 }
+                onBlur={() => {
+                  if (fieldErrors.startDate) {
+                    setFieldErrors((prev) => ({ ...prev, startDate: '' }));
+                  }
+                }}
                 required
                 InputLabelProps={{ shrink: true }}
+                error={Boolean(fieldErrors.startDate)}
+                helperText={fieldErrors.startDate}
               />
               <TextField
                 label="掲載終了日"

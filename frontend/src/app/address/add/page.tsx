@@ -204,7 +204,13 @@ export default function AddAddressPage() {
           新しい配送先住所を追加
         </Typography>
 
-        <Box component="form" display="flex" flexDirection="column" gap={2}>
+        <Box
+          component="form"
+          display="flex"
+          flexDirection="column"
+          gap={2}
+          noValidate
+        >
           <Stack direction="row" spacing={2} alignItems="flex-end">
             <Box flex={1}>
               <TextInput

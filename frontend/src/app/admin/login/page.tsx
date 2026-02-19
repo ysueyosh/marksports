@@ -22,6 +22,7 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -37,15 +38,29 @@ export default function AdminLoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const errors: Record<string, string> = {};
+
+    if (!email.trim()) {
+      errors.email = 'メールアドレスを入力してください';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = '有効なメールアドレスを入力してください';
+    }
+
+    if (!password) {
+      errors.password = 'パスワードを入力してください';
+    } else if (password.length < 8) {
+      errors.password = 'パスワードは8文字以上で入力してください';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     setIsLoading(true);
 
     try {
-      if (!email || !password) {
-        setError('メールアドレスとパスワードを入力してください');
-        setIsLoading(false);
-        return;
-      }
-
       const response = await adminLogin({
         email,
         password,
@@ -107,14 +122,22 @@ export default function AdminLoginPage() {
               display="flex"
               flexDirection="column"
               gap={2}
+              noValidate
             >
               <TextField
                 label="メールアドレス"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) {
+                    setFieldErrors((prev) => ({ ...prev, email: '' }));
+                  }
+                }}
                 placeholder="メールアドレス"
                 required
+                error={Boolean(fieldErrors.email)}
+                helperText={fieldErrors.email}
                 fullWidth
               />
 
@@ -122,9 +145,16 @@ export default function AdminLoginPage() {
                 label="パスワード"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (fieldErrors.password) {
+                    setFieldErrors((prev) => ({ ...prev, password: '' }));
+                  }
+                }}
                 placeholder="パスワード"
                 required
+                error={Boolean(fieldErrors.password)}
+                helperText={fieldErrors.password}
                 fullWidth
               />
 

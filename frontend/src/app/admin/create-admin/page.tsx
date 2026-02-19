@@ -170,6 +170,7 @@ export default function CreateAdminPage() {
             display="flex"
             flexDirection="column"
             gap={2}
+            noValidate
           >
             <TextField
               label="名前"

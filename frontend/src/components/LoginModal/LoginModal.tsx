@@ -27,6 +27,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { loginWithUserData } = useAuth();
@@ -49,6 +50,26 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const errors: Record<string, string> = {};
+
+    if (!email.trim()) {
+      errors.email = 'メールアドレスを入力してください';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = '有効なメールアドレスを入力してください';
+    }
+
+    if (!password) {
+      errors.password = 'パスワードを入力してください';
+    } else if (password.length < 8) {
+      errors.password = 'パスワードは8文字以上で入力してください';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
 
     try {
       setIsSubmitting(true);
@@ -97,6 +118,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         component="form"
         onSubmit={handleSubmit}
         onKeyDown={handleFormKeyDown}
+        noValidate
       >
         <DialogContent
           sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
@@ -105,10 +127,17 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             type="email"
             label="メールアドレス"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (fieldErrors.email) {
+                setFieldErrors((prev) => ({ ...prev, email: '' }));
+              }
+            }}
             required
             disabled={isSubmitting}
             placeholder="example@example.com"
+            error={Boolean(fieldErrors.email)}
+            helperText={fieldErrors.email}
             fullWidth
           />
 
@@ -133,11 +162,18 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           <TextField
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (fieldErrors.password) {
+                setFieldErrors((prev) => ({ ...prev, password: '' }));
+              }
+            }}
             onKeyDown={handlePasswordKeyDown}
             required
             disabled={isSubmitting}
             placeholder="パスワード"
+            error={Boolean(fieldErrors.password)}
+            helperText={fieldErrors.password}
             fullWidth
           />
 

@@ -74,6 +74,9 @@ export default function EditProfilePage() {
     const errors: Record<string, string> = {};
 
     if (!formData.name) errors.name = 'お名前を入力してください';
+    if (isEmailEditable && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = '有効なメールアドレスを入力してください';
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -98,8 +101,8 @@ export default function EditProfilePage() {
       errors.confirmPassword = 'パスワードが一致しません';
     }
 
-    if (newPassword && newPassword.length < 6) {
-      errors.newPassword = 'パスワードは6文字以上で設定してください';
+    if (newPassword && newPassword.length < 8) {
+      errors.newPassword = 'パスワードは8文字以上で設定してください';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -222,6 +225,7 @@ export default function EditProfilePage() {
               display="flex"
               flexDirection="column"
               gap={2}
+              noValidate
             >
               <TextInput
                 label="お名前"
@@ -256,6 +260,7 @@ export default function EditProfilePage() {
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={!isEmailEditable}
                   placeholder="example@example.com"
+                  error={fieldErrors.email}
                 />
               </Box>
 
@@ -295,6 +300,7 @@ export default function EditProfilePage() {
               display="flex"
               flexDirection="column"
               gap={2}
+              noValidate
             >
               <TextInput
                 label="現在のパスワード"

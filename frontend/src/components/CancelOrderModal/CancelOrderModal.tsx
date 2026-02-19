@@ -78,7 +78,13 @@ export default function CancelOrderModal({
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>注文のキャンセル</DialogTitle>
       <DialogContent>
-        <Stack component="form" onSubmit={handleSubmit} spacing={2} mt={1}>
+        <Stack
+          component="form"
+          onSubmit={handleSubmit}
+          spacing={2}
+          mt={1}
+          noValidate
+        >
           <TextInput
             name="reason"
             value={reason}

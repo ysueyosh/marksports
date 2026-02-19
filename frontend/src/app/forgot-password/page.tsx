@@ -88,6 +88,7 @@ export default function ForgotPasswordPage() {
               display="flex"
               flexDirection="column"
               gap={2}
+              noValidate
             >
               <Typography color="text.secondary">
                 ご登録のメールアドレスを入力してください。パスワードリセット用のメールをお送りします。

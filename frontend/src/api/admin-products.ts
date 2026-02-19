@@ -78,11 +78,11 @@ export const adminProductAPI = {
    * Create a new product
    */
   createProduct: async (
-    request: ProductCreateRequest
+    request: ProductCreateRequest,
   ): Promise<AdminProductCreateResponse> => {
     return apiClient.post<AdminProductCreateResponse>(
       '/admin/products',
-      request
+      request,
     );
   },
 
@@ -91,10 +91,20 @@ export const adminProductAPI = {
    */
   getAllProducts: async (
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
+    keyword?: string,
   ): Promise<AdminProductResponse> => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+
+    if (keyword && keyword.trim()) {
+      params.append('keyword', keyword.trim());
+    }
+
     return apiClient.get<AdminProductResponse>(
-      `/admin/products?page=${page}&limit=${limit}`
+      `/admin/products?${params.toString()}`,
     );
   },
 
@@ -103,11 +113,11 @@ export const adminProductAPI = {
    */
   updateProduct: async (
     productId: string,
-    request: ProductUpdateRequest
+    request: ProductUpdateRequest,
   ): Promise<AdminProductResponse> => {
     return apiClient.put<AdminProductResponse>(
       `/admin/products/${productId}`,
-      request
+      request,
     );
   },
 
@@ -116,7 +126,7 @@ export const adminProductAPI = {
    */
   deleteProduct: async (productId: string): Promise<AdminProductResponse> => {
     return apiClient.delete<AdminProductResponse>(
-      `/admin/products/${productId}`
+      `/admin/products/${productId}`,
     );
   },
 };

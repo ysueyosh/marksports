@@ -13,6 +13,7 @@ import {
   Button,
   TextField,
   FormControl,
+  FormHelperText,
   Select,
   MenuItem,
   Stack,
@@ -68,6 +69,7 @@ export default function AdminProductsPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedParentCategoryId, setSelectedParentCategoryId] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [sortByPrice, setSortByPrice] = useState<'none' | 'asc' | 'desc'>(
@@ -93,11 +95,17 @@ export default function AdminProductsPage() {
     isSpecial: false,
     redirectUrl: '',
   });
+  const [productErrors, setProductErrors] = useState<Record<string, string>>(
+    {},
+  );
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     categoryName: '',
     parentCategoryId: '',
   });
+  const [categoryErrors, setCategoryErrors] = useState<Record<string, string>>(
+    {},
+  );
   const [categories, setCategories] = useState<Category[]>([]);
   const [hierarchicalCategories, setHierarchicalCategories] = useState<
     Category[]
@@ -111,10 +119,18 @@ export default function AdminProductsPage() {
       router.push('/admin/login');
     } else {
       setIsLoggedIn(true);
-      loadCategories();
-      loadProducts();
     }
   }, [router]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    loadCategories();
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    loadProducts(searchKeyword);
+  }, [isLoggedIn, searchKeyword]);
 
   // カテゴリを取得
   const loadCategories = async () => {
@@ -148,9 +164,9 @@ export default function AdminProductsPage() {
   };
 
   // API から商品データを取得
-  const loadProducts = async () => {
+  const loadProducts = async (keyword: string = '') => {
     try {
-      const response = await adminProductAPI.getAllProducts(1, 100);
+      const response = await adminProductAPI.getAllProducts(1, 100, keyword);
       if (response.success && response.data) {
         const data = response.data as any;
         const loadedProducts = (data.products || []).map(
@@ -201,9 +217,9 @@ export default function AdminProductsPage() {
 
   // フィルタリングロジック
   let filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !searchKeyword
+      ? true
+      : product.name.toLowerCase().includes(searchKeyword.toLowerCase());
     const matchesParentCategory =
       selectedParentCategoryId === '' ||
       product.parentCategoryId === selectedParentCategoryId;
@@ -257,10 +273,37 @@ export default function AdminProductsPage() {
       isSpecial: false,
       redirectUrl: '',
     });
+    setProductErrors({});
     setEditingId(null);
   };
 
   const handleAddProduct = async () => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.name.trim()) errors.name = '商品名を入力してください';
+    if (!formData.parentCategoryId)
+      errors.parentCategoryId = '親カテゴリを選択してください';
+    if (!formData.categoryId) errors.categoryId = 'カテゴリを選択してください';
+    if (!formData.price) {
+      errors.price = '価格を入力してください';
+    } else if (
+      Number.isNaN(Number(formData.price)) ||
+      Number(formData.price) <= 0
+    ) {
+      errors.price = '価格は1以上の数値で入力してください';
+    }
+    if (!formData.description.trim())
+      errors.description = '説明を入力してください';
+    if (formData.isSpecial && !formData.redirectUrl.trim()) {
+      errors.redirectUrl = '遷移先URLを入力してください';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setProductErrors(errors);
+      return;
+    }
+
+    setProductErrors({});
     // デバッグ：フォームデータを確認
     console.log('Form Data:', formData);
     console.log('Validation:', {
@@ -271,96 +314,78 @@ export default function AdminProductsPage() {
       description: !!formData.description,
     });
 
-    if (
-      formData.name &&
-      formData.parentCategoryId &&
-      formData.categoryId &&
-      formData.price &&
-      formData.description
-    ) {
-      if (editingId !== null) {
-        // 編集 - Base64またはS3 URLの画像をそのまま送信
-        const updateRequest = {
-          name: formData.name,
-          parentCategoryId: formData.parentCategoryId,
-          categoryId: formData.categoryId,
-          price: parseInt(formData.price),
-          description: formData.description,
-          mainImage: formData.mainImage,
-          subImages: formData.subImages,
-          status: formData.status,
-          redirectUrl: formData.redirectUrl,
-        };
+    if (editingId !== null) {
+      // 編集 - Base64またはS3 URLの画像をそのまま送信
+      const updateRequest = {
+        name: formData.name,
+        parentCategoryId: formData.parentCategoryId,
+        categoryId: formData.categoryId,
+        price: parseInt(formData.price),
+        description: formData.description,
+        mainImage: formData.mainImage,
+        subImages: formData.subImages,
+        status: formData.status,
+        redirectUrl: formData.redirectUrl,
+      };
 
-        if (editingProduct?.productId) {
-          try {
-            await adminProductAPI.updateProduct(
-              editingProduct.productId,
-              updateRequest,
-            );
-
-            // 成功後、リストをリロード
-            loadProducts();
-            setShowNewProductForm(false);
-            resetForm();
-          } catch (error) {
-            console.error('Failed to update product:', error);
-            alert('商品の更新に失敗しました');
-          }
-        }
-      } else {
-        // 新規追加 - Base64画像をバックエンド側で処理
-        const createRequest = {
-          name: formData.name,
-          parentCategoryId: formData.parentCategoryId,
-          categoryId: formData.categoryId,
-          price: parseInt(formData.price),
-          description: formData.description,
-          mainImage: formData.mainImage,
-          subImages: formData.subImages,
-          status: formData.status,
-          isActive: formData.published,
-          redirectUrl: formData.redirectUrl,
-        };
-
-        console.log('Creating product with request:', createRequest);
-
+      if (editingProduct?.productId) {
         try {
-          console.log('API呼び出し開始: createProduct');
-          const createResponse =
-            await adminProductAPI.createProduct(createRequest);
-          console.log('API応答:', createResponse);
-
-          if (createResponse.success) {
-            console.log('商品作成成功、リストをリロード');
-            // 成功後、リストをリロード
-            loadProducts();
-            setShowNewProductForm(false);
-            resetForm();
-            alert('商品を登録しました');
-          } else {
-            console.error('APIはエラーレスポンスを返しました:', createResponse);
-            alert('商品の作成に失敗しました');
-          }
-        } catch (error) {
-          console.error('Failed to create product:', error);
-          alert(
-            `商品の作成に失敗しました: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+          await adminProductAPI.updateProduct(
+            editingProduct.productId,
+            updateRequest,
           );
+
+          // 成功後、リストをリロード
+          loadProducts(searchKeyword);
+          setShowNewProductForm(false);
+          resetForm();
+        } catch (error) {
+          console.error('Failed to update product:', error);
+          alert('商品の更新に失敗しました');
         }
       }
     } else {
-      // 検証失敗時のメッセージ
-      const missingFields = [];
-      if (!formData.name) missingFields.push('商品名');
-      if (!formData.parentCategoryId) missingFields.push('親カテゴリ');
-      if (!formData.categoryId) missingFields.push('カテゴリ');
-      if (!formData.price) missingFields.push('価格');
-      if (!formData.description) missingFields.push('説明');
+      // 新規追加 - Base64画像をバックエンド側で処理
+      const createRequest = {
+        name: formData.name,
+        parentCategoryId: formData.parentCategoryId,
+        categoryId: formData.categoryId,
+        price: parseInt(formData.price),
+        description: formData.description,
+        mainImage: formData.mainImage,
+        subImages: formData.subImages,
+        status: formData.status,
+        isActive: formData.published,
+        redirectUrl: formData.redirectUrl,
+      };
 
-      alert(`以下のフィールドが必須です:\n${missingFields.join('\n')}`);
+      console.log('Creating product with request:', createRequest);
+
+      try {
+        console.log('API呼び出し開始: createProduct');
+        const createResponse =
+          await adminProductAPI.createProduct(createRequest);
+        console.log('API応答:', createResponse);
+
+        if (createResponse.success) {
+          console.log('商品作成成功、リストをリロード');
+          // 成功後、リストをリロード
+          loadProducts(searchKeyword);
+          setShowNewProductForm(false);
+          resetForm();
+          alert('商品を登録しました');
+        } else {
+          console.error('APIはエラーレスポンスを返しました:', createResponse);
+          alert('商品の作成に失敗しました');
+        }
+      } catch (error) {
+        console.error('Failed to create product:', error);
+        alert(
+          `商品の作成に失敗しました: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
     }
   };
 
@@ -468,9 +493,11 @@ export default function AdminProductsPage() {
 
   const handleAddCategory = async () => {
     if (!categoryFormData.categoryName.trim()) {
-      alert('カテゴリ名を入力してください。');
+      setCategoryErrors({ categoryName: 'カテゴリ名を入力してください' });
       return;
     }
+
+    setCategoryErrors({});
 
     try {
       const response = await adminCategoryAPI.createCategory({
@@ -534,12 +561,23 @@ export default function AdminProductsPage() {
           </Box>
 
           <Paper variant="outlined" sx={{ p: 2 }}>
-            <TextField
-              fullWidth
-              placeholder="商品名で検索..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                fullWidth
+                placeholder="商品名で検索..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setSearchKeyword(searchQuery.trim());
+                  setCurrentPage(1);
+                }}
+              >
+                検索
+              </Button>
+            </Stack>
           </Paper>
 
           <Paper variant="outlined" sx={{ p: 2 }}>
@@ -563,7 +601,10 @@ export default function AdminProductsPage() {
                 </Select>
               </FormControl>
               {selectedParentCategoryId && (
-                <FormControl fullWidth>
+                <FormControl
+                  fullWidth
+                  error={Boolean(productErrors.parentCategoryId)}
+                >
                   <Select
                     value={selectedCategoryId}
                     onChange={(e) => {
@@ -602,6 +643,7 @@ export default function AdminProductsPage() {
                 categoryName: '',
                 parentCategoryId: '',
               });
+              setCategoryErrors({});
             }}
             title="カテゴリを追加"
             buttons={
@@ -633,7 +675,17 @@ export default function AdminProductsPage() {
                     categoryName: e.target.value,
                   })
                 }
+                onBlur={() => {
+                  if (categoryErrors.categoryName) {
+                    setCategoryErrors((prev) => ({
+                      ...prev,
+                      categoryName: '',
+                    }));
+                  }
+                }}
                 placeholder="例：スポーツ用品"
+                error={Boolean(categoryErrors.categoryName)}
+                helperText={categoryErrors.categoryName}
                 fullWidth
               />
               <FormControl fullWidth>
@@ -750,6 +802,8 @@ export default function AdminProductsPage() {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 placeholder="商品名を入力"
+                error={Boolean(productErrors.name)}
+                helperText={productErrors.name}
                 fullWidth
               />
               <Box
@@ -759,7 +813,10 @@ export default function AdminProductsPage() {
                   gap: 2,
                 }}
               >
-                <FormControl fullWidth>
+                <FormControl
+                  fullWidth
+                  error={Boolean(productErrors.categoryId)}
+                >
                   <Select
                     value={formData.parentCategoryId}
                     onChange={(e) => {
@@ -778,6 +835,11 @@ export default function AdminProductsPage() {
                       </MenuItem>
                     ))}
                   </Select>
+                  {productErrors.parentCategoryId && (
+                    <FormHelperText error>
+                      {productErrors.parentCategoryId}
+                    </FormHelperText>
+                  )}
                 </FormControl>
                 <FormControl fullWidth>
                   <Select
@@ -803,6 +865,11 @@ export default function AdminProductsPage() {
                           </MenuItem>
                         ))}
                   </Select>
+                  {productErrors.categoryId && (
+                    <FormHelperText error>
+                      {productErrors.categoryId}
+                    </FormHelperText>
+                  )}
                 </FormControl>
               </Box>
               <FormControlLabel
@@ -824,6 +891,8 @@ export default function AdminProductsPage() {
                   setFormData({ ...formData, price: e.target.value })
                 }
                 placeholder="税抜き価格を入力"
+                error={Boolean(productErrors.price)}
+                helperText={productErrors.price}
                 fullWidth
               />
               <TextField
@@ -835,6 +904,8 @@ export default function AdminProductsPage() {
                 placeholder="商品説明を入力"
                 rows={4}
                 multiline
+                error={Boolean(productErrors.description)}
+                helperText={productErrors.description}
                 fullWidth
               />
               {formData.isSpecial && (
@@ -845,6 +916,8 @@ export default function AdminProductsPage() {
                     setFormData({ ...formData, redirectUrl: e.target.value })
                   }
                   placeholder="https://example.com/product/123"
+                  error={Boolean(productErrors.redirectUrl)}
+                  helperText={productErrors.redirectUrl}
                   fullWidth
                 />
               )}

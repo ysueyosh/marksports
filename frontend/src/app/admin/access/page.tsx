@@ -64,6 +64,7 @@ export default function AdminAccessPage() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [viewById, setViewById] = useState<Record<string, AccessView>>({});
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -134,6 +135,7 @@ export default function AdminAccessPage() {
         const response = await adminProductAPI.getAllProducts(
           currentPage,
           ITEMS_PER_PAGE,
+          searchKeyword,
         );
         if (response.success && response.data && 'products' in response.data) {
           const mappedProducts = response.data.products.map((product) => ({
@@ -160,15 +162,15 @@ export default function AdminAccessPage() {
     };
 
     loadProducts();
-  }, [isLoggedIn, currentPage]);
+  }, [isLoggedIn, currentPage, searchKeyword]);
 
   const filteredProducts = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const query = searchKeyword.trim().toLowerCase();
     if (!query) return products;
     return products.filter((product) =>
       product.name.toLowerCase().includes(query),
     );
-  }, [products, searchQuery]);
+  }, [products, searchKeyword]);
 
   const displayRows = useMemo(() => {
     return [siteAccessRow, ...filteredProducts];
@@ -250,12 +252,23 @@ export default function AdminAccessPage() {
       </Box>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="商品名で検索..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <TextField
+            fullWidth
+            placeholder="商品名で検索..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Button
+            variant="contained"
+            onClick={() => {
+              setSearchKeyword(searchQuery.trim());
+              setCurrentPage(1);
+            }}
+          >
+            検索
+          </Button>
+        </Stack>
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 2 }}>

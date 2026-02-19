@@ -152,6 +152,9 @@ export default function SettingsPage() {
 
     if (!formData.name) errors.name = 'お名前を入力してください';
     if (!formData.email) errors.email = 'メールアドレスを入力してください';
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = '有効なメールアドレスを入力してください';
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
@@ -175,8 +178,8 @@ export default function SettingsPage() {
       errors.confirmPassword = 'パスワードが一致しません';
     }
 
-    if (newPassword && newPassword.length < 6) {
-      errors.newPassword = 'パスワードは6文字以上で設定してください';
+    if (newPassword && newPassword.length < 8) {
+      errors.newPassword = 'パスワードは8文字以上で設定してください';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -299,6 +302,7 @@ export default function SettingsPage() {
               display="flex"
               flexDirection="column"
               gap={2}
+              noValidate
             >
               <TextInput
                 label="お名前"
@@ -362,6 +366,7 @@ export default function SettingsPage() {
               display="flex"
               flexDirection="column"
               gap={2}
+              noValidate
             >
               <TextInput
                 label="現在のパスワード"

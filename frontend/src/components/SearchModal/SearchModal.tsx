@@ -129,7 +129,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   return (
     <Dialog open={isOpen} onClose={handleCloseModal} fullWidth maxWidth="sm">
       <DialogTitle>商品を検索</DialogTitle>
-      <Box component="form" onSubmit={handleSearch}>
+      <Box component="form" onSubmit={handleSearch} noValidate>
         <DialogContent
           sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
         >
