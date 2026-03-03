@@ -114,6 +114,15 @@ export default function OrderDetailPage() {
       );
   };
 
+  const shippingRegionLabelMap: Record<string, string> = {
+    hokkaido: '北海道',
+    tohoku: '東北',
+    chubuKanto: '中部・関東',
+    chugokuKansai: '中国・関西',
+    kyushu: '九州',
+    okinawa: '沖縄',
+  };
+
   return (
     <MainLayout>
       <Box>
@@ -260,14 +269,33 @@ export default function OrderDetailPage() {
                   justifyContent="space-between"
                   textAlign="right"
                 >
-                  <Typography>送料</Typography>
+                  <Typography>送料（基本）</Typography>
                   <Typography>
                     ¥
-                    {order.shippingCost
-                      ? order.shippingCost.toLocaleString()
-                      : '0'}
+                    {(
+                      order.shippingBaseFee ??
+                      order.shippingCost ??
+                      0
+                    ).toLocaleString()}
                   </Typography>
                 </Stack>
+                {(order.shippingRegionFee ?? 0) > 0 && (
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    textAlign="right"
+                  >
+                    <Typography>
+                      地域追加送料
+                      {order.shippingRegionKey
+                        ? `（${shippingRegionLabelMap[order.shippingRegionKey] || order.shippingRegionKey}）`
+                        : ''}
+                    </Typography>
+                    <Typography>
+                      ¥{(order.shippingRegionFee || 0).toLocaleString()}
+                    </Typography>
+                  </Stack>
+                )}
                 {order.discount > 0 && (
                   <Stack
                     direction="row"

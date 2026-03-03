@@ -33,7 +33,12 @@ export default function OrdersPage() {
         setLoading(true);
         const response = await getOrders();
         if (response.success && response.data) {
-          setAllOrders(response.data.orders);
+          const sortedOrders = [...response.data.orders].sort((a, b) => {
+            const aTime = new Date(a.orderDate || 0).getTime();
+            const bTime = new Date(b.orderDate || 0).getTime();
+            return bTime - aTime;
+          });
+          setAllOrders(sortedOrders);
         } else {
           setError('注文情報の取得に失敗しました');
         }

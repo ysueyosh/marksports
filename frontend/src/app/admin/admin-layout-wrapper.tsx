@@ -43,6 +43,7 @@ export function AdminLayoutWrapper({ children }: AdminLayoutWrapperProps) {
     { href: '/admin/coupons', label: 'クーポン管理' },
     { href: '/admin/users', label: 'ユーザー管理' },
     { href: '/admin/notifications', label: 'お知らせ配信' },
+    { href: '/admin/shipping', label: '送料設定' },
     { href: '/admin/settings', label: '設定' },
   ];
 

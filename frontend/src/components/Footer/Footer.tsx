@@ -66,6 +66,17 @@ export default function Footer() {
               >
                 返品・キャンセル条件
               </Box>
+              <Box
+                component={Link}
+                href="/shipping-policy"
+                sx={{
+                  color: 'text.secondary',
+                  textDecoration: 'none',
+                  '&:hover': { textDecoration: 'underline' },
+                }}
+              >
+                送料ポリシー
+              </Box>
             </Box>
           </Box>
 

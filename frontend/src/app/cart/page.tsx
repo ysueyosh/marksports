@@ -9,6 +9,7 @@ import { useSnackbar } from '@/context/SnackbarContext';
 import { formatPriceIncludedTax, getPriceWithTax } from '@/utils/price';
 import { checkProductsExist } from '@/api/products';
 import { applyCoupon } from '@/api/coupon';
+import { estimateShipping } from '@/api/shipping';
 import {
   Box,
   Typography,
@@ -27,6 +28,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 
 export default function CartPage() {
+  const FREE_SHIPPING_THRESHOLD = 4000;
   const router = useRouter();
   const {
     items: cartItems,
@@ -44,6 +46,8 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState('');
+  const [shipping, setShipping] = useState(0);
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
 
   useEffect(() => {
     fetchCart();
@@ -148,7 +152,41 @@ export default function CartPage() {
     (sum, item) => sum + getPriceWithTax(item.price) * item.quantity,
     0,
   );
-  const shipping = cartItems.length > 0 ? 500 : 0;
+
+  useEffect(() => {
+    const estimateBaseShipping = async () => {
+      if (cartItems.length === 0) {
+        setShipping(0);
+        return;
+      }
+
+      try {
+        setIsCalculatingShipping(true);
+        const response = await estimateShipping({
+          items: cartItems.map((item) => ({
+            productId: String(item.id),
+            quantity: item.quantity,
+            unitPrice: item.price,
+          })),
+          shippingAddress: {},
+        });
+
+        if (response.success && response.data) {
+          setShipping(response.data.shippingCost ?? 0);
+        } else {
+          setShipping(subtotalExcludingTax >= 4000 ? 0 : 500);
+        }
+      } catch (shippingError) {
+        console.error('Shipping estimate error:', shippingError);
+        setShipping(subtotalExcludingTax >= 4000 ? 0 : 500);
+      } finally {
+        setIsCalculatingShipping(false);
+      }
+    };
+
+    estimateBaseShipping();
+  }, [cartItems, subtotalExcludingTax]);
+
   const tax = subtotalWithTax - subtotalExcludingTax;
   const discountAmount = coupon
     ? coupon.discount_type === 'percentage'
@@ -164,6 +202,18 @@ export default function CartPage() {
           <Typography variant="h4" fontWeight={700}>
             ショッピングカート
           </Typography>
+
+          {subtotalWithTax >= FREE_SHIPPING_THRESHOLD ? (
+            <Alert severity="success">
+              4,000円以上のため基本送料無料です（地域別配送料は別途かかります）。
+            </Alert>
+          ) : (
+            <Alert severity="info">
+              あと¥
+              {(FREE_SHIPPING_THRESHOLD - subtotalWithTax).toLocaleString()}
+              で基本送料無料です（地域別配送料は別途かかります）。
+            </Alert>
+          )}
 
           <Box
             sx={{
@@ -363,8 +413,14 @@ export default function CartPage() {
                     （内消費税 ¥{tax.toLocaleString()}）
                   </Typography>
                   <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">送料</Typography>
-                    <Typography>¥{shipping.toLocaleString()}</Typography>
+                    <Typography color="text.secondary">
+                      送料（基本送料）
+                    </Typography>
+                    <Typography>
+                      {isCalculatingShipping
+                        ? '計算中...'
+                        : `¥${shipping.toLocaleString()}`}
+                    </Typography>
                   </Stack>
                   {coupon && (
                     <Stack direction="row" justifyContent="space-between">

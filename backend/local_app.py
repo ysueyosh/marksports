@@ -15,6 +15,7 @@ os.environ['USERS_TABLE_NAME'] = 'User-dev'
 os.environ['CART_TABLE_NAME'] = 'User-dev'
 os.environ['FRONTEND_URL'] = 'http://localhost:3000'
 os.environ['PAGE_VIEW_TABLE_NAME'] = 'PageViewDaily-dev'
+os.environ['SHIPPING_SETTING_TABLE_NAME'] = 'ShippingSetting-dev'
 os.environ['RESET_EMAIL_FROM'] = 'info@mark-sports.com'
 os.environ['COMPANY_NAME'] = 'MARK SPORTS'
 os.environ['COMPANY_EMAIL'] = 'info@mark-sports.com'
@@ -34,8 +35,10 @@ from src.handlers.search import search_products
 from src.handlers.coupon import apply_coupon
 from src.handlers.notification import get_notifications, get_notification_detail, get_notification_count
 from src.handlers.page_view import record_page_view, get_page_view_stats
+from src.handlers.shipping import estimate_shipping, get_shipping_policy
 from src.handlers.order import get_orders, get_order_detail, cancel_order, revoke_cancel_request, save_order, get_all_orders, update_order_status, get_admin_order_detail, get_dashboard_pending_orders, get_dashboard_payment_confirmation
 from src.handlers.admin import admin_login, admin_refresh_token, admin_verify_token, create_admin, get_admin_settings, update_admin_settings, manual_refund
+from src.handlers.admin_shipping import get_admin_shipping_settings, update_admin_shipping_settings
 from src.handlers.admin_product import create_product, update_product, delete_product, get_all_products
 from src.handlers.admin_category import admin_create_category_route, admin_get_all_categories_route, admin_update_category_route, admin_delete_category_route
 from src.handlers.admin_coupon import create_coupon, update_coupon, delete_coupon, get_all_coupons
@@ -148,6 +151,52 @@ def update_admin_settings_route():
         'body': request.data.decode()
     }
     result = update_admin_settings(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/shipping-settings', methods=['GET'])
+def get_admin_shipping_settings_route():
+    """Get admin shipping settings endpoint"""
+    event = {
+        'headers': dict(request.headers)
+    }
+    result = get_admin_shipping_settings(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/admin/shipping-settings', methods=['PUT'])
+def update_admin_shipping_settings_route():
+    """Update admin shipping settings endpoint"""
+    event = {
+        'headers': dict(request.headers),
+        'body': request.data.decode()
+    }
+    result = update_admin_shipping_settings(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/shipping/estimate', methods=['POST'])
+def estimate_shipping_route():
+    """Estimate shipping endpoint"""
+    event = {
+        'headers': dict(request.headers),
+        'body': request.data.decode()
+    }
+    result = estimate_shipping(event, None)
+    body = json.loads(result['body'])
+    return jsonify(body), result['statusCode']
+
+
+@app.route('/shipping/policy', methods=['GET'])
+def get_shipping_policy_route():
+    """Get shipping policy endpoint"""
+    event = {
+        'headers': dict(request.headers)
+    }
+    result = get_shipping_policy(event, None)
     body = json.loads(result['body'])
     return jsonify(body), result['statusCode']
 

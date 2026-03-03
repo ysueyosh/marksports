@@ -40,6 +40,8 @@ from src.handlers.admin_notification import (
     delete_notification as delete_notification_admin
 )
 from src.handlers.admin_image import upload_image
+from src.handlers.admin_shipping import get_admin_shipping_settings, update_admin_shipping_settings
+from src.handlers.shipping import estimate_shipping, get_shipping_policy
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -273,6 +275,8 @@ ROUTE_MAP = {
     "POST /admin/create": create_admin,
     "GET /admin/settings": get_admin_settings,
     "PUT /admin/settings": update_admin_settings,
+    "GET /admin/shipping-settings": get_admin_shipping_settings,
+    "PUT /admin/shipping-settings": update_admin_shipping_settings,
     
     # Admin Products
     "GET /admin/products": get_all_products,
@@ -337,6 +341,10 @@ ROUTE_MAP = {
     # Notifications
     "GET /notifications": get_notifications,
     "GET /notifications/count": get_notification_count,
+
+    # Shipping
+    "POST /shipping/estimate": estimate_shipping,
+    "GET /shipping/policy": get_shipping_policy,
     
     # Page Views
     "POST /page-views": record_page_view,

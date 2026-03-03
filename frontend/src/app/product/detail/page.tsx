@@ -8,7 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
-import { formatPriceIncludedTax } from '@/utils/price';
+import { formatPriceIncludedTax, getPriceWithTax } from '@/utils/price';
 import { recordPageViewIfNeeded } from '@/utils/page-view';
 import {
   getProductDetail,
@@ -27,9 +27,11 @@ import {
   Stack,
   Chip,
   Divider,
+  Alert,
 } from '@mui/material';
 
 export default function ProductDetailPage() {
+  const FREE_SHIPPING_THRESHOLD = 4000;
   const searchParams = useSearchParams();
   const router = useRouter();
   const id = searchParams.get('id');
@@ -246,6 +248,20 @@ export default function ProductDetailPage() {
             <Box>
               <ReactMarkdown>{product.description || ''}</ReactMarkdown>
             </Box>
+
+            {getPriceWithTax(product.price) >= FREE_SHIPPING_THRESHOLD ? (
+              <Alert severity="success">
+                この商品は基本送料無料対象です（地域別配送料は別途かかります）。
+              </Alert>
+            ) : (
+              <Alert severity="info">
+                あと¥
+                {(
+                  FREE_SHIPPING_THRESHOLD - getPriceWithTax(product.price)
+                ).toLocaleString()}
+                で基本送料無料です（地域別配送料は別途かかります）。
+              </Alert>
+            )}
 
             {product.redirectUrl ? (
               <Button

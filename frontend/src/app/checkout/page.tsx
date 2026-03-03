@@ -28,6 +28,7 @@ import {
   submitPayment,
 } from '@/api/payment';
 import { saveOrder } from '@/api/orders';
+import { estimateShipping } from '@/api/shipping';
 import TextInput from '@/components/Input/TextInput';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import BankTransferDetails from '@/components/BankTransferDetails/BankTransferDetails';
@@ -55,6 +56,7 @@ import {
 } from '@mui/material';
 
 export default function CheckoutPage() {
+  const FREE_SHIPPING_THRESHOLD = 4000;
   const router = useRouter();
   const { isLoggedIn, user } = useAuth();
   const { items: cartItems, clear: clearCart, coupon } = useCart();
@@ -107,6 +109,25 @@ export default function CheckoutPage() {
     building: '',
   });
 
+  const [shippingCost, setShippingCost] = useState(0);
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
+  const [shippingRegionKey, setShippingRegionKey] = useState<string | null>(
+    null,
+  );
+  const [shippingBreakdown, setShippingBreakdown] = useState({
+    baseFeeApplied: 0,
+    regionFee: 0,
+  });
+
+  const regionLabelMap: Record<string, string> = {
+    hokkaido: '北海道',
+    tohoku: '東北',
+    chubuKanto: '中部・関東',
+    chugokuKansai: '中国・関西',
+    kyushu: '九州',
+    okinawa: '沖縄',
+  };
+
   const SHIPPING_FEE_NORMAL = 500; // 通常配送料金
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -123,7 +144,7 @@ export default function CheckoutPage() {
       (sum, item) => sum + item.price * item.quantity,
       0,
     );
-    const shippingFee = SHIPPING_FEE_NORMAL;
+    const shippingFee = shippingCost;
     // 消費税は商品代金にのみかかる（送料は税抜き）
     const tax = Math.floor(subtotal * TAX_RATE);
     // 税込み小計（商品代金 + 消費税）
@@ -157,7 +178,77 @@ export default function CheckoutPage() {
       discountAmount,
       total,
     };
-  }, [cartItems, coupon]);
+  }, [cartItems, coupon, shippingCost]);
+
+  useEffect(() => {
+    const calculateShippingCost = async () => {
+      if (cartItems.length === 0) {
+        setShippingCost(0);
+        setShippingRegionKey(null);
+        setShippingBreakdown({ baseFeeApplied: 0, regionFee: 0 });
+        return;
+      }
+
+      try {
+        setIsCalculatingShipping(true);
+        const selectedAddress = userAddresses.find(
+          (addr) => addr.id === selectedAddressId,
+        );
+        const prefectureSource =
+          isLoggedIn && !useNewAddress
+            ? selectedAddress?.prefecture || formData.prefecture
+            : formData.prefecture;
+        const prefecture = convertPrefectureToJapanese(prefectureSource || '');
+
+        const response = await estimateShipping({
+          items: cartItems.map((item) => ({
+            productId: String(item.id),
+            quantity: item.quantity,
+            unitPrice: item.price,
+          })),
+          shippingAddress: {
+            prefecture,
+            administrativeDistrictLevel1: prefecture,
+          },
+        });
+
+        if (response.success && response.data) {
+          setShippingCost(response.data.shippingCost ?? SHIPPING_FEE_NORMAL);
+          setShippingRegionKey(response.data.regionKey || null);
+          setShippingBreakdown({
+            baseFeeApplied: response.data.breakdown?.baseFeeApplied ?? 0,
+            regionFee: response.data.breakdown?.regionFee ?? 0,
+          });
+        } else {
+          setShippingCost(SHIPPING_FEE_NORMAL);
+          setShippingRegionKey(null);
+          setShippingBreakdown({
+            baseFeeApplied: SHIPPING_FEE_NORMAL,
+            regionFee: 0,
+          });
+        }
+      } catch (shippingError) {
+        console.error('Failed to estimate shipping:', shippingError);
+        setShippingCost(SHIPPING_FEE_NORMAL);
+        setShippingRegionKey(null);
+        setShippingBreakdown({
+          baseFeeApplied: SHIPPING_FEE_NORMAL,
+          regionFee: 0,
+        });
+      } finally {
+        setIsCalculatingShipping(false);
+      }
+    };
+
+    calculateShippingCost();
+  }, [
+    cartItems,
+    formData.prefecture,
+    isLoggedIn,
+    useNewAddress,
+    selectedAddressId,
+    userAddresses,
+  ]);
 
   // ログイン状態で情報を自動入力
   useEffect(() => {
@@ -859,6 +950,20 @@ export default function CheckoutPage() {
               {paymentError && (
                 <Alert severity="error" sx={{ whiteSpace: 'pre-wrap' }}>
                   {paymentError}
+                </Alert>
+              )}
+
+              {priceInfo.subtotalWithTax >= FREE_SHIPPING_THRESHOLD ? (
+                <Alert severity="success">
+                  4,000円以上のため基本送料無料です（地域別配送料は別途かかります）。
+                </Alert>
+              ) : (
+                <Alert severity="info">
+                  あと¥
+                  {(
+                    FREE_SHIPPING_THRESHOLD - priceInfo.subtotalWithTax
+                  ).toLocaleString()}
+                  で基本送料無料です（地域別配送料は別途かかります）。
                 </Alert>
               )}
 
@@ -1738,9 +1843,35 @@ export default function CheckoutPage() {
                           color: '#6b7280',
                         }}
                       >
-                        <span>送料</span>
-                        <span>¥{priceInfo.shippingFee.toLocaleString()}</span>
+                        <span>送料（基本）</span>
+                        <span>
+                          {isCalculatingShipping
+                            ? '計算中...'
+                            : `¥${shippingBreakdown.baseFeeApplied.toLocaleString()}`}
+                        </span>
                       </div>
+                      {!isCalculatingShipping &&
+                        shippingBreakdown.regionFee > 0 && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: '14px',
+                              marginBottom: '8px',
+                              color: '#6b7280',
+                            }}
+                          >
+                            <span>
+                              地域追加送料
+                              {shippingRegionKey
+                                ? `（${regionLabelMap[shippingRegionKey] || shippingRegionKey}）`
+                                : ''}
+                            </span>
+                            <span>
+                              ¥{shippingBreakdown.regionFee.toLocaleString()}
+                            </span>
+                          </div>
+                        )}
                       {coupon && priceInfo.discountAmount > 0 && (
                         <div
                           style={{
@@ -1844,11 +1975,27 @@ export default function CheckoutPage() {
                         （内消費税 ¥{priceInfo.tax.toLocaleString()}）
                       </Typography>
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2">送料</Typography>
+                        <Typography variant="body2">送料（基本）</Typography>
                         <Typography variant="body2">
-                          ¥{priceInfo.shippingFee.toLocaleString()}
+                          {isCalculatingShipping
+                            ? '計算中...'
+                            : `¥${shippingBreakdown.baseFeeApplied.toLocaleString()}`}
                         </Typography>
                       </Stack>
+                      {!isCalculatingShipping &&
+                        shippingBreakdown.regionFee > 0 && (
+                          <Stack direction="row" justifyContent="space-between">
+                            <Typography variant="body2">
+                              地域追加送料
+                              {shippingRegionKey
+                                ? `（${regionLabelMap[shippingRegionKey] || shippingRegionKey}）`
+                                : ''}
+                            </Typography>
+                            <Typography variant="body2">
+                              ¥{shippingBreakdown.regionFee.toLocaleString()}
+                            </Typography>
+                          </Stack>
+                        )}
                       {coupon && priceInfo.discountAmount > 0 && (
                         <Stack direction="row" justifyContent="space-between">
                           <Typography

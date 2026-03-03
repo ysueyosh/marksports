@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useCategories } from '@/context/CategoryContext';
 import { getFeaturedProducts, Product } from '@/api/products';
 import { recordPageViewIfNeeded } from '@/utils/page-view';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography, Button, Alert } from '@mui/material';
 
 export default function Home() {
   const router = useRouter();
@@ -51,6 +51,9 @@ export default function Home() {
           <Typography color="text.secondary">
             お好みのスポーツ用品をお探しください
           </Typography>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            4,000円以上で基本送料無料（地域別配送料は別途かかります）。
+          </Alert>
         </Box>
 
         <Box>

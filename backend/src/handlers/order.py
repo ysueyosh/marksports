@@ -512,6 +512,11 @@ def get_orders(event, context):
                 "refundAt": item.get('refundAt'),
             })
 
+        orders.sort(
+            key=lambda order: order.get('orderDate', ''),
+            reverse=True,
+        )
+
         logger.info(f"Retrieved {len(orders)} orders for user {user_id}")
 
         return {
@@ -673,6 +678,8 @@ def get_order_detail(event, context):
         total_amount = safe_amount_conversion(order_data.get('totalAmount', 0), 0)
         tax = safe_amount_conversion(order_data.get('tax', 0), 0)
         shipping_cost = safe_amount_conversion(order_data.get('shippingCost', 0), 0)
+        shipping_base_fee = safe_amount_conversion(order_data.get('shippingBaseFee', shipping_cost), 0)
+        shipping_region_fee = safe_amount_conversion(order_data.get('shippingRegionFee', 0), 0)
         discount = safe_amount_conversion(order_data.get('discount', 0), 0)
         coupon_discount = safe_amount_conversion(order_data.get('couponDiscount', 0), 0)
         
@@ -685,6 +692,9 @@ def get_order_detail(event, context):
             "tax": tax,
             "taxRate": safe_amount_conversion(order_data.get('taxRate', 0), 0),
             "shippingCost": shipping_cost,
+            "shippingBaseFee": shipping_base_fee,
+            "shippingRegionFee": shipping_region_fee,
+            "shippingRegionKey": order_data.get('shippingRegionKey'),
             "discount": discount,
             "couponDiscount": coupon_discount,
             "couponCode": order_data.get('couponCode'),
@@ -1149,6 +1159,47 @@ def save_order(event, context):
                     "message": "Order items are required"
                 }, ensure_ascii=False),
             }
+
+        shipping_address = body.get('shippingAddress', {})
+        shipping_breakdown_for_email = {
+            'lines': []
+        }
+        try:
+            from src.services.shipping import calculate_shipping
+
+            shipping_result = calculate_shipping(items, shipping_address)
+            calculated_shipping_cost = int(shipping_result.get('total', 0))
+            breakdown = shipping_result.get('breakdown', {})
+            shipping_base_fee_applied = int(breakdown.get('baseFeeApplied', 0))
+            shipping_region_fee = int(breakdown.get('regionFee', 0))
+            shipping_region_key = shipping_result.get('regionKey')
+            shipping_breakdown_for_email = {
+                'lines': breakdown.get('lines', [])
+            }
+        except Exception as shipping_error:
+            logger.error(f"[ORDER_SAVE] Failed to calculate shipping on server: {str(shipping_error)}")
+            calculated_shipping_cost = int(body.get('shippingCost', 0))
+            shipping_base_fee_applied = calculated_shipping_cost
+            shipping_region_fee = 0
+            shipping_region_key = None
+            shipping_breakdown_for_email = {
+                'lines': [
+                    {
+                        'label': '基本送料',
+                        'amount': calculated_shipping_cost,
+                    },
+                    {
+                        'label': '地域追加送料',
+                        'amount': 0,
+                    }
+                ]
+            }
+
+        request_total_amount = int(body.get('totalAmount', 0))
+        request_shipping_cost = int(body.get('shippingCost', 0))
+        adjusted_total_amount = request_total_amount - request_shipping_cost + calculated_shipping_cost
+        body['shippingCost'] = calculated_shipping_cost
+        body['totalAmount'] = adjusted_total_amount
         
         table = get_users_table()
         now = datetime.utcnow().isoformat() + 'Z'
@@ -1183,7 +1234,10 @@ def save_order(event, context):
             "totalAmount": int(body.get('totalAmount', 0)),
             "tax": int(body.get('tax', 0)),
             "taxRate": Decimal(str(body.get('taxRate', 0))) if body.get('taxRate') is not None else None,
-            "shippingCost": int(body.get('shippingCost', 0)),
+            "shippingCost": calculated_shipping_cost,
+            "shippingBaseFee": shipping_base_fee_applied,
+            "shippingRegionFee": shipping_region_fee,
+            "shippingRegionKey": shipping_region_key,
             "discount": int(body.get('discount', 0)),
             "couponCode": body.get('couponCode'),
             "couponDiscount": int(body.get('couponDiscount', 0)),
@@ -1303,7 +1357,8 @@ def save_order(event, context):
                         shipping_cost=shipping_cost,
                         discount=discount,
                         coupon_discount=coupon_discount,
-                        payment_method=payment_method
+                        payment_method=payment_method,
+                        shipping_breakdown=shipping_breakdown_for_email
                     )
                     
                     if confirmation_result.get('success'):
@@ -1356,7 +1411,9 @@ def save_order(event, context):
                         user_email=user_email,
                         order_items=email_items,
                         total_amount=total_amount,
-                        payment_method=payment_method
+                        payment_method=payment_method,
+                        shipping_cost=shipping_cost,
+                        shipping_breakdown=shipping_breakdown_for_email
                     )
                     
                     if admin_notification_result.get('success'):

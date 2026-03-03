@@ -64,6 +64,9 @@ export interface OrderDetail {
   totalAmount: number;
   tax: number;
   shippingCost: number;
+  shippingBaseFee?: number;
+  shippingRegionFee?: number;
+  shippingRegionKey?: string;
   discount: number;
   couponCode?: string;
   paymentMethod: PaymentMethod; // 修正: string から PaymentMethod に変更
