@@ -328,6 +328,18 @@ export default function AdminHomePage() {
                 desc: 'メール・サイト内通知の配信',
               },
               {
+                href: '/admin/access',
+                icon: '📊',
+                title: 'アクセス管理',
+                desc: 'サイトアクセス統計・分析',
+              },
+              {
+                href: '/admin/shipping',
+                icon: '🚚',
+                title: '送料設定',
+                desc: '基本送料・地域別料金の設定',
+              },
+              {
                 href: '/admin/settings',
                 icon: '⚙️',
                 title: '設定',
