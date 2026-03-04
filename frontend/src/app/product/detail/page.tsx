@@ -18,6 +18,7 @@ import {
 } from '@/api/products';
 import { useSearch } from '@/context/SearchContext';
 import { useSnackbar } from '@/context/SnackbarContext';
+import { useCart } from '@/context/CartContext';
 import {
   Box,
   Typography,
@@ -35,6 +36,7 @@ export default function ProductDetailPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const id = searchParams.get('id');
+  const { items: cartItems } = useCart();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -249,19 +251,31 @@ export default function ProductDetailPage() {
               <ReactMarkdown>{product.description || ''}</ReactMarkdown>
             </Box>
 
-            {getPriceWithTax(product.price) >= FREE_SHIPPING_THRESHOLD ? (
-              <Alert severity="success">
-                この商品は基本送料無料対象です（地域別配送料は別途かかります）。
-              </Alert>
-            ) : (
-              <Alert severity="info">
-                あと¥
-                {(
-                  FREE_SHIPPING_THRESHOLD - getPriceWithTax(product.price)
-                ).toLocaleString()}
-                で基本送料無料です（地域別配送料は別途かかります）。
-              </Alert>
-            )}
+            {(() => {
+              // カート内の商品合計金額（税込）を計算
+              const cartTotal = cartItems.reduce((sum, item) => {
+                return sum + getPriceWithTax(item.price) * item.quantity;
+              }, 0);
+              
+              // カート合計 + この商品の価格（税込）
+              const totalWithThisProduct = cartTotal + getPriceWithTax(product.price);
+              
+              if (totalWithThisProduct >= FREE_SHIPPING_THRESHOLD) {
+                return (
+                  <Alert severity="success">
+                    この商品をカートに追加すると基本送料無料になります（地域別配送料は別途かかります）。
+                  </Alert>
+                );
+              } else {
+                return (
+                  <Alert severity="info">
+                    この商品をカートに追加後、あと¥
+                    {(FREE_SHIPPING_THRESHOLD - totalWithThisProduct).toLocaleString()}
+                    で基本送料無料です（地域別配送料は別途かかります）。
+                  </Alert>
+                );
+              }
+            })()}
 
             {product.redirectUrl ? (
               <Button
