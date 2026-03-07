@@ -52,8 +52,9 @@ def get_notifications(event, context):
         
         # Map database fields to API response fields
         # Filter to only active notifications (based on startDate and endDate)
-        from datetime import datetime
-        today = datetime.utcnow().date().isoformat()
+        from datetime import datetime, timezone, timedelta
+        JST = timezone(timedelta(hours=9))
+        today = datetime.now(JST).date().isoformat()
         
         active_notifications = []
         for notification in notifications:
@@ -171,8 +172,9 @@ def get_notification_detail(event, context):
         notification = items[0]
         
         # Check if notification is active
-        from datetime import datetime
-        today = datetime.utcnow().date().isoformat()
+        from datetime import datetime, timezone, timedelta
+        JST = timezone(timedelta(hours=9))
+        today = datetime.now(JST).date().isoformat()
         
         start_date = notification.get('startDate', '')
         end_date = notification.get('endDate', '')

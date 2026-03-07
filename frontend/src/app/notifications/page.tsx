@@ -129,7 +129,11 @@ export default function NotificationsPage() {
                       <NotificationTag tag="important" />
                     )}
                   </Box>
-                  <Typography color="text.secondary" gutterBottom>
+                  <Typography
+                    color="text.secondary"
+                    gutterBottom
+                    sx={{ whiteSpace: 'pre-line' }}
+                  >
                     {notification.message}
                   </Typography>
                   <Typography variant="caption" color="text.disabled">

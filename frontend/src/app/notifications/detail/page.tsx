@@ -104,7 +104,9 @@ export default function NotificationDetailPage() {
               {new Date(notification.timestamp).toLocaleDateString('ja-JP')}
             </Typography>
           </Box>
-          <Typography color="text.secondary">{notification.message}</Typography>
+          <Typography color="text.secondary" sx={{ whiteSpace: 'pre-line' }}>
+            {notification.message}
+          </Typography>
           <Box mt={3}>
             <Button component={Link} href="/notifications">
               ← お知らせ一覧に戻る

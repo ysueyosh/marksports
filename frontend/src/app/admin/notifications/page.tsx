@@ -458,7 +458,9 @@ export default function AdminNotificationsPage() {
                       />
                     </Stack>
                   </Box>
-                  <Typography>{notification.content}</Typography>
+                  <Typography sx={{ whiteSpace: 'pre-line' }}>
+                    {notification.content}
+                  </Typography>
                   <Box>
                     <Button
                       color="error"

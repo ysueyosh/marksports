@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
@@ -19,6 +18,8 @@ import {
 import { useSearch } from '@/context/SearchContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useCart } from '@/context/CartContext';
+import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import {
   Box,
   Typography,
@@ -248,7 +249,9 @@ export default function ProductDetailPage() {
             </Box>
 
             <Box>
-              <ReactMarkdown>{product.description || ''}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkBreaks]}>
+                {product.description || ''}
+              </ReactMarkdown>
             </Box>
 
             {(() => {
@@ -256,10 +259,11 @@ export default function ProductDetailPage() {
               const cartTotal = cartItems.reduce((sum, item) => {
                 return sum + getPriceWithTax(item.price) * item.quantity;
               }, 0);
-              
+
               // カート合計 + この商品の価格（税込）
-              const totalWithThisProduct = cartTotal + getPriceWithTax(product.price);
-              
+              const totalWithThisProduct =
+                cartTotal + getPriceWithTax(product.price);
+
               if (totalWithThisProduct >= FREE_SHIPPING_THRESHOLD) {
                 return (
                   <Alert severity="success">
@@ -270,7 +274,9 @@ export default function ProductDetailPage() {
                 return (
                   <Alert severity="info">
                     この商品をカートに追加後、あと¥
-                    {(FREE_SHIPPING_THRESHOLD - totalWithThisProduct).toLocaleString()}
+                    {(
+                      FREE_SHIPPING_THRESHOLD - totalWithThisProduct
+                    ).toLocaleString()}
                     で基本送料無料です（地域別配送料は別途かかります）。
                   </Alert>
                 );

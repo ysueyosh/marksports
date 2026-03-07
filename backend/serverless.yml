@@ -161,7 +161,7 @@ custom:
 
   # CloudFront domain per stage
   cloudfrontDomain:
-    dev: d23pzr22xoegue.cloudfront.net
+    dev: d31gq9smh9542q.cloudfront.net
     stage: d1rxenf9seg5xc.cloudfront.net
     prod: d1rxenf9seg5xc.cloudfront.net
 

@@ -1092,6 +1092,7 @@ export default function AdminProductsPage() {
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
+                                sx={{ whiteSpace: 'pre-line' }}
                               >
                                 {product.description}
                               </Typography>

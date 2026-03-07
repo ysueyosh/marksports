@@ -10,7 +10,12 @@ from datetime import datetime, timedelta
 s3_client = boto3.client('s3', region_name='ap-northeast-1')
 
 # S3 bucket and CloudFront domain (stage-specific via env)
-S3_BUCKET_NAME = "marksports-image-"+os.environ.get('STAGE', '')
+# Prefer STAGE-based naming for local parity; fall back to explicit S3_BUCKET_NAME for deployed Lambda.
+S3_BUCKET_NAME = (
+    f"marksports-image-{os.environ.get('STAGE')}"
+    if os.environ.get('STAGE')
+    else os.environ.get('S3_BUCKET_NAME', '')
+)
 CLOUDFRONT_DOMAIN = os.environ.get('CLOUDFRONT_DOMAIN', 'd31gq9smh9542q.cloudfront.net')
 
 def get_s3_client():

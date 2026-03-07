@@ -108,7 +108,11 @@ export default function NotificationPopup({
                   }
                   secondary={
                     <Box mt={0.5}>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ whiteSpace: 'pre-line' }}
+                      >
                         {notification.message}
                       </Typography>
                       <Typography variant="caption" color="text.disabled">
