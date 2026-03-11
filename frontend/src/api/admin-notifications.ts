@@ -59,7 +59,7 @@ const adminNotificationAPI = {
    */
   getAllNotifications: async (
     page = 1,
-    limit = 10,
+    limit = 20,
   ): Promise<AdminNotificationResponse> => {
     return apiClient.get(`/admin/notifications?page=${page}&limit=${limit}`);
   },

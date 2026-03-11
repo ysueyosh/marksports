@@ -7,6 +7,7 @@ import Pagination from '@/components/Pagination/Pagination';
 import { adminProductAPI } from '@/api/admin-products';
 import { adminCategoryAPI, type Category } from '@/api/admin-categories';
 import { adminImageAPI } from '@/api/admin-images';
+import { getPriceWithTax } from '@/utils/price';
 import {
   Box,
   Typography,
@@ -111,7 +112,21 @@ export default function AdminProductsPage() {
     Category[]
   >([]);
 
-  const itemsPerPage = 5;
+  const itemsPerPage = 20;
+
+  const parsePriceInput = (value: string): number | null => {
+    if (!value) return null;
+    const parsed = Number(value);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      return null;
+    }
+    return Math.floor(parsed);
+  };
+
+  const priceInputValue = parsePriceInput(formData.price);
+  const taxExclusivePrice = priceInputValue === null ? null : priceInputValue;
+  const taxIncludedPrice =
+    taxExclusivePrice === null ? null : getPriceWithTax(taxExclusivePrice);
 
   useEffect(() => {
     const adminLogged = localStorage.getItem('adminLogged');
@@ -320,7 +335,7 @@ export default function AdminProductsPage() {
         name: formData.name,
         parentCategoryId: formData.parentCategoryId,
         categoryId: formData.categoryId,
-        price: parseInt(formData.price),
+        price: taxExclusivePrice ?? 0,
         description: formData.description,
         mainImage: formData.mainImage,
         subImages: formData.subImages,
@@ -350,7 +365,7 @@ export default function AdminProductsPage() {
         name: formData.name,
         parentCategoryId: formData.parentCategoryId,
         categoryId: formData.categoryId,
-        price: parseInt(formData.price),
+        price: taxExclusivePrice ?? 0,
         description: formData.description,
         mainImage: formData.mainImage,
         subImages: formData.subImages,
@@ -883,18 +898,28 @@ export default function AdminProductsPage() {
                 }
                 label="特別商品"
               />
-              <TextField
-                label="価格（税抜き）"
-                type="number"
-                value={formData.price}
-                onChange={(e) =>
-                  setFormData({ ...formData, price: e.target.value })
-                }
-                placeholder="税抜き価格を入力"
-                error={Boolean(productErrors.price)}
-                helperText={productErrors.price}
-                fullWidth
-              />
+              <Stack spacing={1}>
+                <TextField
+                  label="価格（税抜き）"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: e.target.value })
+                  }
+                  placeholder="税抜き価格を入力"
+                  error={Boolean(productErrors.price)}
+                  fullWidth
+                />
+                <Box>
+                  {productErrors.price ? (
+                    <FormHelperText error>{productErrors.price}</FormHelperText>
+                  ) : taxIncludedPrice !== null ? (
+                    <FormHelperText>
+                      {`税込価格: ¥${taxIncludedPrice.toLocaleString('ja-JP')}`}
+                    </FormHelperText>
+                  ) : null}
+                </Box>
+              </Stack>
               <TextField
                 label="説明"
                 value={formData.description}
@@ -1043,6 +1068,7 @@ export default function AdminProductsPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell></TableCell>
                   {!isMobile && !isTablet && <TableCell>商品名</TableCell>}
                   {isMobile && <TableCell>商品名</TableCell>}
                   {isTablet && (
@@ -1066,7 +1092,7 @@ export default function AdminProductsPage() {
               <TableBody>
                 {paginatedProducts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={isMobile ? 3 : isTablet ? 4 : 6}>
+                    <TableCell colSpan={isMobile ? 4 : isTablet ? 5 : 7}>
                       <Typography
                         textAlign="center"
                         color="text.secondary"
@@ -1080,6 +1106,39 @@ export default function AdminProductsPage() {
                   paginatedProducts.map((product) => (
                     <React.Fragment key={product.id}>
                       <TableRow hover selected={editingId === product.id}>
+                        <TableCell>
+                          {product.mainImage ? (
+                            <Box
+                              component="img"
+                              src={product.mainImage}
+                              alt={`${product.name} メイン画像`}
+                              sx={{
+                                width: 56,
+                                height: 56,
+                                objectFit: 'cover',
+                                borderRadius: 1,
+                                display: 'block',
+                                bgcolor: 'grey.100',
+                              }}
+                            />
+                          ) : (
+                            <Box
+                              sx={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                bgcolor: 'grey.100',
+                                color: 'text.disabled',
+                                fontSize: 12,
+                              }}
+                            >
+                              画像なし
+                            </Box>
+                          )}
+                        </TableCell>
                         <TableCell>{product.name}</TableCell>
                         {(isTablet || (!isMobile && !isTablet)) && (
                           <TableCell>
@@ -1132,7 +1191,7 @@ export default function AdminProductsPage() {
                       </TableRow>
                       {!isMobile && (
                         <TableRow>
-                          <TableCell colSpan={isTablet ? 4 : 6}>
+                          <TableCell colSpan={isTablet ? 5 : 7}>
                             <Typography
                               variant="caption"
                               color="text.secondary"

@@ -17,7 +17,7 @@ import {
   Stack,
 } from '@mui/material';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);

@@ -25,6 +25,8 @@ import {
   Stack,
   Button,
   Chip,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -45,6 +47,7 @@ interface ProductRow {
   price: number;
   status: 'public' | 'private';
   pageId: string;
+  mainImage?: string;
   isSite?: boolean;
 }
 
@@ -55,13 +58,16 @@ const siteAccessRow: ProductRow = {
   price: 0,
   status: 'public',
   pageId: '/',
+  mainImage: '',
   isSite: true,
 };
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 
 export default function AdminAccessPage() {
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -147,6 +153,7 @@ export default function AdminAccessPage() {
               ? ('public' as const)
               : ('private' as const),
             pageId: `/${product.productId}`,
+            mainImage: product.imageUrls?.[0] || '',
           }));
           setProducts(mappedProducts);
           setTotalPages(response.data.totalPages || 1);
@@ -276,16 +283,17 @@ export default function AdminAccessPage() {
           <TableHead>
             <TableRow>
               <TableCell width={56}></TableCell>
+              <TableCell></TableCell>
               <TableCell>商品名</TableCell>
-              <TableCell>カテゴリ</TableCell>
-              <TableCell>価格</TableCell>
-              <TableCell>公開状態</TableCell>
+              {!isMobile && <TableCell>カテゴリ</TableCell>}
+              {!isMobile && <TableCell>価格</TableCell>}
+              {!isMobile && <TableCell>公開状態</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
             {displayRows.length === 1 && filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={isMobile ? 3 : 6}>
                   <Typography textAlign="center" color="text.secondary" py={4}>
                     該当する商品がありません。
                   </Typography>
@@ -333,35 +341,72 @@ export default function AdminAccessPage() {
                           {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                         </IconButton>
                       </TableCell>
+                      <TableCell>
+                        {product.isSite ? null : product.mainImage ? (
+                          <Box
+                            component="img"
+                            src={product.mainImage}
+                            alt={`${product.name} メイン画像`}
+                            sx={{
+                              width: 56,
+                              height: 56,
+                              objectFit: 'cover',
+                              borderRadius: 1,
+                              display: 'block',
+                              bgcolor: 'grey.100',
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              bgcolor: 'grey.100',
+                              color: 'text.disabled',
+                              fontSize: 12,
+                            }}
+                          >
+                            画像なし
+                          </Box>
+                        )}
+                      </TableCell>
                       <TableCell>{product.name}</TableCell>
-                      <TableCell>{categoryName}</TableCell>
-                      <TableCell>
-                        {product.isSite
-                          ? '-'
-                          : `¥${product.price.toLocaleString()}`}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          size="small"
-                          label={
-                            product.isSite
-                              ? 'サイト'
-                              : product.status === 'public'
-                                ? '公開'
-                                : '非公開'
-                          }
-                          color={
-                            product.isSite
-                              ? 'info'
-                              : product.status === 'public'
-                                ? 'success'
-                                : 'default'
-                          }
-                        />
-                      </TableCell>
+                      {!isMobile && <TableCell>{categoryName}</TableCell>}
+                      {!isMobile && (
+                        <TableCell>
+                          {product.isSite
+                            ? '-'
+                            : `¥${product.price.toLocaleString()}`}
+                        </TableCell>
+                      )}
+                      {!isMobile && (
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            label={
+                              product.isSite
+                                ? 'サイト'
+                                : product.status === 'public'
+                                  ? '公開'
+                                  : '非公開'
+                            }
+                            color={
+                              product.isSite
+                                ? 'info'
+                                : product.status === 'public'
+                                  ? 'success'
+                                  : 'default'
+                            }
+                          />
+                        </TableCell>
+                      )}
                     </TableRow>
                     <TableRow>
-                      <TableCell colSpan={5} sx={{ py: 0 }}>
+                      <TableCell colSpan={isMobile ? 3 : 6} sx={{ py: 0 }}>
                         <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                           <Box sx={{ px: 2, py: 3 }}>
                             <Stack spacing={2}>

@@ -396,7 +396,7 @@ def get_all_coupons(event, context):
     
     Query parameters:
         - page: Page number (default: 1)
-        - limit: Items per page (default: 10)
+        - limit: Items per page (default: 20)
     
     Args:
         event: Lambda event
@@ -411,7 +411,7 @@ def get_all_coupons(event, context):
         
         query_params = event.get("queryStringParameters") or {}
         page = int(query_params.get("page", "1"))
-        limit = int(query_params.get("limit", "10"))
+        limit = int(query_params.get("limit", "20"))
         
         logger.info(f"Getting all coupons - page: {page}, limit: {limit}")
         

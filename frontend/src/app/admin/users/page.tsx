@@ -40,7 +40,7 @@ export default function AdminUsersPage() {
     'all' | 'active' | 'inactive'
   >('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 20;
   const [isSearching, setIsSearching] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);

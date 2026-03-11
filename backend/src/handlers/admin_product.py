@@ -508,7 +508,7 @@ def get_all_products(event, context):
     
     Query parameters:
         - page: Page number (default: 1)
-        - limit: Items per page (default: 10)
+        - limit: Items per page (default: 20)
         - keyword: Product name keyword (optional)
     
     Args:
@@ -524,7 +524,7 @@ def get_all_products(event, context):
         
         query_params = event.get("queryStringParameters") or {}
         page = int(query_params.get("page", "1"))
-        limit = int(query_params.get("limit", "10"))
+        limit = int(query_params.get("limit", "20"))
         keyword = (query_params.get("keyword") or "").strip().lower()
         
         logger.info(

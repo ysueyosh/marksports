@@ -61,7 +61,7 @@ export const adminCouponAPI = {
    * Create a new coupon
    */
   async createCoupon(
-    request: CouponCreateRequest
+    request: CouponCreateRequest,
   ): Promise<AdminCouponResponse> {
     return apiClient.post<AdminCouponResponse>('/admin/coupons', request);
   },
@@ -71,14 +71,14 @@ export const adminCouponAPI = {
    */
   async getAllCoupons(
     page: number = 1,
-    limit: number = 10
+    limit: number = 20,
   ): Promise<AdminCouponResponse> {
     const params = new URLSearchParams({
       page: String(page),
       limit: String(limit),
     });
     return apiClient.get<AdminCouponResponse>(
-      `/admin/coupons?${params.toString()}`
+      `/admin/coupons?${params.toString()}`,
     );
   },
 
@@ -87,11 +87,11 @@ export const adminCouponAPI = {
    */
   async updateCoupon(
     couponId: string,
-    request: CouponUpdateRequest
+    request: CouponUpdateRequest,
   ): Promise<AdminCouponResponse> {
     return apiClient.put<AdminCouponResponse>(
       `/admin/coupons/${couponId}`,
-      request
+      request,
     );
   },
 

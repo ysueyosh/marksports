@@ -42,10 +42,10 @@ def get_all_notifications(event, context):
         # Get pagination parameters
         query_params = event.get('queryStringParameters', {}) or {}
         page = int(query_params.get('page', 1))
-        limit = int(query_params.get('limit', 10))
+        limit = int(query_params.get('limit', 20))
         
         if page < 1 or limit < 1:
-            page, limit = 1, 10
+            page, limit = 1, 20
         
         table = get_notification_table()
         

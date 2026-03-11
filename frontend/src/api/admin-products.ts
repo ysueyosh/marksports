@@ -91,7 +91,7 @@ export const adminProductAPI = {
    */
   getAllProducts: async (
     page: number = 1,
-    limit: number = 10,
+    limit: number = 20,
     keyword?: string,
   ): Promise<AdminProductResponse> => {
     const params = new URLSearchParams({

@@ -42,7 +42,7 @@ export const adminUserAPI = {
    */
   async getAllUsers(
     page: number = 1,
-    limit: number = 10,
+    limit: number = 20,
     email?: string,
     name?: string,
     status?: string,

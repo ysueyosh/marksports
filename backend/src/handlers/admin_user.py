@@ -39,13 +39,13 @@ def get_all_users(event, context):
         # Get pagination parameters
         query_params = event.get('queryStringParameters', {}) or {}
         page = int(query_params.get('page', 1))
-        limit = int(query_params.get('limit', 10))
+        limit = int(query_params.get('limit', 20))
         email_filter = query_params.get('email')  # メール検索フィルタ
         name_filter = query_params.get('name')    # 名前検索フィルタ
         status_filter = query_params.get('status') # ステータス検索フィルタ
         
         if page < 1 or limit < 1:
-            page, limit = 1, 10
+            page, limit = 1, 20
         
         logger.info(f"Get all users - page: {page}, limit: {limit}, email: {email_filter}, name: {name_filter}, status: {status_filter}")
         

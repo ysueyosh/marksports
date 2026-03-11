@@ -22,6 +22,14 @@ def get_s3_client():
     """Get S3 client instance"""
     return s3_client
 
+
+def _build_versioned_image_name(image_name):
+    """Append a timestamp suffix so updated images get a new CDN path."""
+    base_name, extension = os.path.splitext(image_name)
+    normalized_extension = extension or '.jpg'
+    version = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+    return f"{base_name}-{version}{normalized_extension}"
+
 def generate_presigned_url(product_id, image_name, expiration=3600):
     """
     Generate presigned URL for uploading image to S3
@@ -117,8 +125,9 @@ def upload_image_to_s3(product_id, image_name, file_content, content_type='image
     # Add .jpg extension if not already present
     if not image_name.endswith('.jpg'):
         image_name = f"{image_name}.jpg"
-    
-    key = f"products/{product_id}/{image_name}"
+
+    versioned_image_name = _build_versioned_image_name(image_name)
+    key = f"products/{product_id}/{versioned_image_name}"
     
     try:
         s3_client.put_object(
@@ -128,7 +137,7 @@ def upload_image_to_s3(product_id, image_name, file_content, content_type='image
             ContentType=content_type
         )
         
-        return get_s3_image_url(product_id, image_name)
+        return get_s3_image_url(product_id, versioned_image_name)
     except Exception as e:
         print(f"Error uploading image to S3: {str(e)}")
         return None

@@ -53,7 +53,7 @@ export default function AdminNotificationsPage() {
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteInputValue, setDeleteInputValue] = useState('');
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   useEffect(() => {
     const adminLogged = localStorage.getItem('adminLogged');
