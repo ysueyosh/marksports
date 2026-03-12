@@ -31,7 +31,7 @@ provider:
     SHIPPING_SETTING_TABLE_NAME: ${self:custom.dynamoTables.${sls:stage}.shippingSetting}
     # Square API (Lambda デプロイ時に AWS SSM Parameter Store から取得)
     SQUARE_ACCESS_TOKEN: ${ssm:/ecsite/${sls:stage}/SQUARE_ACCESS_TOKEN}
-    SQUARE_ENVIRONMENT: ${sls:stage}
+    SQUARE_ENVIRONMENT: ${self:custom.squareEnvironment.${sls:stage}}
     # Email configuration (SES)
     ORDER_FROM_EMAIL: ${ssm:/ecsite/${sls:stage}/ORDER_FROM_EMAIL}
     # Frontend URL
@@ -124,6 +124,11 @@ provider:
             - 'arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/ecsite/*'
 
 custom:
+  squareEnvironment:
+    dev: sandbox
+    stage: sandbox
+    prod: production
+
   frontendUrl:
     dev: http://localhost:3000
     stage: https://stage.example.com
@@ -163,7 +168,7 @@ custom:
   cloudfrontDomain:
     dev: d31gq9smh9542q.cloudfront.net
     stage: d1rxenf9seg5xc.cloudfront.net
-    prod: d1rxenf9seg5xc.cloudfront.net
+    prod: dedbg0ogkpe2n.cloudfront.net
 
 functions:
   # Single Lambda function handling all routes

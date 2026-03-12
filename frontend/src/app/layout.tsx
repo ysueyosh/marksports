@@ -11,6 +11,11 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+const squareScriptSrc =
+  process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID?.startsWith('sq0idp-')
+    ? 'https://web.squarecdn.com/v1/square.js'
+    : 'https://sandbox.web.squarecdn.com/v1/square.js';
+
 export const dynamic = 'force-static';
 
 export default function RootLayout({
@@ -27,10 +32,7 @@ export default function RootLayout({
         />
         <title>Mark Sports</title>
         {/* Square Web Payments SDK */}
-        <script
-          async
-          src="https://sandbox.web.squarecdn.com/v1/square.js"
-        ></script>
+        <script async src={squareScriptSrc}></script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ClientProviders>{children}</ClientProviders>
