@@ -48,6 +48,7 @@ provider:
         - http://192.168.40.228:3000
         - https://www.dev.mark-sports.com
         - https://dev.mark-sports.com
+        - https://www.mark-sports.com
       allowedHeaders:
         - '*'
       allowedMethods:
@@ -130,9 +131,9 @@ custom:
     prod: production
 
   frontendUrl:
-    dev: http://localhost:3000
+    dev: http://www.dev.mark-sports.com
     stage: https://stage.example.com
-    prod: https://ecsite.example.com
+    prod: https://www.mark-sports.com
 
   # DynamoDB tables per stage
   dynamoTables:
