@@ -2073,8 +2073,12 @@ export default function CheckoutPage() {
                     {/* Credit Card Payment */}
                     {paymentMode === 'credit_card' && (
                       <PaymentForm
-                        applicationId="sandbox-sq0idb-dJ_V4eIHsIfJGNqmHjQvMA"
-                        locationId="LP30F7K9QGGXC"
+                        applicationId={
+                          process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
+                        }
+                        locationId={
+                          process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || ''
+                        }
                         cardTokenizeResponseReceived={async (token: any) => {
                           console.log(
                             '[DEBUG] Full token object:',
@@ -2522,8 +2526,12 @@ export default function CheckoutPage() {
                           ブラウザ上でのみご利用いただけます。
                         </p>
                         <PaymentForm
-                          applicationId="sandbox-sq0idb-dJ_V4eIHsIfJGNqmHjQvMA"
-                          locationId="LP30F7K9QGGXC"
+                          applicationId={
+                            process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
+                          }
+                          locationId={
+                            process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || ''
+                          }
                           createPaymentRequest={() => ({
                             countryCode: 'JP',
                             currencyCode: 'JPY',
@@ -2588,8 +2596,12 @@ export default function CheckoutPage() {
                           で支払います。対応ブラウザ上でのみご利用いただけます。
                         </p>
                         <PaymentForm
-                          applicationId="sandbox-sq0idb-dJ_V4eIHsIfJGNqmHjQvMA"
-                          locationId="LP30F7K9QGGXC"
+                          applicationId={
+                            process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
+                          }
+                          locationId={
+                            process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || ''
+                          }
                           createPaymentRequest={() => ({
                             countryCode: 'JP',
                             currencyCode: 'JPY',
