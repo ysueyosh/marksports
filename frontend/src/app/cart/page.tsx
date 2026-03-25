@@ -16,6 +16,7 @@ import {
   Paper,
   Stack,
   Button,
+  Chip,
   IconButton,
   TextField,
   Divider,
@@ -29,6 +30,8 @@ import RemoveIcon from '@mui/icons-material/Remove';
 
 export default function CartPage() {
   const FREE_SHIPPING_THRESHOLD = 4000;
+  const toBaseProductId = (itemId: string | number): string =>
+    String(itemId).split('|')[0];
   const router = useRouter();
   const {
     items: cartItems,
@@ -71,8 +74,9 @@ export default function CartPage() {
 
     setIsCheckingOut(true);
     try {
+      const baseProductIds = cartItems.map((item) => toBaseProductId(item.id));
       const response = await checkProductsExist(
-        cartItems.map((item) => item.id),
+        Array.from(new Set(baseProductIds)),
       );
 
       if (!response.success || !response.data?.results) {
@@ -82,7 +86,8 @@ export default function CartPage() {
 
       const deletedProducts: CartItem[] = [];
       cartItems.forEach((item) => {
-        if (!response.data?.results[String(item.id)]) {
+        const baseProductId = toBaseProductId(item.id);
+        if (!response.data?.results[baseProductId]) {
           deletedProducts.push(item);
           removeItem(String(item.id));
         }
@@ -164,7 +169,7 @@ export default function CartPage() {
         setIsCalculatingShipping(true);
         const response = await estimateShipping({
           items: cartItems.map((item) => ({
-            productId: String(item.id),
+            productId: toBaseProductId(item.id),
             quantity: item.quantity,
             unitPrice: item.price,
           })),
@@ -324,6 +329,30 @@ export default function CartPage() {
                           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                             {formatPriceIncludedTax(item.price)}
                           </Typography>
+                          {(item.size || item.color) && (
+                            <Stack
+                              direction="row"
+                              spacing={0.75}
+                              useFlexGap
+                              flexWrap="wrap"
+                              sx={{ mt: 0.75 }}
+                            >
+                              {item.size && (
+                                <Chip
+                                  label={`サイズ: ${item.size}`}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              )}
+                              {item.color && (
+                                <Chip
+                                  label={`カラー: ${item.color}`}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              )}
+                            </Stack>
+                          )}
                         </Box>
 
                         <Stack

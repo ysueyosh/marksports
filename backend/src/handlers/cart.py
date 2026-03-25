@@ -119,27 +119,36 @@ def get_cart(event, context):
                 
                 # Build enriched cart item with product info
                 image_urls = product.get('imageUrls', [])
+                # Extract item_key from SK (format: CART#{item_key})
+                sk = item.get('SK', '')
+                item_key = sk[len('CART#'):] if sk.startswith('CART#') else product_id
                 cart_item = {
-                    'id': product_id,
+                    'id': item_key,
                     'productId': product_id,
                     'name': product.get('name', '不明な商品'),
                     'price': product.get('price', 0),
                     'image': image_urls[0] if image_urls else '',
                     'quantity': quantity,
                     'addedAt': added_at,
+                    'size': item.get('size', ''),
+                    'color': item.get('color', ''),
                 }
                 cart_items.append(cart_item)
             except Exception as e:
                 logger.error(f"Error fetching product {product_id}: {str(e)}")
                 # Still include cart item even if product fetch fails
+                sk = item.get('SK', '')
+                item_key = sk[len('CART#'):] if sk.startswith('CART#') else product_id
                 cart_items.append({
-                    'id': product_id,
+                    'id': item_key,
                     'productId': product_id,
                     'name': '削除済み商品',
                     'price': 0,
                     'image': '',
                     'quantity': quantity,
                     'addedAt': added_at,
+                    'size': item.get('size', ''),
+                    'color': item.get('color', ''),
                 })
         
         return {
@@ -200,6 +209,8 @@ def add_to_cart(event, context):
         body = json.loads(event.get("body", "{}"))
         product_id = body.get('productId')
         quantity = body.get('quantity', 1)
+        size = body.get('size', '')
+        color = body.get('color', '')
         
         if not product_id or quantity < 1:
             return {
@@ -215,12 +226,19 @@ def add_to_cart(event, context):
                 }, ensure_ascii=False),
             }
         
-        # Check if product already in cart
+        # Build item_key: productId|size|color (pipe-separated, empty string if not set)
+        # For products without variants, item_key = productId (backward compat)
+        if size or color:
+            item_key = f'{product_id}|{size}|{color}'
+        else:
+            item_key = product_id
+        
+        # Check if product (with same variant) already in cart
         table = get_cart_table()
         response = table.get_item(
             Key={
                 'PK': f'CART#{cart_identifier}',
-                'SK': f'CART#{product_id}'
+                'SK': f'CART#{item_key}'
             }
         )
         
@@ -234,7 +252,7 @@ def add_to_cart(event, context):
             table.update_item(
                 Key={
                     'PK': f'CART#{cart_identifier}',
-                    'SK': f'CART#{product_id}'
+                    'SK': f'CART#{item_key}'
                 },
                 UpdateExpression='SET quantity = :qty, updatedAt = :updatedAt',
                 ExpressionAttributeValues={
@@ -244,15 +262,18 @@ def add_to_cart(event, context):
             )
         else:
             # Add new item
-            table.put_item(
-                Item={
-                    'PK': f'CART#{cart_identifier}',
-                    'SK': f'CART#{product_id}',
-                    'productId': product_id,
-                    'quantity': quantity,
-                    'addedAt': now,
-                }
-            )
+            new_item = {
+                'PK': f'CART#{cart_identifier}',
+                'SK': f'CART#{item_key}',
+                'productId': product_id,
+                'quantity': quantity,
+                'addedAt': now,
+            }
+            if size:
+                new_item['size'] = size
+            if color:
+                new_item['color'] = color
+            table.put_item(Item=new_item)
         
         return {
             "statusCode": 200,
@@ -265,6 +286,9 @@ def add_to_cart(event, context):
                 "message": "カートに商品を追加しました",
                 "data": {
                     "productId": product_id,
+                    "itemKey": item_key,
+                    "size": size,
+                    "color": color,
                     "quantity": quantity if 'Item' not in response else new_quantity,
                 }
             }, cls=DecimalEncoder, ensure_ascii=False),
@@ -314,9 +338,9 @@ def update_cart_item(event, context):
             }
         
         path_params = event.get('pathParameters', {}) or {}
-        product_id = path_params.get('product_id')
+        item_key = path_params.get('product_id')
         
-        if not product_id:
+        if not item_key:
             return {
                 "statusCode": 400,
                 "headers": {
@@ -353,7 +377,7 @@ def update_cart_item(event, context):
         table.update_item(
             Key={
                 'PK': f'CART#{cart_identifier}',
-                'SK': f'CART#{product_id}'
+                'SK': f'CART#{item_key}'
             },
             UpdateExpression='SET quantity = :qty, updatedAt = :updatedAt',
             ExpressionAttributeValues={
@@ -372,7 +396,7 @@ def update_cart_item(event, context):
                 "success": True,
                 "message": "カートを更新しました",
                 "data": {
-                    "productId": product_id,
+                    "itemKey": item_key,
                     "quantity": quantity,
                 }
             }, ensure_ascii=False),
@@ -422,9 +446,9 @@ def delete_from_cart(event, context):
             }
         
         path_params = event.get('pathParameters', {}) or {}
-        product_id = path_params.get('product_id')
+        item_key = path_params.get('product_id')
         
-        if not product_id:
+        if not item_key:
             return {
                 "statusCode": 400,
                 "headers": {
@@ -442,7 +466,7 @@ def delete_from_cart(event, context):
         table.delete_item(
             Key={
                 'PK': f'CART#{cart_identifier}',
-                'SK': f'CART#{product_id}'
+                'SK': f'CART#{item_key}'
             }
         )
         

@@ -7,8 +7,29 @@ interface Props {
   name: string;
   price: number;
   image?: string;
+  size?: string;
+  color?: string;
+  disabled?: boolean;
 }
 
-export default function ClientAddToCart({ id, name, price, image }: Props) {
-  return <AddToCartButton id={id} name={name} price={price} image={image} />;
+export default function ClientAddToCart({
+  id,
+  name,
+  price,
+  image,
+  size,
+  color,
+  disabled,
+}: Props) {
+  return (
+    <AddToCartButton
+      id={id}
+      name={name}
+      price={price}
+      image={image}
+      size={size}
+      color={color}
+      disabled={disabled}
+    />
+  );
 }

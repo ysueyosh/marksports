@@ -35,18 +35,25 @@ export interface OrderItemData {
   quantity: number;
   unitPrice: number;
   totalAmount: number;
+  size?: string;
+  color?: string;
 }
 
 export interface Address {
   name?: string;
   lastName?: string;
   firstName?: string;
+  familyName?: string;
+  givenName?: string;
   postalCode?: string;
+  zip?: string;
   prefecture?: string;
+  administrativeDistrictLevel1?: string;
   address?: string;
   addressLine1?: string;
   building?: string;
   addressLine2?: string;
+  option?: string;
   phone?: string;
   email?: string;
 }
@@ -196,6 +203,8 @@ export interface SaveOrderRequest {
     quantity: number;
     amount: number;
     totalAmount: number;
+    size?: string;
+    color?: string;
   }>;
 }
 

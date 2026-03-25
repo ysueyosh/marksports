@@ -72,6 +72,8 @@ export interface AdminOrderDetail {
     quantity: number;
     unitPrice: number;
     totalAmount: number;
+    size?: string;
+    color?: string;
   }>;
   paymentAt?: string;
   deliveryAt?: string;

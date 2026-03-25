@@ -44,6 +44,8 @@ export default function ProductDetailPage() {
   const [searchUrl, setSearchUrl] = useState<string>('/search');
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const [selectedColor, setSelectedColor] = useState<string>('');
   const { conditions } = useSearch();
   const { show: showSnackbar } = useSnackbar();
 
@@ -93,6 +95,9 @@ export default function ProductDetailPage() {
           console.log('Redirect URL:', response.data.redirectUrl);
           setProduct(response.data);
           setError(null);
+          // Reset variant selections when product changes
+          setSelectedSize('');
+          setSelectedColor('');
         } else {
           setError('商品情報を取得できませんでした');
           showSnackbar('商品情報を取得できませんでした', 'error');
@@ -294,12 +299,112 @@ export default function ProductDetailPage() {
                 サイトに移動
               </Button>
             ) : (
-              <ClientAddToCart
-                id={String(product.id)}
-                name={product.name}
-                price={product.price}
-                image={product.image}
-              />
+              <>
+                {product.sizes && product.sizes.length > 0 && (
+                  <Box>
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      gutterBottom
+                    >
+                      サイズ{' '}
+                      <Typography
+                        component="span"
+                        color="error"
+                        variant="caption"
+                      >
+                        *必須
+                      </Typography>
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {product.sizes.map((s) => (
+                        <Button
+                          key={s}
+                          variant={
+                            selectedSize === s ? 'contained' : 'outlined'
+                          }
+                          size="small"
+                          onClick={() => setSelectedSize(s)}
+                          sx={{ minWidth: 56 }}
+                        >
+                          {s}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+                {product.colors && product.colors.length > 0 && (
+                  <Box>
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={700}
+                      gutterBottom
+                    >
+                      カラー{' '}
+                      <Typography
+                        component="span"
+                        color="error"
+                        variant="caption"
+                      >
+                        *必須
+                      </Typography>
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {product.colors.map((c) => (
+                        <Button
+                          key={c}
+                          variant={
+                            selectedColor === c ? 'contained' : 'outlined'
+                          }
+                          size="small"
+                          onClick={() => setSelectedColor(c)}
+                          sx={{ minWidth: 72 }}
+                        >
+                          {c}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+                {((product.sizes &&
+                  product.sizes.length > 0 &&
+                  !selectedSize) ||
+                  (product.colors &&
+                    product.colors.length > 0 &&
+                    !selectedColor)) && (
+                  <Alert severity="warning" sx={{ py: 0.5 }}>
+                    {[
+                      product.sizes && product.sizes.length > 0 && !selectedSize
+                        ? 'サイズ'
+                        : '',
+                      product.colors &&
+                      product.colors.length > 0 &&
+                      !selectedColor
+                        ? 'カラー'
+                        : '',
+                    ]
+                      .filter(Boolean)
+                      .join('と')}
+                    を選択してください
+                  </Alert>
+                )}
+                <ClientAddToCart
+                  id={String(product.id)}
+                  name={product.name}
+                  price={product.price}
+                  image={product.image}
+                  size={selectedSize || undefined}
+                  color={selectedColor || undefined}
+                  disabled={
+                    (product.sizes != null &&
+                      product.sizes.length > 0 &&
+                      !selectedSize) ||
+                    (product.colors != null &&
+                      product.colors.length > 0 &&
+                      !selectedColor)
+                  }
+                />
+              </>
             )}
           </Box>
         </Box>

@@ -49,6 +49,8 @@ interface Product {
   subImages: string[];
   stock?: number;
   redirectUrl?: string;
+  sizes?: string[];
+  colors?: string[];
 }
 
 // カテゴリー構造定義
@@ -95,10 +97,14 @@ export default function AdminProductsPage() {
     status: 'active',
     isSpecial: false,
     redirectUrl: '',
+    sizes: [] as string[],
+    colors: [] as string[],
   });
   const [productErrors, setProductErrors] = useState<Record<string, string>>(
     {},
   );
+  const [sizeInput, setSizeInput] = useState('');
+  const [colorInput, setColorInput] = useState('');
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryFormData, setCategoryFormData] = useState({
     categoryName: '',
@@ -206,6 +212,8 @@ export default function AdminProductsPage() {
               imageUrls: imageUrls,
               subImages: subImages,
               stock: p.stock || 0,
+              sizes: p.sizes || [],
+              colors: p.colors || [],
             };
           },
         );
@@ -287,6 +295,8 @@ export default function AdminProductsPage() {
       status: 'active',
       isSpecial: false,
       redirectUrl: '',
+      sizes: [],
+      colors: [],
     });
     setProductErrors({});
     setEditingId(null);
@@ -341,6 +351,8 @@ export default function AdminProductsPage() {
         subImages: formData.subImages,
         status: formData.status,
         redirectUrl: formData.redirectUrl,
+        sizes: formData.sizes,
+        colors: formData.colors,
       };
 
       if (editingProduct?.productId) {
@@ -372,6 +384,8 @@ export default function AdminProductsPage() {
         status: formData.status,
         isActive: formData.published,
         redirectUrl: formData.redirectUrl,
+        sizes: formData.sizes,
+        colors: formData.colors,
       };
 
       console.log('Creating product with request:', createRequest);
@@ -417,6 +431,8 @@ export default function AdminProductsPage() {
       status: product.status || 'active',
       isSpecial: false,
       redirectUrl: product.redirectUrl || '',
+      sizes: product.sizes || [],
+      colors: product.colors || [],
     });
     setEditingId(product.id);
     setEditingProduct(product);
@@ -933,6 +949,118 @@ export default function AdminProductsPage() {
                 helperText={productErrors.description}
                 fullWidth
               />
+              {/* サイズ選択肢 */}
+              <Box>
+                <Typography variant="subtitle2" mb={1}>
+                  サイズ選択肢（任意）
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" mb={1}>
+                  {formData.sizes.map((s) => (
+                    <Chip
+                      key={s}
+                      label={s}
+                      onDelete={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          sizes: prev.sizes.filter((x) => x !== s),
+                        }))
+                      }
+                    />
+                  ))}
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <TextField
+                    size="small"
+                    value={sizeInput}
+                    onChange={(e) => setSizeInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const v = sizeInput.trim();
+                        if (v && !formData.sizes.includes(v)) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            sizes: [...prev.sizes, v],
+                          }));
+                          setSizeInput('');
+                        }
+                      }
+                    }}
+                    placeholder="例: S, M, L, XL"
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      const v = sizeInput.trim();
+                      if (v && !formData.sizes.includes(v)) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          sizes: [...prev.sizes, v],
+                        }));
+                        setSizeInput('');
+                      }
+                    }}
+                  >
+                    追加
+                  </Button>
+                </Stack>
+              </Box>
+              {/* カラー選択肢 */}
+              <Box>
+                <Typography variant="subtitle2" mb={1}>
+                  カラー選択肢（任意）
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" mb={1}>
+                  {formData.colors.map((c) => (
+                    <Chip
+                      key={c}
+                      label={c}
+                      onDelete={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          colors: prev.colors.filter((x) => x !== c),
+                        }))
+                      }
+                    />
+                  ))}
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <TextField
+                    size="small"
+                    value={colorInput}
+                    onChange={(e) => setColorInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const v = colorInput.trim();
+                        if (v && !formData.colors.includes(v)) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            colors: [...prev.colors, v],
+                          }));
+                          setColorInput('');
+                        }
+                      }
+                    }}
+                    placeholder="例: レッド, ブルー, ブラック"
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      const v = colorInput.trim();
+                      if (v && !formData.colors.includes(v)) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          colors: [...prev.colors, v],
+                        }));
+                        setColorInput('');
+                      }
+                    }}
+                  >
+                    追加
+                  </Button>
+                </Stack>
+              </Box>
               {formData.isSpecial && (
                 <TextField
                   label="遷移先URL"

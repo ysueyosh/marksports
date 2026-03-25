@@ -487,13 +487,28 @@ def get_orders(event, context):
             
             order_items = []
             for order_item in items_response.get('Items', []):
+                raw_product_id = str(order_item.get('productId') or '')
+                parsed_product_id = raw_product_id
+                parsed_size = ''
+                parsed_color = ''
+
+                if '|' in raw_product_id:
+                    parts = raw_product_id.split('|')
+                    parsed_product_id = parts[0]
+                    if len(parts) > 1:
+                        parsed_size = parts[1]
+                    if len(parts) > 2:
+                        parsed_color = parts[2]
+
                 order_items.append({
                     "orderItemId": order_item.get('orderItemId') or order_item.get('itemId'),
-                    "productId": order_item.get('productId'),
+                    "productId": parsed_product_id,
                     "productName": order_item.get('productName', 'Unknown Product'),
                     "quantity": safe_amount_conversion(order_item.get('quantity', 0), 0),
                     "unitPrice": safe_amount_conversion(order_item.get('amount') or order_item.get('unitPrice', 0), 0),
                     "totalAmount": safe_amount_conversion(order_item.get('totalAmount', 0), 0),
+                    "size": order_item.get('size', '') or parsed_size,
+                    "color": order_item.get('color', '') or parsed_color,
                 })
             
             orders.append({
@@ -663,15 +678,30 @@ def get_order_detail(event, context):
         items = []
         for item in items_response.get('Items', []):
             logger.info(f"Processing ORDER_ITEM from DynamoDB: {item}")
+            raw_product_id = str(item.get('productId') or '')
+            parsed_product_id = raw_product_id
+            parsed_size = ''
+            parsed_color = ''
+
+            if '|' in raw_product_id:
+                parts = raw_product_id.split('|')
+                parsed_product_id = parts[0]
+                if len(parts) > 1:
+                    parsed_size = parts[1]
+                if len(parts) > 2:
+                    parsed_color = parts[2]
+
             total_amount = safe_amount_conversion(item.get('totalAmount', 0), 0)
             logger.info(f"totalAmount from item: {total_amount}, raw value - totalAmount: {item.get('totalAmount')}")
             items.append({
                 "orderItemId": item.get('orderItemId') or item.get('itemId'),
-                "productId": item.get('productId'),
+                "productId": parsed_product_id,
                 "productName": item.get('productName', 'Unknown Product'),
                 "quantity": safe_amount_conversion(item.get('quantity', 0), 0),
                 "unitPrice": safe_amount_conversion(item.get('amount') or item.get('unitPrice', 0), 0),
                 "totalAmount": total_amount,
+                "size": item.get('size', '') or parsed_size,
+                "color": item.get('color', '') or parsed_color,
             })
         
         # Build order detail response
@@ -1160,6 +1190,42 @@ def save_order(event, context):
                 }, ensure_ascii=False),
             }
 
+        def normalize_shipping_address(address):
+            if not isinstance(address, dict):
+                return {}
+
+            family_name = address.get('familyName') or address.get('lastName') or ''
+            given_name = address.get('givenName') or address.get('firstName') or ''
+            name = address.get('name') or f"{family_name} {given_name}".strip()
+            postal_code = address.get('postalCode') or address.get('zip') or ''
+            prefecture = (
+                address.get('prefecture')
+                or address.get('administrativeDistrictLevel1')
+                or ''
+            )
+            street = address.get('address') or address.get('addressLine1') or ''
+            building = (
+                address.get('building')
+                or address.get('addressLine2')
+                or address.get('option')
+                or ''
+            )
+
+            normalized = dict(address)
+            normalized.update({
+                'name': name,
+                'familyName': family_name,
+                'givenName': given_name,
+                'postalCode': postal_code,
+                'prefecture': prefecture,
+                'address': street,
+                'building': building,
+            })
+            return normalized
+
+        body['shippingAddress'] = normalize_shipping_address(body.get('shippingAddress', {}))
+        body['billingAddress'] = normalize_shipping_address(body.get('billingAddress', {}))
+
         shipping_address = body.get('shippingAddress', {})
         shipping_breakdown_for_email = {
             'lines': []
@@ -1268,16 +1334,37 @@ def save_order(event, context):
         for item in items:
             order_item_id = f"ITEM_{uuid.uuid4().hex[:8]}"
             logger.info(f"[CREATE_ORDER] Processing item: {item}")
+
+            raw_product_id = str(item.get('productId') or '')
+            parsed_product_id = raw_product_id
+            parsed_size = ''
+            parsed_color = ''
+
+            # Backward-compatible parsing when productId includes variant key
+            # format: {productId}|{size}|{color}
+            if '|' in raw_product_id:
+                parts = raw_product_id.split('|')
+                parsed_product_id = parts[0]
+                if len(parts) > 1:
+                    parsed_size = parts[1]
+                if len(parts) > 2:
+                    parsed_color = parts[2]
+
+            final_size = item.get('size', '') or parsed_size
+            final_color = item.get('color', '') or parsed_color
+
             order_item_entry = {
                 "PK": f"USER#{user_id}",
                 "SK": f"ORDER_ITEM#{order_id}#{order_item_id}",
                 "orderId": order_id,
                 "orderItemId": order_item_id,
-                "productId": item.get('productId'),
+                "productId": parsed_product_id,
                 "productName": item.get('productName', 'Unknown Product'),
                 "unitPrice": int(item.get('amount', 0)),
                 "quantity": int(item.get('quantity', 1)),
                 "totalAmount": int(item.get('totalAmount', 0)),
+                "size": final_size,
+                "color": final_color,
                 "createdAt": now,
                 "updatedAt": now,
             }
@@ -1330,7 +1417,9 @@ def save_order(event, context):
                     email_items.append({
                         'productName': item.get('productName', 'Unknown Product'),
                         'quantity': int(item.get('quantity', 1)),
-                        'unitPrice': int(item.get('amount', 0))
+                        'unitPrice': int(item.get('amount', 0)),
+                        'size': item.get('size', ''),
+                        'color': item.get('color', ''),
                     })
                 
                 logger.info(f"[EMAIL] Prepared {len(email_items)} items for email")
@@ -1977,14 +2066,29 @@ def get_admin_order_detail(event, context):
         
         items = []
         for item in items_response.get('Items', []):
+            raw_product_id = str(item.get('productId') or '')
+            parsed_product_id = raw_product_id
+            parsed_size = ''
+            parsed_color = ''
+
+            if '|' in raw_product_id:
+                parts = raw_product_id.split('|')
+                parsed_product_id = parts[0]
+                if len(parts) > 1:
+                    parsed_size = parts[1]
+                if len(parts) > 2:
+                    parsed_color = parts[2]
+
             total_amount = safe_amount_conversion(item.get('totalAmount', 0), 0)
             items.append({
                 "orderItemId": item.get('orderItemId') or item.get('itemId'),
-                "productId": item.get('productId'),
+                "productId": parsed_product_id,
                 "productName": item.get('productName', 'Unknown Product'),
                 "quantity": safe_amount_conversion(item.get('quantity', 0), 0),
                 "unitPrice": safe_amount_conversion(item.get('amount') or item.get('unitPrice', 0), 0),
                 "totalAmount": total_amount,
+                "size": item.get('size', '') or parsed_size,
+                "color": item.get('color', '') or parsed_color,
             })
         
         # Build order detail response

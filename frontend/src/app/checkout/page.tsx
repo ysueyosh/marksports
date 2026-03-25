@@ -763,6 +763,14 @@ export default function CheckoutPage() {
 
           // Build order items from cart (with tax included)
           const orderItems = cartItems.map((item) => {
+            const rawItemId = String(item.id || '');
+            const idParts = rawItemId.split('|');
+            const parsedProductId = idParts[0] || item.productId;
+            const parsedSize = idParts.length > 1 ? idParts[1] : '';
+            const parsedColor = idParts.length > 2 ? idParts[2] : '';
+            const finalSize = item.size || parsedSize;
+            const finalColor = item.color || parsedColor;
+
             // 商品の税抜き価格
             const priceExcludingTax = item.price;
             // 商品の税額（1商品あたり）
@@ -771,11 +779,13 @@ export default function CheckoutPage() {
             const priceIncludingTax = priceExcludingTax + taxPerItem;
 
             return {
-              productId: item.productId,
+              productId: parsedProductId,
               productName: item.name,
               quantity: item.quantity,
               amount: priceIncludingTax, // ⭐ 税込み価格を格納
               totalAmount: priceIncludingTax * item.quantity, // ⭐ 税込み合計を格納
+              ...(finalSize ? { size: finalSize } : {}),
+              ...(finalColor ? { color: finalColor } : {}),
             };
           });
 
@@ -1794,9 +1804,36 @@ export default function CheckoutPage() {
                               color: '#6b7280',
                             }}
                           >
-                            <span>
-                              {item.name} × {item.quantity}
-                            </span>
+                            <div>
+                              <span>
+                                {item.name} × {item.quantity}
+                              </span>
+                              {(item.size || item.color) && (
+                                <Box
+                                  sx={{
+                                    mt: 0.5,
+                                    display: 'flex',
+                                    gap: 0.75,
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  {item.size && (
+                                    <Chip
+                                      label={`サイズ: ${item.size}`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  )}
+                                  {item.color && (
+                                    <Chip
+                                      label={`カラー: ${item.color}`}
+                                      size="small"
+                                      variant="outlined"
+                                    />
+                                  )}
+                                </Box>
+                              )}
+                            </div>
                             <span>
                               ¥
                               {(

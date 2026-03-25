@@ -214,6 +214,8 @@ def get_product_detail(event, context):
             'productDetails': product.get('productDetails', ''),
             'imageUrls': image_urls,
             'redirectUrl': product.get('redirectUrl', ''),
+            'sizes': product.get('sizes', []),
+            'colors': product.get('colors', []),
         }
         
         return {

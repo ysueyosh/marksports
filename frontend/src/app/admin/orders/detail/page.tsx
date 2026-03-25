@@ -13,6 +13,7 @@ import {
   Typography,
   Paper,
   Button,
+  Chip,
   Table,
   TableHead,
   TableBody,
@@ -266,7 +267,37 @@ export default function AdminOrderDetailPage() {
               <TableBody>
                 {order.items?.map((item, idx) => (
                   <TableRow key={idx}>
-                    <TableCell>{item.productName}</TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2">
+                          {item.productName}
+                        </Typography>
+                        {(item.size || item.color) && (
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            useFlexGap
+                            flexWrap="wrap"
+                            sx={{ mt: 0.5 }}
+                          >
+                            {item.size && (
+                              <Chip
+                                label={`サイズ: ${item.size}`}
+                                size="small"
+                                variant="outlined"
+                              />
+                            )}
+                            {item.color && (
+                              <Chip
+                                label={`カラー: ${item.color}`}
+                                size="small"
+                                variant="outlined"
+                              />
+                            )}
+                          </Stack>
+                        )}
+                      </Box>
+                    </TableCell>
                     <TableCell align="right">
                       ¥{item.unitPrice.toLocaleString()}
                     </TableCell>

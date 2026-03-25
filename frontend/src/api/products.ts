@@ -25,6 +25,8 @@ export interface ProductDetail extends Product {
   productDetails?: string;
   imageUrls?: string[];
   redirectUrl?: string;
+  sizes?: string[];
+  colors?: string[];
 }
 
 export interface FeaturedProductsResponse {
@@ -73,14 +75,14 @@ export async function getFeaturedProducts(): Promise<FeaturedProductsResponse> {
 }
 
 export async function getProductDetail(
-  productId: number | string
+  productId: number | string,
 ): Promise<ProductDetailResponse> {
   return apiClient.get<ProductDetailResponse>(`/product/${productId}`);
 }
 
 export async function getRelatedProducts(
   productId: number | string,
-  limit: number = 4
+  limit: number = 4,
 ): Promise<RelatedProductsResponse> {
   const params = new URLSearchParams({
     productId: String(productId),
@@ -88,18 +90,18 @@ export async function getRelatedProducts(
   });
 
   return apiClient.get<RelatedProductsResponse>(
-    `/related-products?${params.toString()}`
+    `/related-products?${params.toString()}`,
   );
 }
 
 export async function checkProductExists(
-  productId: number | string
+  productId: number | string,
 ): Promise<ProductExistsResponse> {
   return apiClient.get<ProductExistsResponse>(`/product/${productId}/exists`);
 }
 
 export async function checkProductsExist(
-  productIds: (number | string)[]
+  productIds: (number | string)[],
 ): Promise<ProductsExistResponse> {
   return apiClient.post<ProductsExistResponse>('/products/exists', {
     product_ids: productIds,

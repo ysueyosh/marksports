@@ -14,6 +14,7 @@ import {
   Typography,
   Paper,
   Button,
+  Chip,
   Table,
   TableHead,
   TableBody,
@@ -123,6 +124,31 @@ export default function OrderDetailPage() {
     okinawa: '沖縄',
   };
 
+  const shippingName =
+    [
+      order.shippingAddress?.name,
+      [order.shippingAddress?.lastName, order.shippingAddress?.firstName]
+        .filter(Boolean)
+        .join(' '),
+      [order.shippingAddress?.familyName, order.shippingAddress?.givenName]
+        .filter(Boolean)
+        .join(' '),
+    ].find((value) => Boolean(value && String(value).trim())) || '';
+
+  const shippingPostalCode =
+    order.shippingAddress?.postalCode || order.shippingAddress?.zip || '';
+  const shippingPrefecture =
+    order.shippingAddress?.prefecture ||
+    order.shippingAddress?.administrativeDistrictLevel1 ||
+    '';
+  const shippingStreet =
+    order.shippingAddress?.address || order.shippingAddress?.addressLine1 || '';
+  const shippingBuilding =
+    order.shippingAddress?.building ||
+    order.shippingAddress?.addressLine2 ||
+    order.shippingAddress?.option ||
+    '';
+
   return (
     <MainLayout>
       <Box>
@@ -220,7 +246,35 @@ export default function OrderDetailPage() {
                     {(order.items || []).map((item) => (
                       <TableRow key={item.orderItemId}>
                         <TableCell>
-                          {item.productName || '不明な商品'}
+                          <Box>
+                            <Typography variant="body2">
+                              {item.productName || '不明な商品'}
+                            </Typography>
+                            {(item.size || item.color) && (
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                useFlexGap
+                                flexWrap="wrap"
+                                sx={{ mt: 0.5 }}
+                              >
+                                {item.size && (
+                                  <Chip
+                                    label={`サイズ: ${item.size}`}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                )}
+                                {item.color && (
+                                  <Chip
+                                    label={`カラー: ${item.color}`}
+                                    size="small"
+                                    variant="outlined"
+                                  />
+                                )}
+                              </Stack>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell align="right">
                           {item.quantity || 0}
@@ -331,20 +385,17 @@ export default function OrderDetailPage() {
                 配送先情報
               </Typography>
               <Divider />
-              <Typography>
-                {order.shippingAddress?.lastName || ''}{' '}
-                {order.shippingAddress?.firstName || ''}
-              </Typography>
-              <Typography>
-                〒{order.shippingAddress?.postalCode || ''}
-              </Typography>
-              <Typography>
-                {order.shippingAddress?.prefecture || ''}
-                {order.shippingAddress?.address || ''}
-              </Typography>
-              {order.shippingAddress?.building && (
-                <Typography>{order.shippingAddress.building}</Typography>
+              {shippingName && <Typography>{shippingName}</Typography>}
+              {shippingPostalCode && (
+                <Typography>〒{shippingPostalCode}</Typography>
               )}
+              {(shippingPrefecture || shippingStreet) && (
+                <Typography>
+                  {shippingPrefecture}
+                  {shippingStreet}
+                </Typography>
+              )}
+              {shippingBuilding && <Typography>{shippingBuilding}</Typography>}
             </Stack>
           </Paper>
 

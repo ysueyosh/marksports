@@ -17,6 +17,8 @@ export interface ProductCreateRequest {
   stock?: number;
   isActive?: boolean;
   redirectUrl?: string;
+  sizes?: string[];
+  colors?: string[];
 }
 
 export interface ProductUpdateRequest {
@@ -32,6 +34,8 @@ export interface ProductUpdateRequest {
   stock?: number;
   isActive?: boolean;
   redirectUrl?: string;
+  sizes?: string[];
+  colors?: string[];
 }
 
 export interface Product {

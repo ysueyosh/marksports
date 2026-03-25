@@ -22,6 +22,8 @@ export interface CartItem {
   image: string;
   quantity: number;
   addedAt: string;
+  size?: string;
+  color?: string;
 }
 
 export interface AppliedCoupon {
@@ -40,9 +42,14 @@ interface CartStore {
   isLoading: boolean;
   setUserIdentifier: (identifier: string) => void;
   setItems: (items: CartItem[]) => void;
-  addItem: (productId: string, quantity: number) => Promise<void>;
-  removeItem: (productId: string) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
+  addItem: (
+    productId: string,
+    quantity: number,
+    size?: string,
+    color?: string,
+  ) => Promise<void>;
+  removeItem: (itemId: string) => Promise<void>;
+  updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   fetchCart: () => Promise<void>;
   setCoupon: (coupon: AppliedCoupon | null) => void;
   clear: () => Promise<void>;
@@ -61,13 +68,13 @@ export const useCartStore = create<CartStore>()((set, get) => ({
 
   setLoading: (loading) => set({ isLoading: loading }),
 
-  addItem: async (productId, quantity) => {
+  addItem: async (productId, quantity, size, color) => {
     const { userIdentifier } = get();
     if (!userIdentifier) return;
 
     try {
       set({ isLoading: true });
-      await apiAddToCart(userIdentifier, productId, quantity);
+      await apiAddToCart(userIdentifier, productId, quantity, size, color);
       // Refresh cart
       await get().fetchCart();
     } finally {
@@ -196,9 +203,14 @@ export function useCart() {
   } = useCartStore();
 
   const addItem = useCallback(
-    async (productId: string, quantity: number = 1) => {
+    async (
+      productId: string,
+      quantity: number = 1,
+      size?: string,
+      color?: string,
+    ) => {
       try {
-        await storeAddItem(productId, quantity);
+        await storeAddItem(productId, quantity, size, color);
         snackbar.show('カートに追加しました', 'success');
       } catch (error) {
         snackbar.show('カートへの追加に失敗しました', 'error');

@@ -129,6 +129,8 @@ def create_product(event, context):
             'status': body.get('status', 'active'),
             'isActive': body.get('isActive', True),
             'redirectUrl': body.get('redirectUrl', ''),
+            'sizes': body.get('sizes', []),
+            'colors': body.get('colors', []),
             'createdBy': admin_info.get('adminId'),
             'createdAt': datetime.utcnow().isoformat(),
             'updatedAt': datetime.utcnow().isoformat(),
@@ -323,6 +325,14 @@ def update_product(event, context):
         if 'redirectUrl' in body:
             update_parts.append('redirectUrl = :redirectUrl')
             expr_values[':redirectUrl'] = body['redirectUrl']
+        
+        if 'sizes' in body:
+            update_parts.append('sizes = :sizes')
+            expr_values[':sizes'] = body['sizes']
+        
+        if 'colors' in body:
+            update_parts.append('colors = :colors')
+            expr_values[':colors'] = body['colors']
         
         if not update_parts:
             return {

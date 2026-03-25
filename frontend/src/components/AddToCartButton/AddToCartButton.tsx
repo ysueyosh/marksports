@@ -19,9 +19,20 @@ interface Props {
   name: string;
   price: number;
   image?: string;
+  size?: string;
+  color?: string;
+  disabled?: boolean;
 }
 
-export default function AddToCartButton({ id, name, price, image }: Props) {
+export default function AddToCartButton({
+  id,
+  name,
+  price,
+  image,
+  size,
+  color,
+  disabled: externalDisabled,
+}: Props) {
   const [qty, setQty] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const { addItem } = useCart();
@@ -41,7 +52,7 @@ export default function AddToCartButton({ id, name, price, image }: Props) {
       }
 
       // API経由でカートに商品を追加
-      await addItem(String(id), qty);
+      await addItem(String(id), qty, size, color);
       setQty(1); // Reset quantity
     } catch (err) {
       console.error('Failed to add to cart:', err);
@@ -77,7 +88,7 @@ export default function AddToCartButton({ id, name, price, image }: Props) {
       <Button
         variant="contained"
         onClick={handleAddToCart}
-        disabled={isLoading}
+        disabled={isLoading || externalDisabled}
       >
         {isLoading ? 'チェック中...' : 'カートに追加'}
       </Button>

@@ -4,6 +4,8 @@ export interface CartItem {
   productId: string;
   quantity: number;
   addedAt: string;
+  size?: string;
+  color?: string;
 }
 
 export interface CartResponse {
@@ -16,7 +18,7 @@ export interface CartResponse {
  * Validate user identifier
  */
 const validateUserIdentifier = (
-  userIdentifier: string | null | undefined
+  userIdentifier: string | null | undefined,
 ): void => {
   if (
     !userIdentifier ||
@@ -31,7 +33,7 @@ const validateUserIdentifier = (
  * Get user's cart items
  */
 export const apiGetCart = async (
-  userIdentifier: string
+  userIdentifier: string,
 ): Promise<CartItem[]> => {
   try {
     // Validate input
@@ -56,7 +58,7 @@ export const apiGetCart = async (
     if (!Array.isArray(response.data)) {
       console.warn(
         'Expected cart data to be array, got:',
-        typeof response.data
+        typeof response.data,
       );
       return [];
     }
@@ -79,7 +81,9 @@ export const apiGetCart = async (
 export const apiAddToCart = async (
   userIdentifier: string,
   productId: string,
-  quantity: number
+  quantity: number,
+  size?: string,
+  color?: string,
 ): Promise<CartItem> => {
   try {
     // Validate inputs
@@ -102,12 +106,14 @@ export const apiAddToCart = async (
       {
         productId,
         quantity,
+        ...(size ? { size } : {}),
+        ...(color ? { color } : {}),
       },
       {
         headers: {
           'X-User-UUID': userIdentifier,
         },
-      }
+      },
     );
 
     // Validate response structure
@@ -143,7 +149,7 @@ export const apiAddToCart = async (
 export const apiUpdateCartItem = async (
   userIdentifier: string,
   productId: string,
-  quantity: number
+  quantity: number,
 ): Promise<CartItem> => {
   try {
     // Validate inputs
@@ -162,7 +168,7 @@ export const apiUpdateCartItem = async (
     }
 
     const response = await apiClient.put<CartResponse>(
-      `/cart/${productId}`,
+      `/cart/${encodeURIComponent(productId)}`,
       {
         quantity,
       },
@@ -170,7 +176,7 @@ export const apiUpdateCartItem = async (
         headers: {
           'X-User-UUID': userIdentifier,
         },
-      }
+      },
     );
 
     // Validate response structure
@@ -205,7 +211,7 @@ export const apiUpdateCartItem = async (
  */
 export const apiDeleteFromCart = async (
   userIdentifier: string,
-  productId: string
+  productId: string,
 ): Promise<void> => {
   try {
     // Validate inputs
@@ -220,12 +226,12 @@ export const apiDeleteFromCart = async (
     }
 
     const response = await apiClient.delete<CartResponse>(
-      `/cart/${productId}`,
+      `/cart/${encodeURIComponent(productId)}`,
       {
         headers: {
           'X-User-UUID': userIdentifier,
         },
-      }
+      },
     );
 
     // Validate response structure
@@ -262,7 +268,7 @@ export const apiClearCart = async (userIdentifier: string): Promise<void> => {
         headers: {
           'X-User-UUID': userIdentifier,
         },
-      }
+      },
     );
 
     // Validate response structure
