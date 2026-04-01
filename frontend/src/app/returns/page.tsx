@@ -158,10 +158,10 @@ export default function ReturnsPage() {
               返品・キャンセルに関するご質問は、以下までお気軽にお問い合わせください。
             </Typography>
             <Typography color="text.secondary">
-              メール：info@sports-store.jp
+              メール：marshall.step.0025@gmail.com
             </Typography>
             <Typography color="text.secondary">
-              電話：0120-XXX-XXXX（月～金 9:00～18:00）
+              電話：070-8957-7058（月～金 9:00～17:00）
             </Typography>
           </Box>
         </Box>
