@@ -58,7 +58,7 @@ export default function SpecificTransactionPage() {
               商品代金以外の必要料金
             </Typography>
             <Typography color="text.secondary">
-              配送料金：商品金額が税抜き10,000円未満の場合、送料800円が必要です。10,000円以上の場合は送料無料です。
+              配送料金：商品金額が税抜き4,000円未満の場合、基本送料500円が必要です。また、配送先エリアに応じて送料が加算される場合がございます。商品全額が4,000円以上の場合は送料無料です。
             </Typography>
             <Typography color="text.secondary">
               消費税：商品代金に対して10%の消費税を申し受けます。
@@ -70,7 +70,7 @@ export default function SpecificTransactionPage() {
               支払い方法
             </Typography>
             <Typography color="text.secondary">
-              クレジットカード、銀行振込、代金引換など複数の支払い方法をご用意しています。
+              クレジットカード、銀行振込、電子決済など複数の支払い方法をご用意しています。
             </Typography>
           </Box>
 
@@ -79,11 +79,9 @@ export default function SpecificTransactionPage() {
               商品代金の支払い時期
             </Typography>
             <Typography color="text.secondary">
-              クレジットカード、PayPal：注文確定時
+              クレジットカード、電子決済：注文確定時
               <br />
               銀行振込：注文確定後7日以内のご入金
-              <br />
-              代金引換：商品受け取り時
             </Typography>
           </Box>
 
@@ -92,7 +90,7 @@ export default function SpecificTransactionPage() {
               商品の引き渡し時期
             </Typography>
             <Typography color="text.secondary">
-              ご入金確認後、原則として5営業日以内に発送いたします。在庫がない場合はメールでご連絡いたします。
+              ご入金確認後、原則として5営業日以内に発送いたします。ただし、ネーム加工などのオーダー商品のは商品により発送時期が異なります。在庫がない場合はメールでご連絡いたします。
             </Typography>
           </Box>
 

@@ -125,7 +125,7 @@ export default function PrivacyPolicyPage() {
               本プライバシーポリシーに関するご質問やご不明な点がございましたら、以下までお気軽にお問い合わせください。
             </Typography>
             <Typography color="text.secondary">
-              メール：info@sports-store.jp
+              メール：marshall.step.0025@gmail.com
             </Typography>
           </Box>
         </Box>
