@@ -30,31 +30,6 @@ export default function SpecificTransactionPage() {
         <Box display="flex" flexDirection="column" gap={3}>
           <Box>
             <Typography variant="h6" fontWeight={700} gutterBottom>
-              販売者情報
-            </Typography>
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableBody>
-                  {[
-                    ['販売業者', 'Marshall Step'],
-                    ['代表者', '漆谷 諒士'],
-                    ['電話番号', '070-8957-7058'],
-                    ['メール', 'marshall.step.0025@gmail.com'],
-                  ].map(([label, value]) => (
-                    <TableRow key={label}>
-                      <TableCell sx={{ width: 160, fontWeight: 700 }}>
-                        {label}
-                      </TableCell>
-                      <TableCell>{value}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-
-          <Box>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
               商品代金以外の必要料金
             </Typography>
             <Typography color="text.secondary">
