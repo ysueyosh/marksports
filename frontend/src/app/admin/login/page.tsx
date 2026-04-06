@@ -166,9 +166,6 @@ export default function AdminLoginPage() {
             </Box>
 
             <Stack spacing={1}>
-              <MuiLink component={Link} href="/admin/create-admin">
-                新規管理者ユーザーを作成
-              </MuiLink>
               <MuiLink component={Link} href="/">
                 ← ホーム画面へ
               </MuiLink>
