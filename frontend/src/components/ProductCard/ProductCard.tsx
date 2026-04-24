@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Card, CardContent, Box, Typography, Button } from '@mui/material';
+import { Card, CardContent, Box, Typography } from '@mui/material';
 import { formatPriceIncludedTax } from '@/utils/price';
 
 interface ProductCardProps {
@@ -78,7 +78,13 @@ export default function ProductCard({
                 variant="subtitle1"
                 fontWeight={700}
                 gutterBottom
-                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  display: '-webkit-box',
+                  WebkitLineClamp: 4,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
               >
                 {name}
               </Typography>
@@ -87,38 +93,12 @@ export default function ProductCard({
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
               >
                 {formatPriceIncludedTax(price)}
               </Typography>
             )}
           </CardContent>
-        )}
-        {onClick && (
-          <Box px={{ xs: 1, sm: 2 }} pb={{ xs: 1, sm: 2 }}>
-            <Button
-              variant="outlined"
-              fullWidth
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClick();
-              }}
-            >
-              <Box
-                component="span"
-                sx={{ display: { xs: 'inline', sm: 'none' } }}
-              >
-                詳細
-              </Box>
-              <Box
-                component="span"
-                sx={{ display: { xs: 'none', sm: 'inline' } }}
-              >
-                詳細を見る
-              </Box>
-            </Button>
-          </Box>
         )}
       </Box>
     </Card>
