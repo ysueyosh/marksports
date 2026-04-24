@@ -82,10 +82,13 @@ def get_featured_products(event, context):
         featured = {}
         
         for product in products:
+            if not product.get('isActive', True):
+                continue
+
             product_category_id = product.get('categoryId')
             if not product_category_id:
                 continue
-            
+
             # Find the parent category for this product's category
             parent_id = category_map.get(product_category_id, {}).get('parentId')
             
@@ -181,8 +184,8 @@ def get_product_detail(event, context):
         )
         
         product = response.get('Item')
-        
-        if not product:
+
+        if not product or not product.get('isActive', True):
             return {
                 "statusCode": 404,
                 "headers": {
@@ -194,7 +197,7 @@ def get_product_detail(event, context):
                     "message": "Product not found"
                 }),
             }
-        
+
         # Map DynamoDB fields to Product model fields for response
         image_urls = product.get('imageUrls', [])
         product_response = {
@@ -444,10 +447,12 @@ def get_related_products(event, context):
         
         all_products = response.get('Items', [])
         
-        # Filter by category and exclude the current product
+        # Filter by category and exclude the current product and inactive products
         related_items = [
             p for p in all_products
-            if p.get('categoryId') == category_id and p.get('productId') != product_id
+            if p.get('categoryId') == category_id
+            and p.get('productId') != product_id
+            and p.get('isActive', True)
         ][:limit]
         
         # Map DynamoDB fields to Product model fields

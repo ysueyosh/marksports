@@ -89,10 +89,14 @@ def search_products(event, context):
         filtered_products = []
         
         for product in all_products:
+            # Exclude inactive products
+            if not product.get('isActive', True):
+                continue
+
             # Keyword filter
             if keyword and keyword not in product.get("name", "").lower():
                 continue
-            
+
             # Category filter
             if categories:
                 if product.get("categoryId") not in categories:

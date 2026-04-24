@@ -350,6 +350,7 @@ export default function AdminProductsPage() {
         mainImage: formData.mainImage,
         subImages: formData.subImages,
         status: formData.status,
+        isActive: formData.published,
         redirectUrl: formData.redirectUrl,
         sizes: formData.sizes,
         colors: formData.colors,
