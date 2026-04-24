@@ -1279,7 +1279,13 @@ export default function AdminProductsPage() {
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
-                                sx={{ whiteSpace: 'pre-line' }}
+                                sx={{
+                                  whiteSpace: 'pre-line',
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 4,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }}
                               >
                                 {product.description}
                               </Typography>
