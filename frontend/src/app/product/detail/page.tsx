@@ -419,7 +419,7 @@ export default function ProductDetailPage() {
             display="grid"
             gap={2}
             gridTemplateColumns={{
-              xs: 'repeat(3, 1fr)',
+              xs: 'repeat(2, 1fr)',
               sm: 'repeat(3, 1fr)',
               md: 'repeat(4, 1fr)',
               lg: 'repeat(5, 1fr)',

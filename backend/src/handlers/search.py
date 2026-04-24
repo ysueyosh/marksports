@@ -42,11 +42,31 @@ def search_products(event, context):
     try:
         # Get query parameters
         query_params = event.get("queryStringParameters") or {}
-        
+
         keyword = query_params.get("keyword", "").lower()
-        categories = query_params.get("categories", [])
-        if isinstance(categories, str):
-            categories = [categories]
+
+        # Normalize categories from multiple gateway formats.
+        # - HTTP API v2 often provides repeated keys as comma-joined string.
+        # - Some routes/local adapters provide list values directly.
+        # - REST API v1 may provide multiValueQueryStringParameters.
+        categories = []
+        raw_categories = query_params.get("categories", [])
+
+        if isinstance(raw_categories, list):
+            categories.extend(raw_categories)
+        elif isinstance(raw_categories, str):
+            categories.extend(raw_categories.split(","))
+
+        multi_value_params = event.get("multiValueQueryStringParameters") or {}
+        raw_multi_categories = multi_value_params.get("categories", [])
+        if isinstance(raw_multi_categories, list):
+            categories.extend(raw_multi_categories)
+        elif isinstance(raw_multi_categories, str):
+            categories.extend(raw_multi_categories.split(","))
+
+        # Trim spaces and remove empty values while preserving order.
+        categories = [category.strip() for category in categories if category and category.strip()]
+        categories = list(dict.fromkeys(categories))
         
         price_range = query_params.get("priceRange", "all")
         sort_by = query_params.get("sort", "relevance")
