@@ -122,16 +122,24 @@ def get_cart(event, context):
                 # Extract item_key from SK (format: CART#{item_key})
                 sk = item.get('SK', '')
                 item_key = sk[len('CART#'):] if sk.startswith('CART#') else product_id
+                additional_price = float(item.get('additionalPrice', 0) or 0)
+                base_price = float(product.get('price', 0))
                 cart_item = {
                     'id': item_key,
                     'productId': product_id,
                     'name': product.get('name', '不明な商品'),
-                    'price': product.get('price', 0),
+                    'price': base_price + additional_price,
                     'image': image_urls[0] if image_urls else '',
                     'quantity': quantity,
                     'addedAt': added_at,
                     'size': item.get('size', ''),
                     'color': item.get('color', ''),
+                    'selectedOptionChoiceId': item.get('selectedOptionChoiceId', ''),
+                    'selectedOptionChoiceName': item.get('selectedOptionChoiceName', ''),
+                    'additionalPrice': additional_price,
+                    'minQuantity': product.get('minQuantity'),
+                    'maxQuantity': product.get('maxQuantity'),
+                    'paymentMethodRestriction': product.get('paymentMethodRestriction'),
                 }
                 cart_items.append(cart_item)
             except Exception as e:
@@ -211,6 +219,9 @@ def add_to_cart(event, context):
         quantity = body.get('quantity', 1)
         size = body.get('size', '')
         color = body.get('color', '')
+        selected_option_choice_id = body.get('selectedOptionChoiceId', '')
+        selected_option_choice_name = body.get('selectedOptionChoiceName', '')
+        additional_price = body.get('additionalPrice', 0)
         
         if not product_id or quantity < 1:
             return {
@@ -226,9 +237,10 @@ def add_to_cart(event, context):
                 }, ensure_ascii=False),
             }
         
-        # Build item_key: productId|size|color (pipe-separated, empty string if not set)
-        # For products without variants, item_key = productId (backward compat)
-        if size or color:
+        # Build item_key: includes size, color, and optionChoiceId for uniqueness
+        if selected_option_choice_id:
+            item_key = f'{product_id}|{size or ""}|{color or ""}|{selected_option_choice_id}'
+        elif size or color:
             item_key = f'{product_id}|{size}|{color}'
         else:
             item_key = product_id
@@ -273,6 +285,13 @@ def add_to_cart(event, context):
                 new_item['size'] = size
             if color:
                 new_item['color'] = color
+            if selected_option_choice_id:
+                new_item['selectedOptionChoiceId'] = selected_option_choice_id
+            if selected_option_choice_name:
+                new_item['selectedOptionChoiceName'] = selected_option_choice_name
+            if additional_price:
+                from decimal import Decimal as _Decimal
+                new_item['additionalPrice'] = _Decimal(str(additional_price))
             table.put_item(Item=new_item)
         
         return {

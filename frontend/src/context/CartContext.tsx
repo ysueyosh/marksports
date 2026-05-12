@@ -24,6 +24,12 @@ export interface CartItem {
   addedAt: string;
   size?: string;
   color?: string;
+  selectedOptionChoiceId?: string;
+  selectedOptionChoiceName?: string;
+  additionalPrice?: number;
+  minQuantity?: number | null;
+  maxQuantity?: number | null;
+  paymentMethodRestriction?: string | null;
 }
 
 export interface AppliedCoupon {
@@ -47,6 +53,9 @@ interface CartStore {
     quantity: number,
     size?: string,
     color?: string,
+    selectedOptionChoiceId?: string,
+    selectedOptionChoiceName?: string,
+    additionalPrice?: number,
   ) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
@@ -68,13 +77,13 @@ export const useCartStore = create<CartStore>()((set, get) => ({
 
   setLoading: (loading) => set({ isLoading: loading }),
 
-  addItem: async (productId, quantity, size, color) => {
+  addItem: async (productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice) => {
     const { userIdentifier } = get();
     if (!userIdentifier) return;
 
     try {
       set({ isLoading: true });
-      await apiAddToCart(userIdentifier, productId, quantity, size, color);
+      await apiAddToCart(userIdentifier, productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice);
       // Refresh cart
       await get().fetchCart();
     } finally {
@@ -208,9 +217,12 @@ export function useCart() {
       quantity: number = 1,
       size?: string,
       color?: string,
+      selectedOptionChoiceId?: string,
+      selectedOptionChoiceName?: string,
+      additionalPrice?: number,
     ) => {
       try {
-        await storeAddItem(productId, quantity, size, color);
+        await storeAddItem(productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice);
         snackbar.show('カートに追加しました', 'success');
       } catch (error) {
         snackbar.show('カートへの追加に失敗しました', 'error');

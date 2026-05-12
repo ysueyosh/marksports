@@ -9,6 +9,11 @@ interface Props {
   image?: string;
   size?: string;
   color?: string;
+  selectedOptionChoiceId?: string;
+  selectedOptionChoiceName?: string;
+  additionalPrice?: number;
+  minQuantity?: number | null;
+  maxQuantity?: number | null;
   disabled?: boolean;
 }
 
@@ -19,6 +24,11 @@ export default function ClientAddToCart({
   image,
   size,
   color,
+  selectedOptionChoiceId,
+  selectedOptionChoiceName,
+  additionalPrice,
+  minQuantity,
+  maxQuantity,
   disabled,
 }: Props) {
   return (
@@ -29,6 +39,11 @@ export default function ClientAddToCart({
       image={image}
       size={size}
       color={color}
+      selectedOptionChoiceId={selectedOptionChoiceId}
+      selectedOptionChoiceName={selectedOptionChoiceName}
+      additionalPrice={additionalPrice}
+      minQuantity={minQuantity}
+      maxQuantity={maxQuantity}
       disabled={disabled}
     />
   );

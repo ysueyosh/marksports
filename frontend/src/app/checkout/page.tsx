@@ -138,6 +138,30 @@ export default function CheckoutPage() {
     }
   }, [currentStep]);
 
+  // 支払い方法制限の検出
+  const paymentRestrictionInfo = useMemo(() => {
+    const restrictedItems = cartItems.filter((item) => item.paymentMethodRestriction);
+    const freeItems = cartItems.filter((item) => !item.paymentMethodRestriction);
+    const restrictedMethod = restrictedItems.length > 0 ? restrictedItems[0].paymentMethodRestriction : null;
+    const hasSplit = restrictedItems.length > 0 && freeItems.length > 0;
+    const onlyRestricted = restrictedItems.length > 0 && freeItems.length === 0;
+    return { restrictedItems, freeItems, restrictedMethod, hasSplit, onlyRestricted };
+  }, [cartItems]);
+
+  const [freeItemsPaymentMode, setFreeItemsPaymentMode] = useState<
+    'credit_card' | 'bank_transfer' | 'apple_pay' | 'google_pay' | null
+  >(null);
+
+  const restrictionLabel = (method: string | null | undefined) => {
+    switch (method) {
+      case 'bank_transfer': return '口座振込';
+      case 'credit_card': return 'クレジットカード';
+      case 'apple_pay': return 'Apple Pay';
+      case 'google_pay': return 'Google Pay';
+      default: return method || '';
+    }
+  };
+
   // 金額計算のメモ化
   const priceInfo = useMemo(() => {
     const subtotal = cartItems.reduce(
@@ -292,6 +316,13 @@ export default function CheckoutPage() {
       loadAddresses();
     }
   }, [isLoggedIn, user]);
+
+  // 支払い方法制限がある場合、paymentMode を自動設定
+  useEffect(() => {
+    if (paymentRestrictionInfo.onlyRestricted && paymentRestrictionInfo.restrictedMethod) {
+      setPaymentMode(paymentRestrictionInfo.restrictedMethod as any);
+    }
+  }, [paymentRestrictionInfo.onlyRestricted, paymentRestrictionInfo.restrictedMethod]);
 
   // ログイン状態に応じてカード選択を初期化
   useEffect(() => {
@@ -2070,6 +2101,51 @@ export default function CheckoutPage() {
                     </Typography>
 
                     {/* Payment Method Type Selection */}
+                    {paymentRestrictionInfo.hasSplit && (
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        カートに<strong>支払い方法が制限された商品</strong>（{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}のみ）と
+                        <strong>制限なしの商品</strong>が混在しています。それぞれ異なる支払い方法を選択してください。
+                      </Alert>
+                    )}
+                    {paymentRestrictionInfo.hasSplit ? (
+                      <Box>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" fontWeight={700} mb={1}>
+                            制限付き商品（{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}のみ）
+                          </Typography>
+                          <Chip label={restrictionLabel(paymentRestrictionInfo.restrictedMethod)} color="warning" />
+                          <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                            {paymentRestrictionInfo.restrictedItems.map((i) => i.name).join('、')}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" fontWeight={700} mb={1}>
+                            制限なし商品 - 支払い方法を選択
+                          </Typography>
+                          <RadioGroup
+                            value={freeItemsPaymentMode ?? ''}
+                            onChange={(event) => {
+                              setFreeItemsPaymentMode(event.target.value as any);
+                            }}
+                          >
+                            <FormControlLabel value="bank_transfer" control={<Radio />} label="口座振込" />
+                            <FormControlLabel value="credit_card" control={<Radio />} label="クレジットカード" />
+                            <FormControlLabel value="apple_pay" control={<Radio />} label="Apple Pay" />
+                            <FormControlLabel value="google_pay" control={<Radio />} label="Google Pay" />
+                          </RadioGroup>
+                          <Typography variant="caption" color="text.secondary">
+                            {paymentRestrictionInfo.freeItems.map((i) => i.name).join('、')}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ) : paymentRestrictionInfo.onlyRestricted ? (
+                      <Box sx={{ mb: 2 }}>
+                        <Alert severity="info" sx={{ mb: 1 }}>
+                          カート内の商品は<strong>{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}</strong>でのお支払いのみ対応しています。
+                        </Alert>
+                        <Chip label={restrictionLabel(paymentRestrictionInfo.restrictedMethod)} color="warning" />
+                      </Box>
+                    ) : (
                     <Box sx={{ mb: 2 }}>
                       <RadioGroup
                         value={paymentMode ?? ''}
@@ -2106,6 +2182,7 @@ export default function CheckoutPage() {
                         />
                       </RadioGroup>
                     </Box>
+                    )}
 
                     {/* Credit Card Payment */}
                     {paymentMode === 'credit_card' && (

@@ -60,12 +60,15 @@ export default function CartPage() {
     removeItem(String(id));
   };
 
-  const handleIncrease = (id: string | number, current: number) => {
+  const handleIncrease = (id: string | number, current: number, maxQuantity?: number | null) => {
+    const max = maxQuantity ?? 9999;
+    if (current >= max) return;
     updateQuantity(String(id), current + 1);
   };
 
-  const handleDecrease = (id: string | number, current: number) => {
-    const next = Math.max(1, current - 1);
+  const handleDecrease = (id: string | number, current: number, minQuantity?: number | null) => {
+    const min = minQuantity ?? 1;
+    const next = Math.max(min, current - 1);
     updateQuantity(String(id), next);
   };
 
@@ -329,7 +332,7 @@ export default function CartPage() {
                           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                             {formatPriceIncludedTax(item.price)}
                           </Typography>
-                          {(item.size || item.color) && (
+                          {(item.size || item.color || item.selectedOptionChoiceName || item.paymentMethodRestriction) && (
                             <Stack
                               direction="row"
                               spacing={0.75}
@@ -349,6 +352,27 @@ export default function CartPage() {
                                   label={`カラー: ${item.color}`}
                                   size="small"
                                   variant="outlined"
+                                />
+                              )}
+                              {item.selectedOptionChoiceName && (
+                                <Chip
+                                  label={item.selectedOptionChoiceName}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                />
+                              )}
+                              {item.paymentMethodRestriction && (
+                                <Chip
+                                  label={`支払制限: ${
+                                    item.paymentMethodRestriction === 'bank_transfer' ? '口座振替のみ' :
+                                    item.paymentMethodRestriction === 'credit_card' ? 'クレジットカードのみ' :
+                                    item.paymentMethodRestriction === 'apple_pay' ? 'Apple Payのみ' :
+                                    item.paymentMethodRestriction === 'google_pay' ? 'Google Payのみ' :
+                                    item.paymentMethodRestriction
+                                  }`}
+                                  size="small"
+                                  color="warning"
                                 />
                               )}
                             </Stack>
@@ -373,8 +397,9 @@ export default function CartPage() {
                             <IconButton
                               size="small"
                               onClick={() =>
-                                handleDecrease(item.id, item.quantity)
+                                handleDecrease(item.id, item.quantity, item.minQuantity)
                               }
+                              disabled={item.quantity <= (item.minQuantity ?? 1)}
                             >
                               <RemoveIcon fontSize="small" />
                             </IconButton>
@@ -386,8 +411,9 @@ export default function CartPage() {
                             <IconButton
                               size="small"
                               onClick={() =>
-                                handleIncrease(item.id, item.quantity)
+                                handleIncrease(item.id, item.quantity, item.maxQuantity)
                               }
+                              disabled={item.maxQuantity != null && item.quantity >= item.maxQuantity}
                             >
                               <AddIcon fontSize="small" />
                             </IconButton>

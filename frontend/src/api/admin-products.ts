@@ -4,6 +4,18 @@
 
 import { apiClient } from './client';
 
+export interface ProductOptionChoice {
+  choiceId: string;
+  name: string;
+  additionalPrice: number;
+}
+
+export interface ProductOption {
+  optionId: string;
+  name: string;
+  choices: ProductOptionChoice[];
+}
+
 export interface ProductCreateRequest {
   name: string;
   description?: string;
@@ -19,6 +31,10 @@ export interface ProductCreateRequest {
   redirectUrl?: string;
   sizes?: string[];
   colors?: string[];
+  customOptions?: ProductOption[];
+  minQuantity?: number | null;
+  maxQuantity?: number | null;
+  paymentMethodRestriction?: string | null;
 }
 
 export interface ProductUpdateRequest {
@@ -36,6 +52,10 @@ export interface ProductUpdateRequest {
   redirectUrl?: string;
   sizes?: string[];
   colors?: string[];
+  customOptions?: ProductOption[];
+  minQuantity?: number | null;
+  maxQuantity?: number | null;
+  paymentMethodRestriction?: string | null;
 }
 
 export interface Product {

@@ -12,6 +12,8 @@ import { recordPageViewIfNeeded } from '@/utils/page-view';
 import {
   getProductDetail,
   ProductDetail,
+  ProductOption,
+  ProductOptionChoice,
   getRelatedProducts,
   Product,
 } from '@/api/products';
@@ -46,6 +48,7 @@ export default function ProductDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedOptionChoices, setSelectedOptionChoices] = useState<Record<string, string>>({});
   const { conditions } = useSearch();
   const { show: showSnackbar } = useSnackbar();
 
@@ -98,6 +101,7 @@ export default function ProductDetailPage() {
           // Reset variant selections when product changes
           setSelectedSize('');
           setSelectedColor('');
+          setSelectedOptionChoices({});
         } else {
           setError('商品情報を取得できませんでした');
           showSnackbar('商品情報を取得できませんでした', 'error');
@@ -366,44 +370,103 @@ export default function ProductDetailPage() {
                     </Stack>
                   </Box>
                 )}
-                {((product.sizes &&
-                  product.sizes.length > 0 &&
-                  !selectedSize) ||
-                  (product.colors &&
-                    product.colors.length > 0 &&
-                    !selectedColor)) && (
-                  <Alert severity="warning" sx={{ py: 0.5 }}>
-                    {[
-                      product.sizes && product.sizes.length > 0 && !selectedSize
-                        ? 'サイズ'
-                        : '',
-                      product.colors &&
-                      product.colors.length > 0 &&
-                      !selectedColor
-                        ? 'カラー'
-                        : '',
-                    ]
-                      .filter(Boolean)
-                      .join('と')}
-                    を選択してください
-                  </Alert>
+                {/* カスタムオプション選択 */}
+                {product.customOptions && product.customOptions.length > 0 && (
+                  <>
+                    {product.customOptions.map((opt) => (
+                      <Box key={opt.optionId}>
+                        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                          {opt.name}{' '}
+                          <Typography component="span" color="error" variant="caption">
+                            *必須
+                          </Typography>
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          {opt.choices.map((choice) => (
+                            <Button
+                              key={choice.choiceId}
+                              variant={selectedOptionChoices[opt.optionId] === choice.choiceId ? 'contained' : 'outlined'}
+                              size="small"
+                              onClick={() =>
+                                setSelectedOptionChoices((prev) => ({
+                                  ...prev,
+                                  [opt.optionId]: choice.choiceId,
+                                }))
+                              }
+                              sx={{ minWidth: 80 }}
+                            >
+                              {choice.name}
+                              {choice.additionalPrice > 0 && (
+                                <Typography component="span" variant="caption" sx={{ ml: 0.5 }}>
+                                  (+¥{choice.additionalPrice.toLocaleString()})
+                                </Typography>
+                              )}
+                            </Button>
+                          ))}
+                        </Stack>
+                      </Box>
+                    ))}
+                  </>
                 )}
-                <ClientAddToCart
-                  id={String(product.id)}
-                  name={product.name}
-                  price={product.price}
-                  image={product.image}
-                  size={selectedSize || undefined}
-                  color={selectedColor || undefined}
-                  disabled={
-                    (product.sizes != null &&
-                      product.sizes.length > 0 &&
-                      !selectedSize) ||
-                    (product.colors != null &&
-                      product.colors.length > 0 &&
-                      !selectedColor)
+
+                {(() => {
+                  const missingItems: string[] = [];
+                  if (product.sizes && product.sizes.length > 0 && !selectedSize) missingItems.push('サイズ');
+                  if (product.colors && product.colors.length > 0 && !selectedColor) missingItems.push('カラー');
+                  if (product.customOptions) {
+                    product.customOptions.forEach((opt) => {
+                      if (!selectedOptionChoices[opt.optionId]) missingItems.push(opt.name);
+                    });
                   }
-                />
+                  return missingItems.length > 0 ? (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>
+                      {missingItems.join('・')}を選択してください
+                    </Alert>
+                  ) : null;
+                })()}
+
+                {(() => {
+                  // 選択されたオプションから追加料金と choiceId/name を取得
+                  let totalAdditionalPrice = 0;
+                  let firstChoiceId: string | undefined;
+                  let firstChoiceName: string | undefined;
+                  if (product.customOptions && product.customOptions.length > 0) {
+                    const opt = product.customOptions[0];
+                    const choiceId = selectedOptionChoices[opt.optionId];
+                    if (choiceId) {
+                      const choice = opt.choices.find((c) => c.choiceId === choiceId);
+                      if (choice) {
+                        totalAdditionalPrice += choice.additionalPrice;
+                        firstChoiceId = choice.choiceId;
+                        firstChoiceName = `${opt.name}: ${choice.name}`;
+                      }
+                    }
+                  }
+
+                  const isOptionRequired = product.customOptions && product.customOptions.length > 0;
+                  const allOptionsSelected = !isOptionRequired || product.customOptions!.every((opt) => selectedOptionChoices[opt.optionId]);
+
+                  return (
+                    <ClientAddToCart
+                      id={String(product.id)}
+                      name={product.name}
+                      price={product.price}
+                      image={product.image}
+                      size={selectedSize || undefined}
+                      color={selectedColor || undefined}
+                      selectedOptionChoiceId={firstChoiceId}
+                      selectedOptionChoiceName={firstChoiceName}
+                      additionalPrice={totalAdditionalPrice || undefined}
+                      minQuantity={product.minQuantity}
+                      maxQuantity={product.maxQuantity}
+                      disabled={
+                        (product.sizes != null && product.sizes.length > 0 && !selectedSize) ||
+                        (product.colors != null && product.colors.length > 0 && !selectedColor) ||
+                        !allOptionsSelected
+                      }
+                    />
+                  );
+                })()}
               </>
             )}
           </Box>
