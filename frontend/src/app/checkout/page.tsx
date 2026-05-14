@@ -148,10 +148,6 @@ export default function CheckoutPage() {
     return { restrictedItems, freeItems, restrictedMethod, hasSplit, onlyRestricted };
   }, [cartItems]);
 
-  const [freeItemsPaymentMode, setFreeItemsPaymentMode] = useState<
-    'credit_card' | 'bank_transfer' | 'apple_pay' | 'google_pay' | null
-  >(null);
-
   const restrictionLabel = (method: string | null | undefined) => {
     switch (method) {
       case 'bank_transfer': return '口座振込';
@@ -317,12 +313,12 @@ export default function CheckoutPage() {
     }
   }, [isLoggedIn, user]);
 
-  // 支払い方法制限がある場合、paymentMode を自動設定
+  // 支払い方法制限がある場合、paymentMode を自動設定（split・onlyRestricted 両方）
   useEffect(() => {
-    if (paymentRestrictionInfo.onlyRestricted && paymentRestrictionInfo.restrictedMethod) {
+    if ((paymentRestrictionInfo.onlyRestricted || paymentRestrictionInfo.hasSplit) && paymentRestrictionInfo.restrictedMethod) {
       setPaymentMode(paymentRestrictionInfo.restrictedMethod as any);
     }
-  }, [paymentRestrictionInfo.onlyRestricted, paymentRestrictionInfo.restrictedMethod]);
+  }, [paymentRestrictionInfo.onlyRestricted, paymentRestrictionInfo.hasSplit, paymentRestrictionInfo.restrictedMethod]);
 
   // ログイン状態に応じてカード選択を初期化
   useEffect(() => {
@@ -707,10 +703,15 @@ export default function CheckoutPage() {
       let paymentSourceId: string;
       let orderStatus: 'unpaid' | 'awaiting_shipment' | null = null;
 
-      console.log('handlePayment called with sourceId:', sourceId);
+      // 制限付き商品がある場合はその支払い方法をカート全体に適用
+      const effectivePaymentMode = (paymentRestrictionInfo.hasSplit || paymentRestrictionInfo.onlyRestricted)
+        ? paymentRestrictionInfo.restrictedMethod as typeof paymentMode
+        : paymentMode;
+
+      console.log('handlePayment called with sourceId:', sourceId, 'effectivePaymentMode:', effectivePaymentMode);
 
       // 支払い方法ごとの処理
-      switch (paymentMode) {
+      switch (effectivePaymentMode) {
         case 'credit_card':
           if (!sourceId) {
             setPaymentError('カード情報を入力してください');
@@ -817,16 +818,17 @@ export default function CheckoutPage() {
               totalAmount: priceIncludingTax * item.quantity, // ⭐ 税込み合計を格納
               ...(finalSize ? { size: finalSize } : {}),
               ...(finalColor ? { color: finalColor } : {}),
+              ...(item.selectedOptionChoiceName ? { selectedOptionChoiceName: item.selectedOptionChoiceName } : {}),
             };
           });
 
           // Prepare payment details from selected method
           const paymentDetails: Record<string, any> = {
-            paymentMethod: paymentMode,
+            paymentMethod: effectivePaymentMode,
           };
 
           if (
-            paymentMode === 'credit_card' &&
+            effectivePaymentMode === 'credit_card' &&
             selectedPaymentMethodId &&
             selectedPaymentMethodId !== 'new_card'
           ) {
@@ -840,7 +842,7 @@ export default function CheckoutPage() {
               paymentDetails.expMonth = selectedCardData.expiryMonth;
               paymentDetails.expYear = selectedCardData.expiryYear;
             }
-          } else if (paymentMode === 'credit_card' && result.card_details) {
+          } else if (effectivePaymentMode === 'credit_card' && result.card_details) {
             // New card: get card info from payment result
             paymentDetails.paymentBrand = result.card_details.card_brand;
             paymentDetails.last4 = result.card_details.last_4;
@@ -902,7 +904,7 @@ export default function CheckoutPage() {
             },
             squareTransactionId: result.id,
             items: orderItems,
-            paymentMethod: paymentMode || 'credit_card', // Explicitly set paymentMethod
+            paymentMethod: effectivePaymentMode || 'credit_card',
             paymentBrand: paymentDetails.paymentBrand,
             last4: paymentDetails.last4,
             expMonth: paymentDetails.expMonth,
@@ -1862,6 +1864,15 @@ export default function CheckoutPage() {
                                       variant="outlined"
                                     />
                                   )}
+                                  {item.selectedOptionChoiceName && item.selectedOptionChoiceName.split(' / ').map((name: string, i: number) => (
+                                    <Chip
+                                      key={i}
+                                      label={name}
+                                      size="small"
+                                      variant="outlined"
+                                      color="primary"
+                                    />
+                                  ))}
                                 </Box>
                               )}
                             </div>
@@ -2101,42 +2112,16 @@ export default function CheckoutPage() {
                     </Typography>
 
                     {/* Payment Method Type Selection */}
-                    {paymentRestrictionInfo.hasSplit && (
-                      <Alert severity="warning" sx={{ mb: 2 }}>
-                        カートに<strong>支払い方法が制限された商品</strong>（{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}のみ）と
-                        <strong>制限なしの商品</strong>が混在しています。それぞれ異なる支払い方法を選択してください。
-                      </Alert>
-                    )}
                     {paymentRestrictionInfo.hasSplit ? (
-                      <Box>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                            制限付き商品（{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}のみ）
-                          </Typography>
-                          <Chip label={restrictionLabel(paymentRestrictionInfo.restrictedMethod)} color="warning" />
-                          <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                            {paymentRestrictionInfo.restrictedItems.map((i) => i.name).join('、')}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                            制限なし商品 - 支払い方法を選択
-                          </Typography>
-                          <RadioGroup
-                            value={freeItemsPaymentMode ?? ''}
-                            onChange={(event) => {
-                              setFreeItemsPaymentMode(event.target.value as any);
-                            }}
-                          >
-                            <FormControlLabel value="bank_transfer" control={<Radio />} label="口座振込" />
-                            <FormControlLabel value="credit_card" control={<Radio />} label="クレジットカード" />
-                            <FormControlLabel value="apple_pay" control={<Radio />} label="Apple Pay" />
-                            <FormControlLabel value="google_pay" control={<Radio />} label="Google Pay" />
-                          </RadioGroup>
-                          <Typography variant="caption" color="text.secondary">
-                            {paymentRestrictionInfo.freeItems.map((i) => i.name).join('、')}
-                          </Typography>
-                        </Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Alert severity="warning" sx={{ mb: 1 }}>
+                          カートに<strong>支払い方法が制限された商品</strong>（{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}のみ）が含まれているため、
+                          カート全体を<strong>{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}</strong>でお支払いいただきます。
+                        </Alert>
+                        <Chip label={restrictionLabel(paymentRestrictionInfo.restrictedMethod)} color="warning" />
+                        <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                          対象商品: {paymentRestrictionInfo.restrictedItems.map((i) => i.name).join('、')}
+                        </Typography>
                       </Box>
                     ) : paymentRestrictionInfo.onlyRestricted ? (
                       <Box sx={{ mb: 2 }}>

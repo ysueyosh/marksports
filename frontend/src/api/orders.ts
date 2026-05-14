@@ -37,6 +37,7 @@ export interface OrderItemData {
   totalAmount: number;
   size?: string;
   color?: string;
+  selectedOptionChoiceName?: string;
 }
 
 export interface Address {

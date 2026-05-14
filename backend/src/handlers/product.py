@@ -219,6 +219,10 @@ def get_product_detail(event, context):
             'redirectUrl': product.get('redirectUrl', ''),
             'sizes': product.get('sizes', []),
             'colors': product.get('colors', []),
+            'customOptions': product.get('customOptions', []),
+            'minQuantity': product.get('minQuantity'),
+            'maxQuantity': product.get('maxQuantity'),
+            'paymentMethodRestriction': product.get('paymentMethodRestriction'),
         }
         
         return {

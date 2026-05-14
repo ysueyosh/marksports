@@ -272,7 +272,7 @@ export default function AdminOrderDetailPage() {
                         <Typography variant="body2">
                           {item.productName}
                         </Typography>
-                        {(item.size || item.color) && (
+                        {(item.size || item.color || item.selectedOptionChoiceName) && (
                           <Stack
                             direction="row"
                             spacing={0.75}
@@ -294,6 +294,15 @@ export default function AdminOrderDetailPage() {
                                 variant="outlined"
                               />
                             )}
+                            {item.selectedOptionChoiceName && item.selectedOptionChoiceName.split(' / ').map((name, i) => (
+                              <Chip
+                                key={i}
+                                label={name}
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                              />
+                            ))}
                           </Stack>
                         )}
                       </Box>

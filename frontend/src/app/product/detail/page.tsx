@@ -292,6 +292,21 @@ export default function ProductDetailPage() {
               }
             })()}
 
+            {product.paymentMethodRestriction && (() => {
+              const labelMap: Record<string, string> = {
+                bank_transfer: '口座振替',
+                credit_card: 'クレジットカード',
+                apple_pay: 'Apple Pay',
+                google_pay: 'Google Pay',
+              };
+              const label = labelMap[product.paymentMethodRestriction] ?? product.paymentMethodRestriction;
+              return (
+                <Alert severity="warning">
+                  この商品は <strong>{label}</strong> のみご利用いただけます。
+                </Alert>
+              );
+            })()}
+
             {product.redirectUrl ? (
               <Button
                 variant="contained"
@@ -398,7 +413,7 @@ export default function ProductDetailPage() {
                               {choice.name}
                               {choice.additionalPrice > 0 && (
                                 <Typography component="span" variant="caption" sx={{ ml: 0.5 }}>
-                                  (+¥{choice.additionalPrice.toLocaleString()})
+                                  (+¥{Math.floor(choice.additionalPrice * 1.1).toLocaleString()}税込)
                                 </Typography>
                               )}
                             </Button>
@@ -426,22 +441,25 @@ export default function ProductDetailPage() {
                 })()}
 
                 {(() => {
-                  // 選択されたオプションから追加料金と choiceId/name を取得
+                  // 選択されたオプションから追加料金と choiceId/name を取得（全オプション対応）
                   let totalAdditionalPrice = 0;
-                  let firstChoiceId: string | undefined;
-                  let firstChoiceName: string | undefined;
+                  const choiceIds: string[] = [];
+                  const choiceNames: string[] = [];
                   if (product.customOptions && product.customOptions.length > 0) {
-                    const opt = product.customOptions[0];
-                    const choiceId = selectedOptionChoices[opt.optionId];
-                    if (choiceId) {
-                      const choice = opt.choices.find((c) => c.choiceId === choiceId);
-                      if (choice) {
-                        totalAdditionalPrice += choice.additionalPrice;
-                        firstChoiceId = choice.choiceId;
-                        firstChoiceName = `${opt.name}: ${choice.name}`;
+                    for (const opt of product.customOptions) {
+                      const choiceId = selectedOptionChoices[opt.optionId];
+                      if (choiceId) {
+                        const choice = opt.choices.find((c) => c.choiceId === choiceId);
+                        if (choice) {
+                          totalAdditionalPrice += choice.additionalPrice;
+                          choiceIds.push(choice.choiceId);
+                          choiceNames.push(`${opt.name}: ${choice.name}`);
+                        }
                       }
                     }
                   }
+                  const firstChoiceId = choiceIds.length > 0 ? choiceIds.join('_') : undefined;
+                  const firstChoiceName = choiceNames.length > 0 ? choiceNames.join(' / ') : undefined;
 
                   const isOptionRequired = product.customOptions && product.customOptions.length > 0;
                   const allOptionsSelected = !isOptionRequired || product.customOptions!.every((opt) => selectedOptionChoices[opt.optionId]);

@@ -272,7 +272,7 @@ export default function CartPage() {
                       >
                         <Box
                           component={Link}
-                          href={`/product/detail?id=${item.id}`}
+                          href={`/product/detail?id=${toBaseProductId(item.id)}`}
                           sx={{
                             width: { xs: 96, sm: 120 },
                             height: { xs: 96, sm: 120 },
@@ -319,7 +319,7 @@ export default function CartPage() {
                         >
                           <Typography
                             component={Link}
-                            href={`/product/detail?id=${item.id}`}
+                            href={`/product/detail?id=${toBaseProductId(item.id)}`}
                             sx={{
                               textDecoration: 'none',
                               color: 'inherit',
@@ -354,14 +354,15 @@ export default function CartPage() {
                                   variant="outlined"
                                 />
                               )}
-                              {item.selectedOptionChoiceName && (
+                              {item.selectedOptionChoiceName && item.selectedOptionChoiceName.split(' / ').map((name, i) => (
                                 <Chip
-                                  label={item.selectedOptionChoiceName}
+                                  key={i}
+                                  label={name}
                                   size="small"
                                   variant="outlined"
                                   color="primary"
                                 />
-                              )}
+                              ))}
                               {item.paymentMethodRestriction && (
                                 <Chip
                                   label={`支払制限: ${

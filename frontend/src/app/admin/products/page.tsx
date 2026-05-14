@@ -1230,7 +1230,7 @@ export default function AdminProductsPage() {
               </Box>
               {/* 数量制限 */}
               <Box>
-                <Typography variant="subtitle2" mb={1}>数量制限（空欄=制限なし）</Typography>
+                <Typography variant="subtitle2" mb={1}>数量制限</Typography>
                 <Stack direction="row" spacing={2}>
                   <TextField
                     label="最小数量"
@@ -1257,7 +1257,7 @@ export default function AdminProductsPage() {
 
               {/* 支払い方法制限 */}
               <Box>
-                <Typography variant="subtitle2" mb={1}>支払い方法制限（空欄=制限なし）</Typography>
+                <Typography variant="subtitle2" mb={1}>支払い方法制限</Typography>
                 <FormControl fullWidth size="small">
                   <Select
                     value={formData.paymentMethodRestriction}
@@ -1275,7 +1275,10 @@ export default function AdminProductsPage() {
 
               {/* カスタムオプション */}
               <Box>
-                <Typography variant="subtitle2" mb={1}>カスタムオプション（サイズ・カラー以外）</Typography>
+                <Typography variant="subtitle2" mb={0.5}>カスタムオプション（サイズ・カラー以外）</Typography>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                  ※ 追加料金はすべて税抜き金額で入力してください（消費税は自動計算されます）
+                </Typography>
                 {formData.customOptions.map((opt, optIdx) => (
                   <Paper key={opt.optionId} variant="outlined" sx={{ p: 1.5, mb: 1 }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
@@ -1291,8 +1294,15 @@ export default function AdminProductsPage() {
                       {opt.choices.map((choice, choiceIdx) => (
                         <Stack key={choice.choiceId} direction="row" alignItems="center" spacing={1}>
                           <Typography variant="body2">{choice.name}</Typography>
-                          {choice.additionalPrice > 0 && (
-                            <Chip size="small" label={`+¥${choice.additionalPrice.toLocaleString()}`} />
+                          {choice.additionalPrice > 0 ? (
+                            <Chip
+                              size="small"
+                              label={`+¥${choice.additionalPrice.toLocaleString()}(税抜) / +¥${Math.floor(choice.additionalPrice * 1.1).toLocaleString()}(税込)`}
+                              color="info"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip size="small" label="追加料金なし" variant="outlined" />
                           )}
                           <Button size="small" color="error" onClick={() =>
                             setFormData((prev) => ({
@@ -1307,24 +1317,32 @@ export default function AdminProductsPage() {
                         </Stack>
                       ))}
                     </Stack>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                    <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap">
                       <TextField
                         size="small"
-                        placeholder="選択肢名"
+                        label="選択肢名"
+                        placeholder="例: 赤"
                         value={optIdx === formData.customOptions.length - 1 ? optionChoiceNameInput : ''}
                         onChange={(e) => setOptionChoiceNameInput(e.target.value)}
                         sx={{ width: 140 }}
+                        helperText=" "
                       />
                       <TextField
                         size="small"
-                        placeholder="追加料金(円)"
+                        label="追加料金・税抜(円)"
+                        placeholder="0"
                         type="number"
                         value={optIdx === formData.customOptions.length - 1 ? optionChoicePriceInput : ''}
                         onChange={(e) => setOptionChoicePriceInput(e.target.value)}
                         inputProps={{ min: 0 }}
-                        sx={{ width: 120 }}
+                        sx={{ width: 160 }}
+                        helperText={
+                          optionChoicePriceInput && Number(optionChoicePriceInput) > 0
+                            ? `税込: ¥${Math.floor(Number(optionChoicePriceInput) * 1.1).toLocaleString()}`
+                            : ' '
+                        }
                       />
-                      <Button size="small" variant="outlined" onClick={() => {
+                      <Button size="small" variant="outlined" sx={{ mt: '4px' }} onClick={() => {
                         const name = optionChoiceNameInput.trim();
                         if (!name) return;
                         const price = Number(optionChoicePriceInput) || 0;
@@ -1345,7 +1363,8 @@ export default function AdminProductsPage() {
                 <Stack direction="row" spacing={1} alignItems="center">
                   <TextField
                     size="small"
-                    placeholder="オプション名（例: 刺繍）"
+                    label="オプショングループ名"
+                    placeholder="例: 刺繍"
                     value={optionNameInput}
                     onChange={(e) => setOptionNameInput(e.target.value)}
                     sx={{ width: 200 }}
@@ -1358,7 +1377,7 @@ export default function AdminProductsPage() {
                       customOptions: [...prev.customOptions, { optionId: crypto.randomUUID(), name, choices: [] }],
                     }));
                     setOptionNameInput('');
-                  }}>オプショングループ追加</Button>
+                  }}>グループ追加</Button>
                 </Stack>
               </Box>
 
