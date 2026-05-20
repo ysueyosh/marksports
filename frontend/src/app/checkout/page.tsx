@@ -142,10 +142,12 @@ export default function CheckoutPage() {
   const paymentRestrictionInfo = useMemo(() => {
     const restrictedItems = cartItems.filter((item) => item.paymentMethodRestriction);
     const freeItems = cartItems.filter((item) => !item.paymentMethodRestriction);
-    const restrictedMethod = restrictedItems.length > 0 ? restrictedItems[0].paymentMethodRestriction : null;
-    const hasSplit = restrictedItems.length > 0 && freeItems.length > 0;
-    const onlyRestricted = restrictedItems.length > 0 && freeItems.length === 0;
-    return { restrictedItems, freeItems, restrictedMethod, hasSplit, onlyRestricted };
+    const uniqueMethods = [...new Set(restrictedItems.map((i) => i.paymentMethodRestriction as string))];
+    const hasConflict = uniqueMethods.length > 1;
+    const restrictedMethod = !hasConflict && uniqueMethods.length === 1 ? uniqueMethods[0] : null;
+    const hasSplit = !hasConflict && restrictedItems.length > 0 && freeItems.length > 0;
+    const onlyRestricted = !hasConflict && restrictedItems.length > 0 && freeItems.length === 0;
+    return { restrictedItems, freeItems, restrictedMethod, hasSplit, onlyRestricted, hasConflict, conflictMethods: uniqueMethods };
   }, [cartItems]);
 
   const restrictionLabel = (method: string | null | undefined) => {
@@ -581,6 +583,10 @@ export default function CheckoutPage() {
   };
 
   const handleNextStep = () => {
+    if (paymentRestrictionInfo.hasConflict) {
+      setPaymentError('決済方法が競合しています。カートに戻り、競合する商品を削除してください。');
+      return;
+    }
     if (validateStep1()) {
       setCurrentStep(2);
       setPaymentError(null);
@@ -2112,7 +2118,24 @@ export default function CheckoutPage() {
                     </Typography>
 
                     {/* Payment Method Type Selection */}
-                    {paymentRestrictionInfo.hasSplit ? (
+                    {paymentRestrictionInfo.hasConflict ? (
+                      <Box sx={{ mb: 2 }}>
+                        <Alert severity="error" sx={{ mb: 1 }}>
+                          <Typography fontWeight={700} gutterBottom>
+                            決済方法が競合しています
+                          </Typography>
+                          <Typography variant="body2">
+                            カート内に決済方法の異なる商品が混在しているため、購入を完了できません。
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            競合: {paymentRestrictionInfo.conflictMethods.map(restrictionLabel).join('のみ / ')}のみ
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            カートに戻り、いずれかの商品を削除してください。
+                          </Typography>
+                        </Alert>
+                      </Box>
+                    ) : paymentRestrictionInfo.hasSplit ? (
                       <Box sx={{ mb: 2 }}>
                         <Alert severity="warning" sx={{ mb: 1 }}>
                           カートに<strong>支払い方法が制限された商品</strong>（{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}のみ）が含まれているため、
@@ -2775,7 +2798,11 @@ export default function CheckoutPage() {
                 justifyContent="space-between"
               >
                 {currentStep === 1 && (
-                  <Button variant="contained" onClick={handleNextStep}>
+                  <Button
+                    variant="contained"
+                    onClick={handleNextStep}
+                    disabled={paymentRestrictionInfo.hasConflict}
+                  >
                     注文内容確認へ進む →
                   </Button>
                 )}
@@ -2792,7 +2819,7 @@ export default function CheckoutPage() {
                     <Button
                       variant="contained"
                       onClick={handleConfirmStep}
-                      disabled={isProcessing}
+                      disabled={isProcessing || paymentRestrictionInfo.hasConflict}
                     >
                       決済へ進む →
                     </Button>

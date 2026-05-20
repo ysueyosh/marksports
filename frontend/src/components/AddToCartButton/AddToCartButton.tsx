@@ -26,6 +26,7 @@ interface Props {
   additionalPrice?: number;
   minQuantity?: number | null;
   maxQuantity?: number | null;
+  paymentMethodRestriction?: string | null;
   disabled?: boolean;
 }
 
@@ -41,6 +42,7 @@ export default function AddToCartButton({
   additionalPrice,
   minQuantity,
   maxQuantity,
+  paymentMethodRestriction,
   disabled: externalDisabled,
 }: Props) {
   const min = minQuantity ?? 1;
@@ -67,7 +69,7 @@ export default function AddToCartButton({
         return;
       }
 
-      await addItem(String(id), qty, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice);
+      await addItem(String(id), qty, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice, paymentMethodRestriction);
       setQty(min);
     } catch (err) {
       console.error('Failed to add to cart:', err);

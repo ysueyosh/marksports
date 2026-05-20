@@ -65,6 +65,16 @@ interface CartStore {
   setLoading: (loading: boolean) => void;
 }
 
+const paymentRestrictionLabel = (method: string): string => {
+  const labels: Record<string, string> = {
+    bank_transfer: '口座振込',
+    credit_card: 'クレジットカード',
+    apple_pay: 'Apple Pay',
+    google_pay: 'Google Pay',
+  };
+  return labels[method] || method;
+};
+
 export const useCartStore = create<CartStore>()((set, get) => ({
   items: [],
   coupon: null,
@@ -220,7 +230,24 @@ export function useCart() {
       selectedOptionChoiceId?: string,
       selectedOptionChoiceName?: string,
       additionalPrice?: number,
+      paymentMethodRestriction?: string | null,
     ) => {
+      // 決済方法競合チェック: カート内に異なる制限の商品があればブロック
+      if (paymentMethodRestriction) {
+        const conflictingItem = items.find(
+          (item) =>
+            item.paymentMethodRestriction &&
+            item.paymentMethodRestriction !== paymentMethodRestriction,
+        );
+        if (conflictingItem) {
+          snackbar.show(
+            `この商品（${paymentRestrictionLabel(paymentMethodRestriction)}のみ）はカート内の商品（${paymentRestrictionLabel(conflictingItem.paymentMethodRestriction!)}のみ）と決済方法が競合するため追加できません`,
+            'error',
+          );
+          return;
+        }
+      }
+
       try {
         await storeAddItem(productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice);
         snackbar.show('カートに追加しました', 'success');
@@ -228,7 +255,7 @@ export function useCart() {
         snackbar.show('カートへの追加に失敗しました', 'error');
       }
     },
-    [storeAddItem, snackbar],
+    [storeAddItem, snackbar, items],
   );
 
   const removeItem = useCallback(

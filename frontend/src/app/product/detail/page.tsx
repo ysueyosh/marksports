@@ -477,6 +477,7 @@ export default function ProductDetailPage() {
                       additionalPrice={totalAdditionalPrice || undefined}
                       minQuantity={product.minQuantity}
                       maxQuantity={product.maxQuantity}
+                      paymentMethodRestriction={product.paymentMethodRestriction}
                       disabled={
                         (product.sizes != null && product.sizes.length > 0 && !selectedSize) ||
                         (product.colors != null && product.colors.length > 0 && !selectedColor) ||

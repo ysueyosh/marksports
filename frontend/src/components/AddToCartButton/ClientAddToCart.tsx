@@ -14,6 +14,7 @@ interface Props {
   additionalPrice?: number;
   minQuantity?: number | null;
   maxQuantity?: number | null;
+  paymentMethodRestriction?: string | null;
   disabled?: boolean;
 }
 
@@ -29,6 +30,7 @@ export default function ClientAddToCart({
   additionalPrice,
   minQuantity,
   maxQuantity,
+  paymentMethodRestriction,
   disabled,
 }: Props) {
   return (
@@ -44,6 +46,7 @@ export default function ClientAddToCart({
       additionalPrice={additionalPrice}
       minQuantity={minQuantity}
       maxQuantity={maxQuantity}
+      paymentMethodRestriction={paymentMethodRestriction}
       disabled={disabled}
     />
   );
