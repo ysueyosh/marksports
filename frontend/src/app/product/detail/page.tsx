@@ -12,6 +12,8 @@ import { recordPageViewIfNeeded } from '@/utils/page-view';
 import {
   getProductDetail,
   ProductDetail,
+  ProductOption,
+  ProductOptionChoice,
   getRelatedProducts,
   Product,
 } from '@/api/products';
@@ -46,6 +48,7 @@ export default function ProductDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedOptionChoices, setSelectedOptionChoices] = useState<Record<string, string>>({});
   const { conditions } = useSearch();
   const { show: showSnackbar } = useSnackbar();
 
@@ -98,6 +101,7 @@ export default function ProductDetailPage() {
           // Reset variant selections when product changes
           setSelectedSize('');
           setSelectedColor('');
+          setSelectedOptionChoices({});
         } else {
           setError('商品情報を取得できませんでした');
           showSnackbar('商品情報を取得できませんでした', 'error');
@@ -288,6 +292,21 @@ export default function ProductDetailPage() {
               }
             })()}
 
+            {product.paymentMethodRestriction && (() => {
+              const labelMap: Record<string, string> = {
+                bank_transfer: '口座振替',
+                credit_card: 'クレジットカード',
+                apple_pay: 'Apple Pay',
+                google_pay: 'Google Pay',
+              };
+              const label = labelMap[product.paymentMethodRestriction] ?? product.paymentMethodRestriction;
+              return (
+                <Alert severity="warning">
+                  この商品は <strong>{label}</strong> のみご利用いただけます。
+                </Alert>
+              );
+            })()}
+
             {product.redirectUrl ? (
               <Button
                 variant="contained"
@@ -366,44 +385,107 @@ export default function ProductDetailPage() {
                     </Stack>
                   </Box>
                 )}
-                {((product.sizes &&
-                  product.sizes.length > 0 &&
-                  !selectedSize) ||
-                  (product.colors &&
-                    product.colors.length > 0 &&
-                    !selectedColor)) && (
-                  <Alert severity="warning" sx={{ py: 0.5 }}>
-                    {[
-                      product.sizes && product.sizes.length > 0 && !selectedSize
-                        ? 'サイズ'
-                        : '',
-                      product.colors &&
-                      product.colors.length > 0 &&
-                      !selectedColor
-                        ? 'カラー'
-                        : '',
-                    ]
-                      .filter(Boolean)
-                      .join('と')}
-                    を選択してください
-                  </Alert>
+                {/* カスタムオプション選択 */}
+                {product.customOptions && product.customOptions.length > 0 && (
+                  <>
+                    {product.customOptions.map((opt) => (
+                      <Box key={opt.optionId}>
+                        <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                          {opt.name}{' '}
+                          <Typography component="span" color="error" variant="caption">
+                            *必須
+                          </Typography>
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          {opt.choices.map((choice) => (
+                            <Button
+                              key={choice.choiceId}
+                              variant={selectedOptionChoices[opt.optionId] === choice.choiceId ? 'contained' : 'outlined'}
+                              size="small"
+                              onClick={() =>
+                                setSelectedOptionChoices((prev) => ({
+                                  ...prev,
+                                  [opt.optionId]: choice.choiceId,
+                                }))
+                              }
+                              sx={{ minWidth: 80 }}
+                            >
+                              {choice.name}
+                              {choice.additionalPrice > 0 && (
+                                <Typography component="span" variant="caption" sx={{ ml: 0.5 }}>
+                                  (+¥{Math.floor(choice.additionalPrice * 1.1).toLocaleString()}税込)
+                                </Typography>
+                              )}
+                            </Button>
+                          ))}
+                        </Stack>
+                      </Box>
+                    ))}
+                  </>
                 )}
-                <ClientAddToCart
-                  id={String(product.id)}
-                  name={product.name}
-                  price={product.price}
-                  image={product.image}
-                  size={selectedSize || undefined}
-                  color={selectedColor || undefined}
-                  disabled={
-                    (product.sizes != null &&
-                      product.sizes.length > 0 &&
-                      !selectedSize) ||
-                    (product.colors != null &&
-                      product.colors.length > 0 &&
-                      !selectedColor)
+
+                {(() => {
+                  const missingItems: string[] = [];
+                  if (product.sizes && product.sizes.length > 0 && !selectedSize) missingItems.push('サイズ');
+                  if (product.colors && product.colors.length > 0 && !selectedColor) missingItems.push('カラー');
+                  if (product.customOptions) {
+                    product.customOptions.forEach((opt) => {
+                      if (!selectedOptionChoices[opt.optionId]) missingItems.push(opt.name);
+                    });
                   }
-                />
+                  return missingItems.length > 0 ? (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>
+                      {missingItems.join('・')}を選択してください
+                    </Alert>
+                  ) : null;
+                })()}
+
+                {(() => {
+                  // 選択されたオプションから追加料金と choiceId/name を取得（全オプション対応）
+                  let totalAdditionalPrice = 0;
+                  const choiceIds: string[] = [];
+                  const choiceNames: string[] = [];
+                  if (product.customOptions && product.customOptions.length > 0) {
+                    for (const opt of product.customOptions) {
+                      const choiceId = selectedOptionChoices[opt.optionId];
+                      if (choiceId) {
+                        const choice = opt.choices.find((c) => c.choiceId === choiceId);
+                        if (choice) {
+                          totalAdditionalPrice += choice.additionalPrice;
+                          choiceIds.push(choice.choiceId);
+                          choiceNames.push(`${opt.name}: ${choice.name}`);
+                        }
+                      }
+                    }
+                  }
+                  const firstChoiceId = choiceIds.length > 0 ? choiceIds.join('_') : undefined;
+                  const firstChoiceName = choiceNames.length > 0 ? choiceNames.join(' / ') : undefined;
+
+                  const isOptionRequired = product.customOptions && product.customOptions.length > 0;
+                  const allOptionsSelected = !isOptionRequired || product.customOptions!.every((opt) => selectedOptionChoices[opt.optionId]);
+
+                  return (
+                    <ClientAddToCart
+                      id={String(product.id)}
+                      name={product.name}
+                      price={product.price}
+                      image={product.image}
+                      size={selectedSize || undefined}
+                      color={selectedColor || undefined}
+                      selectedOptionChoiceId={firstChoiceId}
+                      selectedOptionChoiceName={firstChoiceName}
+                      additionalPrice={totalAdditionalPrice || undefined}
+                      minQuantity={product.minQuantity}
+                      maxQuantity={product.maxQuantity}
+                      paymentMethodRestriction={product.paymentMethodRestriction}
+                      disabled={
+                        (product.sizes != null && product.sizes.length > 0 && !selectedSize) ||
+                        (product.colors != null && product.colors.length > 0 && !selectedColor) ||
+                        !allOptionsSelected
+                      }
+                    />
+                  );
+                })()}
               </>
             )}
           </Box>

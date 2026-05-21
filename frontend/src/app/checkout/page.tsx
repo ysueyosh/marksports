@@ -62,6 +62,9 @@ export default function CheckoutPage() {
   const { items: cartItems, clear: clearCart, coupon } = useCart();
   const { paymentMethods, addPaymentMethod } = usePaymentMethod();
   const { show: showSnackbar } = useSnackbar();
+  const squareAppId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || '';
+  const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || '';
+  const isSquareConfigured = Boolean(squareAppId && squareLocationId);
   const [currentStep, setCurrentStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -137,6 +140,28 @@ export default function CheckoutPage() {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [currentStep]);
+
+  // 支払い方法制限の検出
+  const paymentRestrictionInfo = useMemo(() => {
+    const restrictedItems = cartItems.filter((item) => item.paymentMethodRestriction);
+    const freeItems = cartItems.filter((item) => !item.paymentMethodRestriction);
+    const uniqueMethods = [...new Set(restrictedItems.map((i) => i.paymentMethodRestriction as string))];
+    const hasConflict = uniqueMethods.length > 1;
+    const restrictedMethod = !hasConflict && uniqueMethods.length === 1 ? uniqueMethods[0] : null;
+    const hasSplit = !hasConflict && restrictedItems.length > 0 && freeItems.length > 0;
+    const onlyRestricted = !hasConflict && restrictedItems.length > 0 && freeItems.length === 0;
+    return { restrictedItems, freeItems, restrictedMethod, hasSplit, onlyRestricted, hasConflict, conflictMethods: uniqueMethods };
+  }, [cartItems]);
+
+  const restrictionLabel = (method: string | null | undefined) => {
+    switch (method) {
+      case 'bank_transfer': return '口座振込';
+      case 'credit_card': return 'クレジットカード';
+      case 'apple_pay': return 'Apple Pay';
+      case 'google_pay': return 'Google Pay';
+      default: return method || '';
+    }
+  };
 
   // 金額計算のメモ化
   const priceInfo = useMemo(() => {
@@ -292,6 +317,13 @@ export default function CheckoutPage() {
       loadAddresses();
     }
   }, [isLoggedIn, user]);
+
+  // 支払い方法制限がある場合、paymentMode を自動設定（split・onlyRestricted 両方）
+  useEffect(() => {
+    if ((paymentRestrictionInfo.onlyRestricted || paymentRestrictionInfo.hasSplit) && paymentRestrictionInfo.restrictedMethod) {
+      setPaymentMode(paymentRestrictionInfo.restrictedMethod as any);
+    }
+  }, [paymentRestrictionInfo.onlyRestricted, paymentRestrictionInfo.hasSplit, paymentRestrictionInfo.restrictedMethod]);
 
   // ログイン状態に応じてカード選択を初期化
   useEffect(() => {
@@ -554,6 +586,10 @@ export default function CheckoutPage() {
   };
 
   const handleNextStep = () => {
+    if (paymentRestrictionInfo.hasConflict) {
+      setPaymentError('決済方法が競合しています。カートに戻り、競合する商品を削除してください。');
+      return;
+    }
     if (validateStep1()) {
       setCurrentStep(2);
       setPaymentError(null);
@@ -676,10 +712,15 @@ export default function CheckoutPage() {
       let paymentSourceId: string;
       let orderStatus: 'unpaid' | 'awaiting_shipment' | null = null;
 
-      console.log('handlePayment called with sourceId:', sourceId);
+      // 制限付き商品がある場合はその支払い方法をカート全体に適用
+      const effectivePaymentMode = (paymentRestrictionInfo.hasSplit || paymentRestrictionInfo.onlyRestricted)
+        ? paymentRestrictionInfo.restrictedMethod as typeof paymentMode
+        : paymentMode;
+
+      console.log('handlePayment called with sourceId:', sourceId, 'effectivePaymentMode:', effectivePaymentMode);
 
       // 支払い方法ごとの処理
-      switch (paymentMode) {
+      switch (effectivePaymentMode) {
         case 'credit_card':
           if (!sourceId) {
             setPaymentError('カード情報を入力してください');
@@ -786,16 +827,17 @@ export default function CheckoutPage() {
               totalAmount: priceIncludingTax * item.quantity, // ⭐ 税込み合計を格納
               ...(finalSize ? { size: finalSize } : {}),
               ...(finalColor ? { color: finalColor } : {}),
+              ...(item.selectedOptionChoiceName ? { selectedOptionChoiceName: item.selectedOptionChoiceName } : {}),
             };
           });
 
           // Prepare payment details from selected method
           const paymentDetails: Record<string, any> = {
-            paymentMethod: paymentMode,
+            paymentMethod: effectivePaymentMode,
           };
 
           if (
-            paymentMode === 'credit_card' &&
+            effectivePaymentMode === 'credit_card' &&
             selectedPaymentMethodId &&
             selectedPaymentMethodId !== 'new_card'
           ) {
@@ -809,7 +851,7 @@ export default function CheckoutPage() {
               paymentDetails.expMonth = selectedCardData.expiryMonth;
               paymentDetails.expYear = selectedCardData.expiryYear;
             }
-          } else if (paymentMode === 'credit_card' && result.card_details) {
+          } else if (effectivePaymentMode === 'credit_card' && result.card_details) {
             // New card: get card info from payment result
             paymentDetails.paymentBrand = result.card_details.card_brand;
             paymentDetails.last4 = result.card_details.last_4;
@@ -871,7 +913,7 @@ export default function CheckoutPage() {
             },
             squareTransactionId: result.id,
             items: orderItems,
-            paymentMethod: paymentMode || 'credit_card', // Explicitly set paymentMethod
+            paymentMethod: effectivePaymentMode || 'credit_card',
             paymentBrand: paymentDetails.paymentBrand,
             last4: paymentDetails.last4,
             expMonth: paymentDetails.expMonth,
@@ -1831,6 +1873,15 @@ export default function CheckoutPage() {
                                       variant="outlined"
                                     />
                                   )}
+                                  {item.selectedOptionChoiceName && item.selectedOptionChoiceName.split(' / ').map((name: string, i: number) => (
+                                    <Chip
+                                      key={i}
+                                      label={name}
+                                      size="small"
+                                      variant="outlined"
+                                      color="primary"
+                                    />
+                                  ))}
                                 </Box>
                               )}
                             </div>
@@ -2070,6 +2121,42 @@ export default function CheckoutPage() {
                     </Typography>
 
                     {/* Payment Method Type Selection */}
+                    {paymentRestrictionInfo.hasConflict ? (
+                      <Box sx={{ mb: 2 }}>
+                        <Alert severity="error" sx={{ mb: 1 }}>
+                          <Typography fontWeight={700} gutterBottom>
+                            決済方法が競合しています
+                          </Typography>
+                          <Typography variant="body2">
+                            カート内に決済方法の異なる商品が混在しているため、購入を完了できません。
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            競合: {paymentRestrictionInfo.conflictMethods.map(restrictionLabel).join('のみ / ')}のみ
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            カートに戻り、いずれかの商品を削除してください。
+                          </Typography>
+                        </Alert>
+                      </Box>
+                    ) : paymentRestrictionInfo.hasSplit ? (
+                      <Box sx={{ mb: 2 }}>
+                        <Alert severity="warning" sx={{ mb: 1 }}>
+                          カートに<strong>支払い方法が制限された商品</strong>（{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}のみ）が含まれているため、
+                          カート全体を<strong>{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}</strong>でお支払いいただきます。
+                        </Alert>
+                        <Chip label={restrictionLabel(paymentRestrictionInfo.restrictedMethod)} color="warning" />
+                        <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                          対象商品: {paymentRestrictionInfo.restrictedItems.map((i) => i.name).join('、')}
+                        </Typography>
+                      </Box>
+                    ) : paymentRestrictionInfo.onlyRestricted ? (
+                      <Box sx={{ mb: 2 }}>
+                        <Alert severity="info" sx={{ mb: 1 }}>
+                          カート内の商品は<strong>{restrictionLabel(paymentRestrictionInfo.restrictedMethod)}</strong>でのお支払いのみ対応しています。
+                        </Alert>
+                        <Chip label={restrictionLabel(paymentRestrictionInfo.restrictedMethod)} color="warning" />
+                      </Box>
+                    ) : (
                     <Box sx={{ mb: 2 }}>
                       <RadioGroup
                         value={paymentMode ?? ''}
@@ -2106,16 +2193,18 @@ export default function CheckoutPage() {
                         />
                       </RadioGroup>
                     </Box>
+                    )}
 
                     {/* Credit Card Payment */}
-                    {paymentMode === 'credit_card' && (
+                    {paymentMode === 'credit_card' && !isSquareConfigured && (
+                      <Alert severity="error" sx={{ mt: 1 }}>
+                        決済設定が正しく行われていません。管理者にお問い合わせください。
+                      </Alert>
+                    )}
+                    {paymentMode === 'credit_card' && isSquareConfigured && (
                       <PaymentForm
-                        applicationId={
-                          process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
-                        }
-                        locationId={
-                          process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || ''
-                        }
+                        applicationId={squareAppId}
+                        locationId={squareLocationId}
                         cardTokenizeResponseReceived={async (token: any) => {
                           console.log(
                             '[DEBUG] Full token object:',
@@ -2549,7 +2638,12 @@ export default function CheckoutPage() {
                     {paymentMode === 'bank_transfer' && <BankTransferDetails />}
 
                     {/* Apple Pay */}
-                    {paymentMode === 'apple_pay' && (
+                    {paymentMode === 'apple_pay' && !isSquareConfigured && (
+                      <Alert severity="error" sx={{ mt: 1 }}>
+                        決済設定が正しく行われていません。管理者にお問い合わせください。
+                      </Alert>
+                    )}
+                    {paymentMode === 'apple_pay' && isSquareConfigured && (
                       <div>
                         <h4 style={{ marginBottom: '15px' }}>Apple Pay</h4>
                         <p
@@ -2563,12 +2657,8 @@ export default function CheckoutPage() {
                           ブラウザ上でのみご利用いただけます。
                         </p>
                         <PaymentForm
-                          applicationId={
-                            process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
-                          }
-                          locationId={
-                            process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || ''
-                          }
+                          applicationId={squareAppId}
+                          locationId={squareLocationId}
                           createPaymentRequest={() => ({
                             countryCode: 'JP',
                             currencyCode: 'JPY',
@@ -2619,7 +2709,12 @@ export default function CheckoutPage() {
                     )}
 
                     {/* Google Pay */}
-                    {paymentMode === 'google_pay' && (
+                    {paymentMode === 'google_pay' && !isSquareConfigured && (
+                      <Alert severity="error" sx={{ mt: 1 }}>
+                        決済設定が正しく行われていません。管理者にお問い合わせください。
+                      </Alert>
+                    )}
+                    {paymentMode === 'google_pay' && isSquareConfigured && (
                       <div>
                         <h4 style={{ marginBottom: '15px' }}>Google Pay</h4>
                         <p
@@ -2633,12 +2728,8 @@ export default function CheckoutPage() {
                           で支払います。対応ブラウザ上でのみご利用いただけます。
                         </p>
                         <PaymentForm
-                          applicationId={
-                            process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID || ''
-                          }
-                          locationId={
-                            process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID || ''
-                          }
+                          applicationId={squareAppId}
+                          locationId={squareLocationId}
                           createPaymentRequest={() => ({
                             countryCode: 'JP',
                             currencyCode: 'JPY',
@@ -2713,7 +2804,11 @@ export default function CheckoutPage() {
                 justifyContent="space-between"
               >
                 {currentStep === 1 && (
-                  <Button variant="contained" onClick={handleNextStep}>
+                  <Button
+                    variant="contained"
+                    onClick={handleNextStep}
+                    disabled={paymentRestrictionInfo.hasConflict}
+                  >
                     注文内容確認へ進む →
                   </Button>
                 )}
@@ -2730,7 +2825,7 @@ export default function CheckoutPage() {
                     <Button
                       variant="contained"
                       onClick={handleConfirmStep}
-                      disabled={isProcessing}
+                      disabled={isProcessing || paymentRestrictionInfo.hasConflict}
                     >
                       決済へ進む →
                     </Button>

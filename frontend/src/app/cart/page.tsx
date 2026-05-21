@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/Layout/MainLayout';
 import Link from 'next/link';
@@ -60,17 +60,43 @@ export default function CartPage() {
     removeItem(String(id));
   };
 
-  const handleIncrease = (id: string | number, current: number) => {
+  const handleIncrease = (id: string | number, current: number, maxQuantity?: number | null) => {
+    const max = maxQuantity ?? 9999;
+    if (current >= max) return;
     updateQuantity(String(id), current + 1);
   };
 
-  const handleDecrease = (id: string | number, current: number) => {
-    const next = Math.max(1, current - 1);
+  const handleDecrease = (id: string | number, current: number, minQuantity?: number | null) => {
+    const min = minQuantity ?? 1;
+    const next = Math.max(min, current - 1);
     updateQuantity(String(id), next);
   };
 
+  const paymentRestrictionLabel = (method: string): string => {
+    const labels: Record<string, string> = {
+      bank_transfer: '口座振込',
+      credit_card: 'クレジットカード',
+      apple_pay: 'Apple Pay',
+      google_pay: 'Google Pay',
+    };
+    return labels[method] || method;
+  };
+
+  const paymentRestrictionInfo = useMemo(() => {
+    const restrictedItems = cartItems.filter((item) => item.paymentMethodRestriction);
+    const uniqueMethods = [...new Set(restrictedItems.map((i) => i.paymentMethodRestriction as string))];
+    const hasConflict = uniqueMethods.length > 1;
+    const singleMethod = !hasConflict && uniqueMethods.length === 1 ? uniqueMethods[0] : null;
+    return { restrictedItems, hasConflict, uniqueMethods, singleMethod };
+  }, [cartItems]);
+
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
+
+    if (paymentRestrictionInfo.hasConflict) {
+      showSnackbar('決済方法が競合しています。競合する商品をカートから削除してください。', 'error');
+      return;
+    }
 
     setIsCheckingOut(true);
     try {
@@ -246,6 +272,38 @@ export default function CartPage() {
                 </Alert>
               )}
 
+              {paymentRestrictionInfo.hasConflict && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  <Typography fontWeight={700} mb={0.5}>
+                    決済方法が競合しています
+                  </Typography>
+                  <Typography variant="body2">
+                    カート内に決済方法の異なる商品が混在しているため、購入できません。
+                    競合している決済方法: {paymentRestrictionInfo.uniqueMethods.map(paymentRestrictionLabel).join('のみ / ')}のみ
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    いずれかの商品をカートから削除してください。
+                  </Typography>
+                </Alert>
+              )}
+
+              {!paymentRestrictionInfo.hasConflict && paymentRestrictionInfo.singleMethod && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  <Typography fontWeight={700} mb={0.5}>
+                    お支払い方法が限定されています
+                  </Typography>
+                  <Typography variant="body2">
+                    カート内に<strong>「{paymentRestrictionLabel(paymentRestrictionInfo.singleMethod)}のみ」</strong>でご利用いただける商品が含まれています。
+                    この注文は<strong>{paymentRestrictionLabel(paymentRestrictionInfo.singleMethod)}</strong>でのお支払いとなります。
+                  </Typography>
+                  {paymentRestrictionInfo.restrictedItems.length > 0 && (
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                      対象商品: {paymentRestrictionInfo.restrictedItems.map((i) => i.name).join('、')}
+                    </Typography>
+                  )}
+                </Alert>
+              )}
+
               {cartItems.length === 0 ? (
                 <Paper sx={{ p: 3 }}>
                   <Stack spacing={2} alignItems="center" textAlign="center">
@@ -269,7 +327,7 @@ export default function CartPage() {
                       >
                         <Box
                           component={Link}
-                          href={`/product/detail?id=${item.id}`}
+                          href={`/product/detail?id=${toBaseProductId(item.id)}`}
                           sx={{
                             width: { xs: 96, sm: 120 },
                             height: { xs: 96, sm: 120 },
@@ -316,7 +374,7 @@ export default function CartPage() {
                         >
                           <Typography
                             component={Link}
-                            href={`/product/detail?id=${item.id}`}
+                            href={`/product/detail?id=${toBaseProductId(item.id)}`}
                             sx={{
                               textDecoration: 'none',
                               color: 'inherit',
@@ -329,7 +387,7 @@ export default function CartPage() {
                           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                             {formatPriceIncludedTax(item.price)}
                           </Typography>
-                          {(item.size || item.color) && (
+                          {(item.size || item.color || item.selectedOptionChoiceName || item.paymentMethodRestriction) && (
                             <Stack
                               direction="row"
                               spacing={0.75}
@@ -349,6 +407,28 @@ export default function CartPage() {
                                   label={`カラー: ${item.color}`}
                                   size="small"
                                   variant="outlined"
+                                />
+                              )}
+                              {item.selectedOptionChoiceName && item.selectedOptionChoiceName.split(' / ').map((name, i) => (
+                                <Chip
+                                  key={i}
+                                  label={name}
+                                  size="small"
+                                  variant="outlined"
+                                  color="primary"
+                                />
+                              ))}
+                              {item.paymentMethodRestriction && (
+                                <Chip
+                                  label={`支払制限: ${
+                                    item.paymentMethodRestriction === 'bank_transfer' ? '口座振替のみ' :
+                                    item.paymentMethodRestriction === 'credit_card' ? 'クレジットカードのみ' :
+                                    item.paymentMethodRestriction === 'apple_pay' ? 'Apple Payのみ' :
+                                    item.paymentMethodRestriction === 'google_pay' ? 'Google Payのみ' :
+                                    item.paymentMethodRestriction
+                                  }`}
+                                  size="small"
+                                  color="warning"
                                 />
                               )}
                             </Stack>
@@ -373,8 +453,9 @@ export default function CartPage() {
                             <IconButton
                               size="small"
                               onClick={() =>
-                                handleDecrease(item.id, item.quantity)
+                                handleDecrease(item.id, item.quantity, item.minQuantity)
                               }
+                              disabled={item.quantity <= (item.minQuantity ?? 1)}
                             >
                               <RemoveIcon fontSize="small" />
                             </IconButton>
@@ -386,8 +467,9 @@ export default function CartPage() {
                             <IconButton
                               size="small"
                               onClick={() =>
-                                handleIncrease(item.id, item.quantity)
+                                handleIncrease(item.id, item.quantity, item.maxQuantity)
                               }
+                              disabled={item.maxQuantity != null && item.quantity >= item.maxQuantity}
                             >
                               <AddIcon fontSize="small" />
                             </IconButton>
@@ -532,7 +614,7 @@ export default function CartPage() {
                     variant="contained"
                     size="large"
                     onClick={handleCheckout}
-                    disabled={cartItems.length === 0 || isCheckingOut}
+                    disabled={cartItems.length === 0 || isCheckingOut || paymentRestrictionInfo.hasConflict}
                   >
                     {isCheckingOut ? '確認中...' : 'レジへ進む'}
                   </Button>

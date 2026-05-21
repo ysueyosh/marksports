@@ -1,11 +1,21 @@
 import { apiClient } from './client';
 
 export interface CartItem {
+  id: string;
   productId: string;
+  name: string;
+  price: number;
+  image: string;
   quantity: number;
   addedAt: string;
   size?: string;
   color?: string;
+  selectedOptionChoiceId?: string;
+  selectedOptionChoiceName?: string;
+  additionalPrice?: number;
+  minQuantity?: number | null;
+  maxQuantity?: number | null;
+  paymentMethodRestriction?: string | null;
 }
 
 export interface CartResponse {
@@ -84,6 +94,9 @@ export const apiAddToCart = async (
   quantity: number,
   size?: string,
   color?: string,
+  selectedOptionChoiceId?: string,
+  selectedOptionChoiceName?: string,
+  additionalPrice?: number,
 ): Promise<CartItem> => {
   try {
     // Validate inputs
@@ -108,6 +121,9 @@ export const apiAddToCart = async (
         quantity,
         ...(size ? { size } : {}),
         ...(color ? { color } : {}),
+        ...(selectedOptionChoiceId ? { selectedOptionChoiceId } : {}),
+        ...(selectedOptionChoiceName ? { selectedOptionChoiceName } : {}),
+        ...(additionalPrice ? { additionalPrice } : {}),
       },
       {
         headers: {

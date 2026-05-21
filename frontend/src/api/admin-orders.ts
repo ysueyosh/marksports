@@ -74,6 +74,7 @@ export interface AdminOrderDetail {
     totalAmount: number;
     size?: string;
     color?: string;
+    selectedOptionChoiceName?: string;
   }>;
   paymentAt?: string;
   deliveryAt?: string;

@@ -15,6 +15,18 @@ export interface Product {
   redirectUrl?: string;
 }
 
+export interface ProductOptionChoice {
+  choiceId: string;
+  name: string;
+  additionalPrice: number;
+}
+
+export interface ProductOption {
+  optionId: string;
+  name: string;
+  choices: ProductOptionChoice[];
+}
+
 export interface ProductDetail extends Product {
   brand: string;
   color: string;
@@ -27,6 +39,10 @@ export interface ProductDetail extends Product {
   redirectUrl?: string;
   sizes?: string[];
   colors?: string[];
+  customOptions?: ProductOption[];
+  minQuantity?: number | null;
+  maxQuantity?: number | null;
+  paymentMethodRestriction?: string | null;
 }
 
 export interface FeaturedProductsResponse {

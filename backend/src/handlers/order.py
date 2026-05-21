@@ -509,6 +509,7 @@ def get_orders(event, context):
                     "totalAmount": safe_amount_conversion(order_item.get('totalAmount', 0), 0),
                     "size": order_item.get('size', '') or parsed_size,
                     "color": order_item.get('color', '') or parsed_color,
+                    "selectedOptionChoiceName": order_item.get('selectedOptionChoiceName', ''),
                 })
             
             orders.append({
@@ -702,6 +703,7 @@ def get_order_detail(event, context):
                 "totalAmount": total_amount,
                 "size": item.get('size', '') or parsed_size,
                 "color": item.get('color', '') or parsed_color,
+                "selectedOptionChoiceName": item.get('selectedOptionChoiceName', ''),
             })
         
         # Build order detail response
@@ -1365,6 +1367,7 @@ def save_order(event, context):
                 "totalAmount": int(item.get('totalAmount', 0)),
                 "size": final_size,
                 "color": final_color,
+                "selectedOptionChoiceName": item.get('selectedOptionChoiceName', ''),
                 "createdAt": now,
                 "updatedAt": now,
             }
@@ -1420,6 +1423,7 @@ def save_order(event, context):
                         'unitPrice': int(item.get('amount', 0)),
                         'size': item.get('size', ''),
                         'color': item.get('color', ''),
+                        'selectedOptionChoiceName': item.get('selectedOptionChoiceName', ''),
                     })
                 
                 logger.info(f"[EMAIL] Prepared {len(email_items)} items for email")
@@ -1444,7 +1448,6 @@ def save_order(event, context):
                         total_amount=total_amount,
                         tax=tax,
                         shipping_cost=shipping_cost,
-                        discount=discount,
                         coupon_discount=coupon_discount,
                         payment_method=payment_method,
                         shipping_breakdown=shipping_breakdown_for_email
@@ -1502,7 +1505,9 @@ def save_order(event, context):
                         total_amount=total_amount,
                         payment_method=payment_method,
                         shipping_cost=shipping_cost,
-                        shipping_breakdown=shipping_breakdown_for_email
+                        shipping_breakdown=shipping_breakdown_for_email,
+                        tax=tax,
+                        coupon_discount=coupon_discount
                     )
                     
                     if admin_notification_result.get('success'):
@@ -2089,6 +2094,7 @@ def get_admin_order_detail(event, context):
                 "totalAmount": total_amount,
                 "size": item.get('size', '') or parsed_size,
                 "color": item.get('color', '') or parsed_color,
+                "selectedOptionChoiceName": item.get('selectedOptionChoiceName', ''),
             })
         
         # Build order detail response

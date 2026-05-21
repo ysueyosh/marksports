@@ -131,10 +131,18 @@ def create_product(event, context):
             'redirectUrl': body.get('redirectUrl', ''),
             'sizes': body.get('sizes', []),
             'colors': body.get('colors', []),
+            'customOptions': body.get('customOptions', []),
+            'paymentMethodRestriction': body.get('paymentMethodRestriction', None),
             'createdBy': admin_info.get('adminId'),
             'createdAt': datetime.utcnow().isoformat(),
             'updatedAt': datetime.utcnow().isoformat(),
         }
+
+        # minQuantity / maxQuantity (None means no limit)
+        if body.get('minQuantity') is not None:
+            product['minQuantity'] = int(body['minQuantity'])
+        if body.get('maxQuantity') is not None:
+            product['maxQuantity'] = int(body['maxQuantity'])
         
         # Save to DynamoDB
         table.put_item(Item=product)
@@ -333,7 +341,23 @@ def update_product(event, context):
         if 'colors' in body:
             update_parts.append('colors = :colors')
             expr_values[':colors'] = body['colors']
-        
+
+        if 'customOptions' in body:
+            update_parts.append('customOptions = :customOptions')
+            expr_values[':customOptions'] = body['customOptions']
+
+        if 'paymentMethodRestriction' in body:
+            update_parts.append('paymentMethodRestriction = :pmRestriction')
+            expr_values[':pmRestriction'] = body['paymentMethodRestriction']
+
+        if 'minQuantity' in body:
+            update_parts.append('minQuantity = :minQty')
+            expr_values[':minQty'] = int(body['minQuantity']) if body['minQuantity'] is not None else None
+
+        if 'maxQuantity' in body:
+            update_parts.append('maxQuantity = :maxQty')
+            expr_values[':maxQty'] = int(body['maxQuantity']) if body['maxQuantity'] is not None else None
+
         if not update_parts:
             return {
                 "statusCode": 400,
