@@ -4,7 +4,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminModal from '@/components/Admin/AdminModal';
 import Pagination from '@/components/Pagination/Pagination';
-import { adminProductAPI, type ProductOption, type ProductOptionChoice } from '@/api/admin-products';
+import {
+  adminProductAPI,
+  type ProductOption,
+  type ProductOptionChoice,
+} from '@/api/admin-products';
 import { adminCategoryAPI, type Category } from '@/api/admin-categories';
 import { adminImageAPI } from '@/api/admin-images';
 import { getPriceWithTax } from '@/utils/price';
@@ -125,15 +129,22 @@ export default function AdminProductsPage() {
   const [hierarchicalCategories, setHierarchicalCategories] = useState<
     Category[]
   >([]);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null,
+  );
   const [editingCategoryName, setEditingCategoryName] = useState('');
-  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
-  const [deletingCategoryInputValue, setDeletingCategoryInputValue] = useState('');
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(
+    null,
+  );
+  const [deletingCategoryInputValue, setDeletingCategoryInputValue] =
+    useState('');
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   // カスタムオプション用一時入力
   const [optionNameInput, setOptionNameInput] = useState('');
-  const [optionChoiceNameInput, setOptionChoiceNameInput] = useState('');
-  const [optionChoicePriceInput, setOptionChoicePriceInput] = useState('');
+  // グループごとの選択肢入力状態（optionId単位で管理）
+  const [optionChoiceInputs, setOptionChoiceInputs] = useState<
+    Record<string, { name: string; price: string }>
+  >({});
 
   const itemsPerPage = 20;
 
@@ -380,8 +391,10 @@ export default function AdminProductsPage() {
         sizes: formData.sizes,
         colors: formData.colors,
         customOptions: formData.customOptions,
-        minQuantity: formData.minQuantity !== '' ? Number(formData.minQuantity) : null,
-        maxQuantity: formData.maxQuantity !== '' ? Number(formData.maxQuantity) : null,
+        minQuantity:
+          formData.minQuantity !== '' ? Number(formData.minQuantity) : null,
+        maxQuantity:
+          formData.maxQuantity !== '' ? Number(formData.maxQuantity) : null,
         paymentMethodRestriction: formData.paymentMethodRestriction || null,
       };
 
@@ -417,8 +430,10 @@ export default function AdminProductsPage() {
         sizes: formData.sizes,
         colors: formData.colors,
         customOptions: formData.customOptions,
-        minQuantity: formData.minQuantity !== '' ? Number(formData.minQuantity) : null,
-        maxQuantity: formData.maxQuantity !== '' ? Number(formData.maxQuantity) : null,
+        minQuantity:
+          formData.minQuantity !== '' ? Number(formData.minQuantity) : null,
+        maxQuantity:
+          formData.maxQuantity !== '' ? Number(formData.maxQuantity) : null,
         paymentMethodRestriction: formData.paymentMethodRestriction || null,
       };
 
@@ -468,8 +483,10 @@ export default function AdminProductsPage() {
       sizes: product.sizes || [],
       colors: product.colors || [],
       customOptions: product.customOptions || [],
-      minQuantity: product.minQuantity != null ? String(product.minQuantity) : '',
-      maxQuantity: product.maxQuantity != null ? String(product.maxQuantity) : '',
+      minQuantity:
+        product.minQuantity != null ? String(product.minQuantity) : '',
+      maxQuantity:
+        product.maxQuantity != null ? String(product.maxQuantity) : '',
       paymentMethodRestriction: product.paymentMethodRestriction || '',
     });
     setEditingId(product.id);
@@ -580,7 +597,10 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+  const handleDeleteCategory = async (
+    categoryId: string,
+    categoryName: string,
+  ) => {
     if (deletingCategoryInputValue !== categoryName) {
       alert('カテゴリ名が正しくありません');
       return;
@@ -829,83 +849,233 @@ export default function AdminProductsPage() {
           {/* カテゴリ管理パネル */}
           {showCategoryManager && (
             <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography variant="h6" fontWeight={700} mb={2}>カテゴリ管理（編集・削除）</Typography>
+              <Typography variant="h6" fontWeight={700} mb={2}>
+                カテゴリ管理（編集・削除）
+              </Typography>
               {hierarchicalCategories.map((parent) => (
                 <Box key={parent.categoryId} mb={2}>
-                  <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    mb={0.5}
+                  >
                     {editingCategoryId === parent.categoryId ? (
                       <>
                         <TextField
                           size="small"
                           value={editingCategoryName}
-                          onChange={(e) => setEditingCategoryName(e.target.value)}
+                          onChange={(e) =>
+                            setEditingCategoryName(e.target.value)
+                          }
                           sx={{ width: 200 }}
                         />
-                        <Button size="small" variant="contained" onClick={() => handleUpdateCategory(parent.categoryId)}>保存</Button>
-                        <Button size="small" onClick={() => { setEditingCategoryId(null); setEditingCategoryName(''); }}>キャンセル</Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() =>
+                            handleUpdateCategory(parent.categoryId)
+                          }
+                        >
+                          保存
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setEditingCategoryId(null);
+                            setEditingCategoryName('');
+                          }}
+                        >
+                          キャンセル
+                        </Button>
                       </>
                     ) : deletingCategoryId === parent.categoryId ? (
                       <Stack direction="row" alignItems="center" spacing={1}>
-                        <Typography variant="body2" color="error">「{parent.categoryName}」と入力して確認:</Typography>
+                        <Typography variant="body2" color="error">
+                          「{parent.categoryName}」と入力して確認:
+                        </Typography>
                         <TextField
                           size="small"
                           value={deletingCategoryInputValue}
-                          onChange={(e) => setDeletingCategoryInputValue(e.target.value)}
+                          onChange={(e) =>
+                            setDeletingCategoryInputValue(e.target.value)
+                          }
                           sx={{ width: 160 }}
                         />
-                        <Button size="small" color="error" variant="contained"
-                          disabled={deletingCategoryInputValue !== parent.categoryName}
-                          onClick={() => handleDeleteCategory(parent.categoryId, parent.categoryName)}>削除</Button>
-                        <Button size="small" onClick={() => { setDeletingCategoryId(null); setDeletingCategoryInputValue(''); }}>キャンセル</Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="contained"
+                          disabled={
+                            deletingCategoryInputValue !== parent.categoryName
+                          }
+                          onClick={() =>
+                            handleDeleteCategory(
+                              parent.categoryId,
+                              parent.categoryName,
+                            )
+                          }
+                        >
+                          削除
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setDeletingCategoryId(null);
+                            setDeletingCategoryInputValue('');
+                          }}
+                        >
+                          キャンセル
+                        </Button>
                       </Stack>
                     ) : (
                       <>
-                        <Typography fontWeight={700}>{parent.categoryName}</Typography>
-                        <Button size="small" variant="outlined" onClick={() => { setEditingCategoryId(parent.categoryId); setEditingCategoryName(parent.categoryName); }}>編集</Button>
-                        <Button size="small" color="error" variant="outlined" onClick={() => { setDeletingCategoryId(parent.categoryId); setDeletingCategoryInputValue(''); }}>削除</Button>
+                        <Typography fontWeight={700}>
+                          {parent.categoryName}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            setEditingCategoryId(parent.categoryId);
+                            setEditingCategoryName(parent.categoryName);
+                          }}
+                        >
+                          編集
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          onClick={() => {
+                            setDeletingCategoryId(parent.categoryId);
+                            setDeletingCategoryInputValue('');
+                          }}
+                        >
+                          削除
+                        </Button>
                       </>
                     )}
                   </Stack>
-                  {parent.children && parent.children.map((child) => (
-                    <Stack key={child.categoryId} direction="row" alignItems="center" spacing={1} ml={3} mb={0.5}>
-                      {editingCategoryId === child.categoryId ? (
-                        <>
-                          <TextField
-                            size="small"
-                            value={editingCategoryName}
-                            onChange={(e) => setEditingCategoryName(e.target.value)}
-                            sx={{ width: 200 }}
-                          />
-                          <Button size="small" variant="contained" onClick={() => handleUpdateCategory(child.categoryId)}>保存</Button>
-                          <Button size="small" onClick={() => { setEditingCategoryId(null); setEditingCategoryName(''); }}>キャンセル</Button>
-                        </>
-                      ) : deletingCategoryId === child.categoryId ? (
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <Typography variant="body2" color="error">「{child.categoryName}」と入力して確認:</Typography>
-                          <TextField
-                            size="small"
-                            value={deletingCategoryInputValue}
-                            onChange={(e) => setDeletingCategoryInputValue(e.target.value)}
-                            sx={{ width: 160 }}
-                          />
-                          <Button size="small" color="error" variant="contained"
-                            disabled={deletingCategoryInputValue !== child.categoryName}
-                            onClick={() => handleDeleteCategory(child.categoryId, child.categoryName)}>削除</Button>
-                          <Button size="small" onClick={() => { setDeletingCategoryId(null); setDeletingCategoryInputValue(''); }}>キャンセル</Button>
-                        </Stack>
-                      ) : (
-                        <>
-                          <Typography variant="body2" color="text.secondary">└ {child.categoryName}</Typography>
-                          <Button size="small" variant="outlined" onClick={() => { setEditingCategoryId(child.categoryId); setEditingCategoryName(child.categoryName); }}>編集</Button>
-                          <Button size="small" color="error" variant="outlined" onClick={() => { setDeletingCategoryId(child.categoryId); setDeletingCategoryInputValue(''); }}>削除</Button>
-                        </>
-                      )}
-                    </Stack>
-                  ))}
+                  {parent.children &&
+                    parent.children.map((child) => (
+                      <Stack
+                        key={child.categoryId}
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        ml={3}
+                        mb={0.5}
+                      >
+                        {editingCategoryId === child.categoryId ? (
+                          <>
+                            <TextField
+                              size="small"
+                              value={editingCategoryName}
+                              onChange={(e) =>
+                                setEditingCategoryName(e.target.value)
+                              }
+                              sx={{ width: 200 }}
+                            />
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() =>
+                                handleUpdateCategory(child.categoryId)
+                              }
+                            >
+                              保存
+                            </Button>
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setEditingCategoryId(null);
+                                setEditingCategoryName('');
+                              }}
+                            >
+                              キャンセル
+                            </Button>
+                          </>
+                        ) : deletingCategoryId === child.categoryId ? (
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
+                          >
+                            <Typography variant="body2" color="error">
+                              「{child.categoryName}」と入力して確認:
+                            </Typography>
+                            <TextField
+                              size="small"
+                              value={deletingCategoryInputValue}
+                              onChange={(e) =>
+                                setDeletingCategoryInputValue(e.target.value)
+                              }
+                              sx={{ width: 160 }}
+                            />
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="contained"
+                              disabled={
+                                deletingCategoryInputValue !==
+                                child.categoryName
+                              }
+                              onClick={() =>
+                                handleDeleteCategory(
+                                  child.categoryId,
+                                  child.categoryName,
+                                )
+                              }
+                            >
+                              削除
+                            </Button>
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setDeletingCategoryId(null);
+                                setDeletingCategoryInputValue('');
+                              }}
+                            >
+                              キャンセル
+                            </Button>
+                          </Stack>
+                        ) : (
+                          <>
+                            <Typography variant="body2" color="text.secondary">
+                              └ {child.categoryName}
+                            </Typography>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                setEditingCategoryId(child.categoryId);
+                                setEditingCategoryName(child.categoryName);
+                              }}
+                            >
+                              編集
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              variant="outlined"
+                              onClick={() => {
+                                setDeletingCategoryId(child.categoryId);
+                                setDeletingCategoryInputValue('');
+                              }}
+                            >
+                              削除
+                            </Button>
+                          </>
+                        )}
+                      </Stack>
+                    ))}
                 </Box>
               ))}
               {hierarchicalCategories.length === 0 && (
-                <Typography color="text.secondary">カテゴリが存在しません</Typography>
+                <Typography color="text.secondary">
+                  カテゴリが存在しません
+                </Typography>
               )}
             </Paper>
           )}
@@ -1230,14 +1400,21 @@ export default function AdminProductsPage() {
               </Box>
               {/* 数量制限 */}
               <Box>
-                <Typography variant="subtitle2" mb={1}>数量制限</Typography>
+                <Typography variant="subtitle2" mb={1}>
+                  数量制限
+                </Typography>
                 <Stack direction="row" spacing={2}>
                   <TextField
                     label="最小数量"
                     type="number"
                     size="small"
                     value={formData.minQuantity}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, minQuantity: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        minQuantity: e.target.value,
+                      }))
+                    }
                     inputProps={{ min: 1 }}
                     sx={{ width: 140 }}
                     placeholder="例: 1"
@@ -1247,7 +1424,12 @@ export default function AdminProductsPage() {
                     type="number"
                     size="small"
                     value={formData.maxQuantity}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, maxQuantity: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        maxQuantity: e.target.value,
+                      }))
+                    }
                     inputProps={{ min: 1 }}
                     sx={{ width: 140 }}
                     placeholder="例: 10"
@@ -1257,16 +1439,25 @@ export default function AdminProductsPage() {
 
               {/* 支払い方法制限 */}
               <Box>
-                <Typography variant="subtitle2" mb={1}>支払い方法制限</Typography>
+                <Typography variant="subtitle2" mb={1}>
+                  支払い方法制限
+                </Typography>
                 <FormControl fullWidth size="small">
                   <Select
                     value={formData.paymentMethodRestriction}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, paymentMethodRestriction: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        paymentMethodRestriction: e.target.value,
+                      }))
+                    }
                     displayEmpty
                   >
                     <MenuItem value="">制限なし</MenuItem>
                     <MenuItem value="bank_transfer">口座振替のみ</MenuItem>
-                    <MenuItem value="credit_card">クレジットカードのみ</MenuItem>
+                    <MenuItem value="credit_card">
+                      クレジットカードのみ
+                    </MenuItem>
                     <MenuItem value="apple_pay">Apple Payのみ</MenuItem>
                     <MenuItem value="google_pay">Google Payのみ</MenuItem>
                   </Select>
@@ -1275,24 +1466,56 @@ export default function AdminProductsPage() {
 
               {/* カスタムオプション */}
               <Box>
-                <Typography variant="subtitle2" mb={0.5}>カスタムオプション（サイズ・カラー以外）</Typography>
-                <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-                  ※ 追加料金はすべて税抜き金額で入力してください（消費税は自動計算されます）
+                <Typography variant="subtitle2" mb={0.5}>
+                  カスタムオプション（サイズ・カラー以外）
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mb={1}
+                >
+                  ※
+                  追加料金はすべて税抜き金額で入力してください（消費税は自動計算されます）
                 </Typography>
                 {formData.customOptions.map((opt, optIdx) => (
-                  <Paper key={opt.optionId} variant="outlined" sx={{ p: 1.5, mb: 1 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-                      <Typography fontWeight={700} variant="body2">{opt.name}</Typography>
-                      <Button size="small" color="error" onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          customOptions: prev.customOptions.filter((_, i) => i !== optIdx),
-                        }))
-                      }>オプション削除</Button>
+                  <Paper
+                    key={opt.optionId}
+                    variant="outlined"
+                    sx={{ p: 1.5, mb: 1 }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      mb={1}
+                    >
+                      <Typography fontWeight={700} variant="body2">
+                        {opt.name}
+                      </Typography>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            customOptions: prev.customOptions.filter(
+                              (_, i) => i !== optIdx,
+                            ),
+                          }))
+                        }
+                      >
+                        オプション削除
+                      </Button>
                     </Stack>
                     <Stack spacing={0.5} mb={1}>
                       {opt.choices.map((choice, choiceIdx) => (
-                        <Stack key={choice.choiceId} direction="row" alignItems="center" spacing={1}>
+                        <Stack
+                          key={choice.choiceId}
+                          direction="row"
+                          alignItems="center"
+                          spacing={1}
+                        >
                           <Typography variant="body2">{choice.name}</Typography>
                           {choice.additionalPrice > 0 ? (
                             <Chip
@@ -1302,28 +1525,56 @@ export default function AdminProductsPage() {
                               variant="outlined"
                             />
                           ) : (
-                            <Chip size="small" label="追加料金なし" variant="outlined" />
+                            <Chip
+                              size="small"
+                              label="追加料金なし"
+                              variant="outlined"
+                            />
                           )}
-                          <Button size="small" color="error" onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              customOptions: prev.customOptions.map((o, i) =>
-                                i === optIdx
-                                  ? { ...o, choices: o.choices.filter((_, ci) => ci !== choiceIdx) }
-                                  : o
-                              ),
-                            }))
-                          }>×</Button>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                customOptions: prev.customOptions.map((o, i) =>
+                                  i === optIdx
+                                    ? {
+                                        ...o,
+                                        choices: o.choices.filter(
+                                          (_, ci) => ci !== choiceIdx,
+                                        ),
+                                      }
+                                    : o,
+                                ),
+                              }))
+                            }
+                          >
+                            ×
+                          </Button>
                         </Stack>
                       ))}
                     </Stack>
-                    <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap">
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="flex-start"
+                      flexWrap="wrap"
+                    >
                       <TextField
                         size="small"
                         label="選択肢名"
                         placeholder="例: 赤"
-                        value={optIdx === formData.customOptions.length - 1 ? optionChoiceNameInput : ''}
-                        onChange={(e) => setOptionChoiceNameInput(e.target.value)}
+                        value={optionChoiceInputs[opt.optionId]?.name || ''}
+                        onChange={(e) =>
+                          setOptionChoiceInputs((prev) => ({
+                            ...prev,
+                            [opt.optionId]: {
+                              ...prev[opt.optionId],
+                              name: e.target.value,
+                            },
+                          }))
+                        }
                         sx={{ width: 140 }}
                         helperText=" "
                       />
@@ -1332,31 +1583,60 @@ export default function AdminProductsPage() {
                         label="追加料金・税抜(円)"
                         placeholder="0"
                         type="number"
-                        value={optIdx === formData.customOptions.length - 1 ? optionChoicePriceInput : ''}
-                        onChange={(e) => setOptionChoicePriceInput(e.target.value)}
+                        value={optionChoiceInputs[opt.optionId]?.price || ''}
+                        onChange={(e) =>
+                          setOptionChoiceInputs((prev) => ({
+                            ...prev,
+                            [opt.optionId]: {
+                              ...prev[opt.optionId],
+                              price: e.target.value,
+                            },
+                          }))
+                        }
                         inputProps={{ min: 0 }}
                         sx={{ width: 160 }}
                         helperText={
-                          optionChoicePriceInput && Number(optionChoicePriceInput) > 0
-                            ? `税込: ¥${Math.floor(Number(optionChoicePriceInput) * 1.1).toLocaleString()}`
+                          optionChoiceInputs[opt.optionId]?.price &&
+                          Number(optionChoiceInputs[opt.optionId]?.price) > 0
+                            ? `税込: ¥${Math.floor(Number(optionChoiceInputs[opt.optionId]?.price) * 1.1).toLocaleString()}`
                             : ' '
                         }
                       />
-                      <Button size="small" variant="outlined" sx={{ mt: '4px' }} onClick={() => {
-                        const name = optionChoiceNameInput.trim();
-                        if (!name) return;
-                        const price = Number(optionChoicePriceInput) || 0;
-                        setFormData((prev) => ({
-                          ...prev,
-                          customOptions: prev.customOptions.map((o, i) =>
-                            i === optIdx
-                              ? { ...o, choices: [...o.choices, { choiceId: crypto.randomUUID(), name, additionalPrice: price }] }
-                              : o
-                          ),
-                        }));
-                        setOptionChoiceNameInput('');
-                        setOptionChoicePriceInput('');
-                      }}>選択肢追加</Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{ mt: '4px' }}
+                        onClick={() => {
+                          const input = optionChoiceInputs[opt.optionId];
+                          const name = input?.name?.trim();
+                          if (!name) return;
+                          const price = Number(input?.price) || 0;
+                          setFormData((prev) => ({
+                            ...prev,
+                            customOptions: prev.customOptions.map((o, i) =>
+                              i === optIdx
+                                ? {
+                                    ...o,
+                                    choices: [
+                                      ...o.choices,
+                                      {
+                                        choiceId: crypto.randomUUID(),
+                                        name,
+                                        additionalPrice: price,
+                                      },
+                                    ],
+                                  }
+                                : o,
+                            ),
+                          }));
+                          setOptionChoiceInputs((prev) => ({
+                            ...prev,
+                            [opt.optionId]: { name: '', price: '' },
+                          }));
+                        }}
+                      >
+                        選択肢追加
+                      </Button>
                     </Stack>
                   </Paper>
                 ))}
@@ -1369,15 +1649,24 @@ export default function AdminProductsPage() {
                     onChange={(e) => setOptionNameInput(e.target.value)}
                     sx={{ width: 200 }}
                   />
-                  <Button size="small" variant="outlined" onClick={() => {
-                    const name = optionNameInput.trim();
-                    if (!name) return;
-                    setFormData((prev) => ({
-                      ...prev,
-                      customOptions: [...prev.customOptions, { optionId: crypto.randomUUID(), name, choices: [] }],
-                    }));
-                    setOptionNameInput('');
-                  }}>グループ追加</Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      const name = optionNameInput.trim();
+                      if (!name) return;
+                      setFormData((prev) => ({
+                        ...prev,
+                        customOptions: [
+                          ...prev.customOptions,
+                          { optionId: crypto.randomUUID(), name, choices: [] },
+                        ],
+                      }));
+                      setOptionNameInput('');
+                    }}
+                  >
+                    グループ追加
+                  </Button>
                 </Stack>
               </Box>
 
