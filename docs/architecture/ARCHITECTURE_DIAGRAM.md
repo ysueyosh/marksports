@@ -21,6 +21,8 @@ graph TD
   Lambda --> DB["DynamoDB<br/>データ保存"]
   Lambda --> Square["Square<br/>クレカ決済"]
   Lambda --> SES["Amazon SES<br/>メール送信"]
+  Lambda --> PayServer["EC2 決済サーバー<br/>PayPay専用・固定IP"]
+  PayServer --> PayPay["PayPay<br/>QR決済"]
 
   Lambda --> ImgS3["S3<br/>商品画像を保存"]
   ImgS3 --> ImgCF["CloudFront<br/>画像を高速配信"]
@@ -44,6 +46,8 @@ graph TD
   class Front app;
   class APIGW,Lambda,DB,SES,ImgS3,ImgCF,SSM,CW aws;
   class Square external;
+  class PayServer aws;
+  class PayPay external;
   class FrontAlt alt;
 ```
 
@@ -62,6 +66,7 @@ graph TD
 - API Gateway + Lambda: 注文やログインなど「処理の本体」。
 - DynamoDB: 会員情報、商品、注文などのデータ保管庫。
 - Square: クレジットカード決済を担当。
+- EC2 決済サーバー: PayPay QR決済専用の固定IPサーバー。LambdaからHTTPリクエストを受けてPayPay APIを呼び出す。固定IPが必要なためEC2（t4g.nano）で分離。dev: `13.159.196.52` / prod: `13.112.130.195`。
 - SES: 登録確認メールや通知メールを送る。
 - S3 + CloudFront(画像): 商品画像を保存して高速配信する。
 - SSM Parameter Store: APIキーなどの機密値を安全に管理する。

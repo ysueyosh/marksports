@@ -28,10 +28,11 @@ def get_categories(event, context):
         
         table = get_commerce_table()
         
-        # Query all categories from Commerce table
+        # Query all active categories from Commerce table
         response = table.query(
             KeyConditionExpression='PK = :pk',
-            ExpressionAttributeValues={':pk': CATEGORY_PK}
+            FilterExpression='isActive = :active',
+            ExpressionAttributeValues={':pk': CATEGORY_PK, ':active': True}
         )
         
         category_items = response.get('Items', [])
