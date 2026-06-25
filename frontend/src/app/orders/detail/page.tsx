@@ -447,7 +447,7 @@ export default function OrderDetailPage() {
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
               <Stack spacing={1.5}>
                 <Typography variant="h6" fontWeight={700}>
-                  備考
+                  商品への備考
                 </Typography>
                 <Divider />
                 <Typography whiteSpace="pre-wrap">{order.orderNote}</Typography>

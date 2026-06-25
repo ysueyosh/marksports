@@ -1406,13 +1406,16 @@ export default function CheckoutPage() {
 
                     {/* Order Note */}
                     <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                        備考（任意）
+                      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                        商品への備考（任意）
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                        サイズ調整・カスタマイズ・名入れなど、商品に関するご要望をご記入ください
                       </Typography>
                       <textarea
                         value={orderNote}
                         onChange={(e) => setOrderNote(e.target.value)}
-                        placeholder="配送に関するご要望など、何かあればご記入ください"
+                        placeholder="例：Mサイズで少しゆったりめにしてほしい、名前を入れてほしい など"
                         rows={3}
                         maxLength={500}
                         style={{
@@ -1863,7 +1866,7 @@ export default function CheckoutPage() {
                             marginBottom: '8px',
                           }}
                         >
-                          備考
+                          商品への備考
                         </h3>
                         <p style={{ fontSize: '14px', color: '#6b7280', whiteSpace: 'pre-wrap' }}>
                           {orderNote}
