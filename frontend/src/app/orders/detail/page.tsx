@@ -443,6 +443,18 @@ export default function OrderDetailPage() {
             </Stack>
           </Paper>
 
+          {order.orderNote && (
+            <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+              <Stack spacing={1.5}>
+                <Typography variant="h6" fontWeight={700}>
+                  備考
+                </Typography>
+                <Divider />
+                <Typography whiteSpace="pre-wrap">{order.orderNote}</Typography>
+              </Stack>
+            </Paper>
+          )}
+
           {/* アクション */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             {/* <Button

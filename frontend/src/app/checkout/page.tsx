@@ -112,6 +112,8 @@ export default function CheckoutPage() {
     building: '',
   });
 
+  const [orderNote, setOrderNote] = useState('');
+
   const [shippingCost, setShippingCost] = useState(0);
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
   const [shippingRegionKey, setShippingRegionKey] = useState<string | null>(
@@ -921,6 +923,7 @@ export default function CheckoutPage() {
             status: orderStatus, // Set order status after paymentMethod
             userEmail: formData.email,
             userName: formData.name,
+            orderNote: orderNote || undefined,
           });
 
           console.log('Order saved:', orderSaveResult);
@@ -1400,6 +1403,33 @@ export default function CheckoutPage() {
                         </button>
                       </div>
                     )}
+
+                    {/* Order Note */}
+                    <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                        備考（任意）
+                      </Typography>
+                      <textarea
+                        value={orderNote}
+                        onChange={(e) => setOrderNote(e.target.value)}
+                        placeholder="配送に関するご要望など、何かあればご記入ください"
+                        rows={3}
+                        maxLength={500}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          resize: 'vertical',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {orderNote.length}/500文字
+                      </Typography>
+                    </Box>
                   </Paper>
 
                   {/* Address Modal */}
@@ -1816,6 +1846,30 @@ export default function CheckoutPage() {
                         <p>{formData.phone}</p>
                       </div>
                     </div>
+
+                    {/* Order Note */}
+                    {orderNote && (
+                      <div
+                        style={{
+                          marginBottom: '20px',
+                          paddingBottom: '20px',
+                          borderBottom: '1px solid #e5e7eb',
+                        }}
+                      >
+                        <h3
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            marginBottom: '8px',
+                          }}
+                        >
+                          備考
+                        </h3>
+                        <p style={{ fontSize: '14px', color: '#6b7280', whiteSpace: 'pre-wrap' }}>
+                          {orderNote}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Order Items */}
                     {cartItems.length > 0 && (

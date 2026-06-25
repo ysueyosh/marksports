@@ -85,6 +85,7 @@ export interface AdminOrderDetail {
   cancelReason?: string;
   cancelRequestAt?: string;
   refundAt?: string;
+  orderNote?: string;
 }
 
 export interface GetAdminOrderDetailResponse {

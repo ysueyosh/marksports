@@ -92,6 +92,7 @@ export interface OrderDetail {
   cancelReason?: string;
   cancelRequestAt?: string;
   refundAt?: string;
+  orderNote?: string;
 }
 
 export interface GetOrdersResponse {
@@ -198,6 +199,7 @@ export interface SaveOrderRequest {
   status?: string;
   userEmail?: string;
   userName?: string;
+  orderNote?: string;
   items: Array<{
     productId: string;
     productName?: string;

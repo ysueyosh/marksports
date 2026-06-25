@@ -336,6 +336,15 @@ export default function AdminOrderDetailPage() {
           </Paper>
         )}
 
+        {order.orderNote && (
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h6" fontWeight={700} mb={2}>
+              備考
+            </Typography>
+            <Typography whiteSpace="pre-wrap">{order.orderNote}</Typography>
+          </Paper>
+        )}
+
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="h6" fontWeight={700} mb={2}>
             支払い方法

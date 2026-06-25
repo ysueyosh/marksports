@@ -743,8 +743,9 @@ def get_order_detail(event, context):
             "cancelReason": order_data.get('cancelReason'),
             "cancelRequestAt": order_data.get('cancelRequestAt'),
             "refundAt": order_data.get('refundAt'),
+            "orderNote": order_data.get('orderNote'),
         }
-        
+
         # ⭐ Removed old incorrect subtotal calculation
         # The subtotal is now calculated as: totalAmount - tax - shippingCost + discount + couponDiscount
         # which represents: items_sum + coupon_discount - tax - shipping
@@ -1320,6 +1321,7 @@ def save_order(event, context):
             "isCancelRequest": False,
             "userEmail": user_email,
             "userName": user_name,
+            "orderNote": body.get('orderNote'),
             "createdAt": now,
             "updatedAt": now,
             "paymentAt": now,
@@ -1450,7 +1452,8 @@ def save_order(event, context):
                         shipping_cost=shipping_cost,
                         coupon_discount=coupon_discount,
                         payment_method=payment_method,
-                        shipping_breakdown=shipping_breakdown_for_email
+                        shipping_breakdown=shipping_breakdown_for_email,
+                        order_note=body.get('orderNote')
                     )
                     
                     if confirmation_result.get('success'):
@@ -2127,8 +2130,9 @@ def get_admin_order_detail(event, context):
             "deliveryAt": order_data.get('deliveryAt'),
             "cancelRequestSent": order_data.get('isCancelRequest', False),
             "refundAt": order_data.get('refundAt'),
+            "orderNote": order_data.get('orderNote'),
         }
-        
+
         return {
             "statusCode": 200,
             "headers": {
@@ -2141,7 +2145,7 @@ def get_admin_order_detail(event, context):
                 "data": order_detail
             }, ensure_ascii=False, default=convert_decimal),
         }
-    
+
     except Exception as e:
         logger.error(f"Error getting admin order detail: {str(e)}")
         return {
