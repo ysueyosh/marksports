@@ -1404,35 +1404,6 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
-                    {/* Order Note */}
-                    <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
-                        商品への備考（任意）
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                        サイズ調整・カスタマイズ・名入れなど、商品に関するご要望をご記入ください
-                      </Typography>
-                      <textarea
-                        value={orderNote}
-                        onChange={(e) => setOrderNote(e.target.value)}
-                        placeholder="例：Mサイズで少しゆったりめにしてほしい、名前を入れてほしい など"
-                        rows={3}
-                        maxLength={500}
-                        style={{
-                          width: '100%',
-                          padding: '10px',
-                          border: '1px solid #ddd',
-                          borderRadius: '4px',
-                          fontSize: '14px',
-                          fontFamily: 'inherit',
-                          resize: 'vertical',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {orderNote.length}/500文字
-                      </Typography>
-                    </Box>
                   </Paper>
 
                   {/* Address Modal */}
@@ -1850,30 +1821,6 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    {/* Order Note */}
-                    {orderNote && (
-                      <div
-                        style={{
-                          marginBottom: '20px',
-                          paddingBottom: '20px',
-                          borderBottom: '1px solid #e5e7eb',
-                        }}
-                      >
-                        <h3
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          商品への備考
-                        </h3>
-                        <p style={{ fontSize: '14px', color: '#6b7280', whiteSpace: 'pre-wrap' }}>
-                          {orderNote}
-                        </p>
-                      </div>
-                    )}
-
                     {/* Order Items */}
                     {cartItems.length > 0 && (
                       <div
@@ -1952,6 +1899,48 @@ export default function CheckoutPage() {
                         ))}
                       </div>
                     )}
+
+                    {/* Order Note */}
+                    <div
+                      style={{
+                        marginBottom: '20px',
+                        paddingBottom: '20px',
+                        borderBottom: '1px solid #e5e7eb',
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        商品への備考（任意）
+                      </h3>
+                      <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px' }}>
+                        サイズ調整・カスタマイズ・名入れなど、商品に関するご要望をご記入ください
+                      </p>
+                      <textarea
+                        value={orderNote}
+                        onChange={(e) => setOrderNote(e.target.value)}
+                        placeholder="例：Mサイズで少しゆったりめにしてほしい、名前を入れてほしい など"
+                        rows={3}
+                        maxLength={500}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                          resize: 'vertical',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                        {orderNote.length}/500文字
+                      </span>
+                    </div>
 
                     {/* Price Summary */}
                     <div style={{ marginBottom: '20px' }}>
