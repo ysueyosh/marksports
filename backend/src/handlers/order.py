@@ -1510,7 +1510,8 @@ def save_order(event, context):
                         shipping_cost=shipping_cost,
                         shipping_breakdown=shipping_breakdown_for_email,
                         tax=tax,
-                        coupon_discount=coupon_discount
+                        coupon_discount=coupon_discount,
+                        order_note=body.get('orderNote')
                     )
                     
                     if admin_notification_result.get('success'):
