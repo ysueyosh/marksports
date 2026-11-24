@@ -5,10 +5,14 @@ import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import Link from 'next/link';
+import CategoryPicker from '@/components/CategoryPicker/CategoryPicker';
 import { useCategories } from '@/context/CategoryContext';
 import { getFeaturedProducts, Product } from '@/api/products';
 import { recordPageViewIfNeeded } from '@/utils/page-view';
 import { Box, Typography, Button, Alert } from '@mui/material';
+
+const buildCategorySearchHref = (subcategoryIds: string[]) =>
+  `/search?categories=${subcategoryIds.join('&categories=')}`;
 
 export default function Home() {
   const router = useRouter();
@@ -55,6 +59,8 @@ export default function Home() {
             4,000円以上で基本送料無料（地域別配送料は別途かかります）。
           </Alert>
         </Box>
+
+        <CategoryPicker />
 
         <Box>
           <Typography variant="h5" fontWeight={700} gutterBottom>
@@ -104,9 +110,9 @@ export default function Home() {
               </Typography>
               <Button
                 component={Link}
-                href={`/search?categories=${category.subcategories
-                  .map((sub) => sub.id)
-                  .join('&categories=')}`}
+                href={buildCategorySearchHref(
+                  category.subcategories.map((sub) => sub.id),
+                )}
               >
                 すべて見る →
               </Button>

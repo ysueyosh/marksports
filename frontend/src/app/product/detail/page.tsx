@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
+import CategoryPicker from '@/components/CategoryPicker/CategoryPicker';
 import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
 import { formatPriceIncludedTax, getPriceWithTax } from '@/utils/price';
 import { recordPageViewIfNeeded } from '@/utils/page-view';
@@ -526,6 +527,8 @@ export default function ProductDetailPage() {
             )}
           </Box>
         </Box>
+
+        <CategoryPicker />
       </Box>
     </MainLayout>
   );
