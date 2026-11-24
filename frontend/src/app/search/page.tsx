@@ -3,6 +3,7 @@
 import MainLayout from '@/components/Layout/MainLayout';
 import ProductCard from '@/components/ProductCard/ProductCard';
 import Pagination from '@/components/Pagination/Pagination';
+import CategoryPicker from '@/components/CategoryPicker/CategoryPicker';
 import Dropdown from '@/components/Common/Dropdown/Dropdown';
 import Link from 'next/link';
 import { useState, useMemo, useEffect } from 'react';
@@ -556,6 +557,10 @@ export default function SearchPage() {
             </Box>
           )}
         </Stack>
+
+        <Box sx={{ mt: '20px' }}>
+          <CategoryPicker />
+        </Box>
       </Box>
     </MainLayout>
   );
