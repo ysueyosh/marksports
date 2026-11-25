@@ -510,6 +510,7 @@ def get_orders(event, context):
                     "size": order_item.get('size', '') or parsed_size,
                     "color": order_item.get('color', '') or parsed_color,
                     "selectedOptionChoiceName": order_item.get('selectedOptionChoiceName', ''),
+                    "itemNote": order_item.get('itemNote', ''),
                 })
             
             orders.append({
@@ -704,6 +705,7 @@ def get_order_detail(event, context):
                 "size": item.get('size', '') or parsed_size,
                 "color": item.get('color', '') or parsed_color,
                 "selectedOptionChoiceName": item.get('selectedOptionChoiceName', ''),
+                "itemNote": item.get('itemNote', ''),
             })
         
         # Build order detail response
@@ -1370,6 +1372,7 @@ def save_order(event, context):
                 "size": final_size,
                 "color": final_color,
                 "selectedOptionChoiceName": item.get('selectedOptionChoiceName', ''),
+                "itemNote": item.get('itemNote', ''),
                 "createdAt": now,
                 "updatedAt": now,
             }
@@ -1426,6 +1429,7 @@ def save_order(event, context):
                         'size': item.get('size', ''),
                         'color': item.get('color', ''),
                         'selectedOptionChoiceName': item.get('selectedOptionChoiceName', ''),
+                        'itemNote': item.get('itemNote', ''),
                     })
                 
                 logger.info(f"[EMAIL] Prepared {len(email_items)} items for email")
@@ -2099,6 +2103,7 @@ def get_admin_order_detail(event, context):
                 "size": item.get('size', '') or parsed_size,
                 "color": item.get('color', '') or parsed_color,
                 "selectedOptionChoiceName": item.get('selectedOptionChoiceName', ''),
+                "itemNote": item.get('itemNote', ''),
             })
         
         # Build order detail response

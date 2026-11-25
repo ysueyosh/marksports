@@ -10,6 +10,8 @@ import { formatPriceIncludedTax, getPriceWithTax } from '@/utils/price';
 import { checkProductsExist } from '@/api/products';
 import { applyCoupon } from '@/api/coupon';
 import { estimateShipping } from '@/api/shipping';
+import CartItemNoteEditor from '@/components/ItemNote/CartItemNoteEditor';
+import { getItemNoteError } from '@/utils/item-note';
 import {
   Box,
   Typography,
@@ -37,6 +39,7 @@ export default function CartPage() {
     items: cartItems,
     removeItem,
     updateQuantity,
+    updateItemNote,
     coupon,
     setCoupon,
     fetchCart,
@@ -90,8 +93,33 @@ export default function CartPage() {
     return { restrictedItems, hasConflict, uniqueMethods, singleMethod };
   }, [cartItems]);
 
+  // 商品備考が必須なのに未入力（または文字数超過）の商品
+  const itemNoteErrors = useMemo(
+    () =>
+      cartItems
+        .map((item) => ({
+          item,
+          error: getItemNoteError(
+            item.itemNote ?? '',
+            item.itemNoteSetting,
+            item.itemNoteLabel,
+            item.itemNoteMaxLength,
+          ),
+        }))
+        .filter((entry) => entry.error),
+    [cartItems],
+  );
+
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
+
+    if (itemNoteErrors.length > 0) {
+      showSnackbar(
+        `「${itemNoteErrors[0].item.name}」の${itemNoteErrors[0].error}`,
+        'error',
+      );
+      return;
+    }
 
     if (paymentRestrictionInfo.hasConflict) {
       showSnackbar('決済方法が競合しています。競合する商品をカートから削除してください。', 'error');
@@ -433,6 +461,16 @@ export default function CartPage() {
                               )}
                             </Stack>
                           )}
+                          <CartItemNoteEditor
+                            key={item.id}
+                            itemNote={item.itemNote}
+                            itemNoteSetting={item.itemNoteSetting}
+                            itemNoteLabel={item.itemNoteLabel}
+                            itemNoteMaxLength={item.itemNoteMaxLength}
+                            onSave={(note) =>
+                              updateItemNote(String(item.id), item.quantity, note)
+                            }
+                          />
                         </Box>
 
                         <Stack
@@ -610,11 +648,21 @@ export default function CartPage() {
                 </Stack>
 
                 <Stack spacing={1.5}>
+                  {itemNoteErrors.length > 0 && (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>
+                      商品備考が未入力の商品があります。各商品の備考欄を入力してください。
+                    </Alert>
+                  )}
                   <Button
                     variant="contained"
                     size="large"
                     onClick={handleCheckout}
-                    disabled={cartItems.length === 0 || isCheckingOut || paymentRestrictionInfo.hasConflict}
+                    disabled={
+                      cartItems.length === 0 ||
+                      isCheckingOut ||
+                      paymentRestrictionInfo.hasConflict ||
+                      itemNoteErrors.length > 0
+                    }
                   >
                     {isCheckingOut ? '確認中...' : 'レジへ進む'}
                   </Button>

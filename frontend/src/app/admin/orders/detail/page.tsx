@@ -305,6 +305,26 @@ export default function AdminOrderDetailPage() {
                             ))}
                           </Stack>
                         )}
+                        {item.itemNote && (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              mt: 0.75,
+                              p: 1,
+                              bgcolor: 'grey.50',
+                              border: '1px solid',
+                              borderColor: 'grey.200',
+                              borderRadius: 1,
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            <Box component="span" fontWeight={700}>
+                              商品備考：
+                            </Box>
+                            {item.itemNote}
+                          </Typography>
+                        )}
                       </Box>
                     </TableCell>
                     <TableCell align="right">
@@ -339,7 +359,7 @@ export default function AdminOrderDetailPage() {
         {order.orderNote && (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6" fontWeight={700} mb={2}>
-              商品への備考
+              注文備考
             </Typography>
             <Typography whiteSpace="pre-wrap">{order.orderNote}</Typography>
           </Paper>

@@ -13,6 +13,7 @@ import CheckoutLayout from '@/components/Layout/CheckoutLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { usePaymentMethod } from '@/context/PaymentMethodContext';
+import { getItemNoteError, getItemNoteLabel } from '@/utils/item-note';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { getPriceWithTax } from '@/utils/price';
 import {
@@ -707,6 +708,22 @@ export default function CheckoutPage() {
   };
 
   const handlePayment = async (sourceId?: string) => {
+    // 商品備考の必須チェック（カート投入後に商品設定が変わった場合に備えて決済前にも確認）
+    const itemNoteInvalid = cartItems.find((item) =>
+      getItemNoteError(
+        item.itemNote ?? '',
+        item.itemNoteSetting,
+        item.itemNoteLabel,
+        item.itemNoteMaxLength,
+      ),
+    );
+    if (itemNoteInvalid) {
+      setPaymentError(
+        `「${itemNoteInvalid.name}」の${getItemNoteLabel(itemNoteInvalid.itemNoteLabel)}が未入力です。カートに戻って入力してください。`,
+      );
+      return;
+    }
+
     setIsProcessing(true);
     setPaymentError(null);
 
@@ -830,6 +847,7 @@ export default function CheckoutPage() {
               ...(finalSize ? { size: finalSize } : {}),
               ...(finalColor ? { color: finalColor } : {}),
               ...(item.selectedOptionChoiceName ? { selectedOptionChoiceName: item.selectedOptionChoiceName } : {}),
+              ...(item.itemNote ? { itemNote: item.itemNote } : {}),
             };
           });
 
@@ -1888,6 +1906,25 @@ export default function CheckoutPage() {
                                   ))}
                                 </Box>
                               )}
+                              {item.itemNote && (
+                                <div
+                                  style={{
+                                    marginTop: '6px',
+                                    padding: '6px 8px',
+                                    background: '#f9fafb',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-word',
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 600 }}>
+                                    {getItemNoteLabel(item.itemNoteLabel)}：
+                                  </span>
+                                  {item.itemNote}
+                                </div>
+                              )}
                             </div>
                             <span>
                               ¥
@@ -1915,15 +1952,15 @@ export default function CheckoutPage() {
                           marginBottom: '4px',
                         }}
                       >
-                        商品への備考（任意）
+                        注文備考（任意）
                       </h3>
                       <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px' }}>
-                        サイズ調整・カスタマイズ・名入れなど、商品に関するご要望をご記入ください
+                        ご注文全体に関するご要望をご記入ください
                       </p>
                       <textarea
                         value={orderNote}
                         onChange={(e) => setOrderNote(e.target.value)}
-                        placeholder="例：Mサイズで少しゆったりめにしてほしい、名前を入れてほしい など"
+                        placeholder="例：配送前に連絡がほしい など"
                         rows={3}
                         maxLength={500}
                         style={{

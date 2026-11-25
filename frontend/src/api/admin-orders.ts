@@ -75,6 +75,8 @@ export interface AdminOrderDetail {
     size?: string;
     color?: string;
     selectedOptionChoiceName?: string;
+    /** 商品備考 */
+    itemNote?: string;
   }>;
   paymentAt?: string;
   deliveryAt?: string;

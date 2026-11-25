@@ -16,6 +16,12 @@ export interface CartItem {
   minQuantity?: number | null;
   maxQuantity?: number | null;
   paymentMethodRestriction?: string | null;
+  /** 商品備考（お客様の入力内容） */
+  itemNote?: string;
+  /** 商品備考欄の設定: null=なし / optional=任意 / required=必須 */
+  itemNoteSetting?: 'optional' | 'required' | null;
+  itemNoteLabel?: string | null;
+  itemNoteMaxLength?: number | null;
 }
 
 export interface CartResponse {
@@ -97,6 +103,7 @@ export const apiAddToCart = async (
   selectedOptionChoiceId?: string,
   selectedOptionChoiceName?: string,
   additionalPrice?: number,
+  itemNote?: string,
 ): Promise<CartItem> => {
   try {
     // Validate inputs
@@ -124,6 +131,7 @@ export const apiAddToCart = async (
         ...(selectedOptionChoiceId ? { selectedOptionChoiceId } : {}),
         ...(selectedOptionChoiceName ? { selectedOptionChoiceName } : {}),
         ...(additionalPrice ? { additionalPrice } : {}),
+        ...(itemNote ? { itemNote } : {}),
       },
       {
         headers: {
@@ -166,6 +174,7 @@ export const apiUpdateCartItem = async (
   userIdentifier: string,
   productId: string,
   quantity: number,
+  itemNote?: string,
 ): Promise<CartItem> => {
   try {
     // Validate inputs
@@ -187,6 +196,8 @@ export const apiUpdateCartItem = async (
       `/cart/${encodeURIComponent(productId)}`,
       {
         quantity,
+        // itemNote を渡したときだけ商品備考を更新する（空文字は備考の削除）
+        ...(itemNote !== undefined ? { itemNote } : {}),
       },
       {
         headers: {

@@ -283,6 +283,26 @@ export default function OrderDetailPage() {
                                 ))}
                               </Stack>
                             )}
+                            {item.itemNote && (
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  mt: 0.75,
+                                  p: 1,
+                                  bgcolor: 'grey.50',
+                                  border: '1px solid',
+                                  borderColor: 'grey.200',
+                                  borderRadius: 1,
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                <Box component="span" fontWeight={700}>
+                                  商品備考：
+                                </Box>
+                                {item.itemNote}
+                              </Typography>
+                            )}
                           </Box>
                         </TableCell>
                         <TableCell align="right">
@@ -447,7 +467,7 @@ export default function OrderDetailPage() {
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
               <Stack spacing={1.5}>
                 <Typography variant="h6" fontWeight={700}>
-                  商品への備考
+                  注文備考
                 </Typography>
                 <Divider />
                 <Typography whiteSpace="pre-wrap">{order.orderNote}</Typography>

@@ -30,6 +30,12 @@ export interface CartItem {
   minQuantity?: number | null;
   maxQuantity?: number | null;
   paymentMethodRestriction?: string | null;
+  /** 商品備考（お客様の入力内容） */
+  itemNote?: string;
+  /** 商品備考欄の設定: null=なし / optional=任意 / required=必須 */
+  itemNoteSetting?: 'optional' | 'required' | null;
+  itemNoteLabel?: string | null;
+  itemNoteMaxLength?: number | null;
 }
 
 export interface AppliedCoupon {
@@ -56,9 +62,15 @@ interface CartStore {
     selectedOptionChoiceId?: string,
     selectedOptionChoiceName?: string,
     additionalPrice?: number,
+    itemNote?: string,
   ) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
+  updateItemNote: (
+    itemId: string,
+    quantity: number,
+    itemNote: string,
+  ) => Promise<void>;
   fetchCart: () => Promise<void>;
   setCoupon: (coupon: AppliedCoupon | null) => void;
   clear: () => Promise<void>;
@@ -87,13 +99,13 @@ export const useCartStore = create<CartStore>()((set, get) => ({
 
   setLoading: (loading) => set({ isLoading: loading }),
 
-  addItem: async (productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice) => {
+  addItem: async (productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice, itemNote) => {
     const { userIdentifier } = get();
     if (!userIdentifier) return;
 
     try {
       set({ isLoading: true });
-      await apiAddToCart(userIdentifier, productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice);
+      await apiAddToCart(userIdentifier, productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice, itemNote);
       // Refresh cart
       await get().fetchCart();
     } finally {
@@ -123,6 +135,20 @@ export const useCartStore = create<CartStore>()((set, get) => ({
       set({ isLoading: true });
       await apiUpdateCartItem(userIdentifier, productId, quantity);
       // Refresh cart
+      await get().fetchCart();
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  updateItemNote: async (itemId, quantity, itemNote) => {
+    const { userIdentifier } = get();
+    if (!userIdentifier) return;
+
+    try {
+      set({ isLoading: true });
+      await apiUpdateCartItem(userIdentifier, itemId, quantity, itemNote);
+      // 備考が変わると行のIDも変わるため再取得する
       await get().fetchCart();
     } finally {
       set({ isLoading: false });
@@ -213,6 +239,7 @@ export function useCart() {
     addItem: storeAddItem,
     removeItem: storeRemoveItem,
     updateQuantity: storeUpdateQuantity,
+    updateItemNote: storeUpdateItemNote,
     setCoupon,
     clear: storeClear,
     fetchCart,
@@ -231,6 +258,7 @@ export function useCart() {
       selectedOptionChoiceName?: string,
       additionalPrice?: number,
       paymentMethodRestriction?: string | null,
+      itemNote?: string,
     ) => {
       // 決済方法競合チェック: カート内に異なる制限の商品があればブロック
       if (paymentMethodRestriction) {
@@ -249,7 +277,7 @@ export function useCart() {
       }
 
       try {
-        await storeAddItem(productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice);
+        await storeAddItem(productId, quantity, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice, itemNote);
         snackbar.show('カートに追加しました', 'success');
       } catch (error) {
         snackbar.show('カートへの追加に失敗しました', 'error');
@@ -282,6 +310,25 @@ export function useCart() {
     [storeUpdateQuantity, snackbar],
   );
 
+  const updateItemNote = useCallback(
+    async (itemId: string, quantity: number, itemNote: string) => {
+      try {
+        await storeUpdateItemNote(itemId, quantity, itemNote);
+        snackbar.show('商品備考を更新しました', 'info');
+        return true;
+      } catch (error) {
+        snackbar.show(
+          error instanceof Error && error.message
+            ? error.message
+            : '商品備考の更新に失敗しました',
+          'error',
+        );
+        return false;
+      }
+    },
+    [storeUpdateItemNote, snackbar],
+  );
+
   const clear = useCallback(async () => {
     try {
       await storeClear();
@@ -297,6 +344,7 @@ export function useCart() {
     addItem,
     removeItem,
     updateQuantity,
+    updateItemNote,
     setCoupon,
     clear,
     fetchCart,

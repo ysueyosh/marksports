@@ -59,6 +59,10 @@ interface Product {
   minQuantity?: number | null;
   maxQuantity?: number | null;
   paymentMethodRestriction?: string | null;
+  /** 商品備考欄: null=なし / optional=任意 / required=必須 */
+  itemNoteSetting?: 'optional' | 'required' | null;
+  itemNoteLabel?: string | null;
+  itemNoteMaxLength?: number | null;
 }
 
 // カテゴリー構造定義
@@ -111,6 +115,9 @@ export default function AdminProductsPage() {
     minQuantity: '' as string,
     maxQuantity: '' as string,
     paymentMethodRestriction: '' as string,
+    itemNoteSetting: '' as '' | 'optional' | 'required',
+    itemNoteLabel: '' as string,
+    itemNoteMaxLength: '' as string,
   });
   const [productErrors, setProductErrors] = useState<Record<string, string>>(
     {},
@@ -246,6 +253,9 @@ export default function AdminProductsPage() {
               minQuantity: p.minQuantity ?? null,
               maxQuantity: p.maxQuantity ?? null,
               paymentMethodRestriction: p.paymentMethodRestriction ?? null,
+              itemNoteSetting: p.itemNoteSetting ?? null,
+              itemNoteLabel: p.itemNoteLabel ?? null,
+              itemNoteMaxLength: p.itemNoteMaxLength ?? null,
             };
           },
         );
@@ -333,6 +343,9 @@ export default function AdminProductsPage() {
       minQuantity: '',
       maxQuantity: '',
       paymentMethodRestriction: '',
+      itemNoteSetting: '',
+      itemNoteLabel: '',
+      itemNoteMaxLength: '',
     });
     setProductErrors({});
     setEditingId(null);
@@ -396,6 +409,12 @@ export default function AdminProductsPage() {
         maxQuantity:
           formData.maxQuantity !== '' ? Number(formData.maxQuantity) : null,
         paymentMethodRestriction: formData.paymentMethodRestriction || null,
+        itemNoteSetting: formData.itemNoteSetting || null,
+        itemNoteLabel: formData.itemNoteLabel.trim() || null,
+        itemNoteMaxLength:
+          formData.itemNoteMaxLength !== ''
+            ? Number(formData.itemNoteMaxLength)
+            : null,
       };
 
       if (editingProduct?.productId) {
@@ -435,6 +454,12 @@ export default function AdminProductsPage() {
         maxQuantity:
           formData.maxQuantity !== '' ? Number(formData.maxQuantity) : null,
         paymentMethodRestriction: formData.paymentMethodRestriction || null,
+        itemNoteSetting: formData.itemNoteSetting || null,
+        itemNoteLabel: formData.itemNoteLabel.trim() || null,
+        itemNoteMaxLength:
+          formData.itemNoteMaxLength !== ''
+            ? Number(formData.itemNoteMaxLength)
+            : null,
       };
 
       console.log('Creating product with request:', createRequest);
@@ -488,6 +513,12 @@ export default function AdminProductsPage() {
       maxQuantity:
         product.maxQuantity != null ? String(product.maxQuantity) : '',
       paymentMethodRestriction: product.paymentMethodRestriction || '',
+      itemNoteSetting: product.itemNoteSetting || '',
+      itemNoteLabel: product.itemNoteLabel || '',
+      itemNoteMaxLength:
+        product.itemNoteMaxLength != null
+          ? String(product.itemNoteMaxLength)
+          : '',
     });
     setEditingId(product.id);
     setEditingProduct(product);
@@ -1462,6 +1493,80 @@ export default function AdminProductsPage() {
                     <MenuItem value="google_pay">Google Payのみ</MenuItem>
                   </Select>
                 </FormControl>
+              </Box>
+
+              {/* 商品備考欄 */}
+              <Box>
+                <Typography variant="subtitle2" mb={0.5}>
+                  商品備考欄
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mb={1}
+                >
+                  カートに入れるときに、お客様が自由に記入できる欄を表示します（1商品につき1つ）
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={formData.itemNoteSetting}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        itemNoteSetting: e.target.value as
+                          | ''
+                          | 'optional'
+                          | 'required',
+                      }))
+                    }
+                    displayEmpty
+                  >
+                    <MenuItem value="">なし</MenuItem>
+                    <MenuItem value="optional">任意（記入しなくても購入可）</MenuItem>
+                    <MenuItem value="required">必須（記入しないと購入不可）</MenuItem>
+                  </Select>
+                </FormControl>
+                {formData.itemNoteSetting && (
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={2}
+                    mt={1.5}
+                  >
+                    <TextField
+                      size="small"
+                      label="見出し"
+                      value={formData.itemNoteLabel}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          itemNoteLabel: e.target.value,
+                        }))
+                      }
+                      placeholder="空欄の場合は「商品備考」"
+                      inputProps={{ maxLength: 50 }}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="文字数上限"
+                      value={formData.itemNoteMaxLength}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          itemNoteMaxLength: e.target.value,
+                        }))
+                      }
+                      placeholder="200"
+                      inputProps={{ min: 1 }}
+                      InputLabelProps={{ shrink: true }}
+                      helperText="空欄の場合は200文字"
+                      sx={{ width: { xs: '100%', sm: 160 } }}
+                    />
+                  </Stack>
+                )}
               </Box>
 
               {/* カスタムオプション */}

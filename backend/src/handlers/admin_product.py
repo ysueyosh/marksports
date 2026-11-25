@@ -24,6 +24,30 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
+def normalize_item_note_settings(body):
+    """
+    商品備考（itemNote）の設定値を正規化する
+    - itemNoteSetting: None（備考欄なし） / 'optional'（任意） / 'required'（必須）
+    - itemNoteLabel: 欄の見出し（空欄なら None → 画面では「商品備考」）
+    - itemNoteMaxLength: 文字数上限（空欄なら None → 200文字）
+    """
+    result = {}
+    if 'itemNoteSetting' in body:
+        setting = body.get('itemNoteSetting')
+        result['itemNoteSetting'] = setting if setting in ('optional', 'required') else None
+    if 'itemNoteLabel' in body:
+        label = (body.get('itemNoteLabel') or '').strip()[:50]
+        result['itemNoteLabel'] = label or None
+    if 'itemNoteMaxLength' in body:
+        raw = body.get('itemNoteMaxLength')
+        try:
+            value = int(raw) if raw not in (None, '') else None
+        except (TypeError, ValueError):
+            value = None
+        result['itemNoteMaxLength'] = value if value and value > 0 else None
+    return result
+
+
 @require_admin_auth
 def create_product(event, context):
     """
@@ -143,6 +167,11 @@ def create_product(event, context):
             product['minQuantity'] = int(body['minQuantity'])
         if body.get('maxQuantity') is not None:
             product['maxQuantity'] = int(body['maxQuantity'])
+
+        # 商品備考の設定（None の項目は保存しない）
+        for key, value in normalize_item_note_settings(body).items():
+            if value is not None:
+                product[key] = value
         
         # Save to DynamoDB
         table.put_item(Item=product)
@@ -349,6 +378,12 @@ def update_product(event, context):
         if 'paymentMethodRestriction' in body:
             update_parts.append('paymentMethodRestriction = :pmRestriction')
             expr_values[':pmRestriction'] = body['paymentMethodRestriction']
+
+        # 商品備考の設定
+        for key, value in normalize_item_note_settings(body).items():
+            placeholder = f':{key}'
+            update_parts.append(f'{key} = {placeholder}')
+            expr_values[placeholder] = value
 
         if 'minQuantity' in body:
             update_parts.append('minQuantity = :minQty')

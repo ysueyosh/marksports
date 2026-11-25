@@ -15,6 +15,8 @@ interface Props {
   minQuantity?: number | null;
   maxQuantity?: number | null;
   paymentMethodRestriction?: string | null;
+  /** 商品備考（お客様の入力内容） */
+  itemNote?: string;
   disabled?: boolean;
 }
 
@@ -31,6 +33,7 @@ export default function ClientAddToCart({
   minQuantity,
   maxQuantity,
   paymentMethodRestriction,
+  itemNote,
   disabled,
 }: Props) {
   return (
@@ -47,6 +50,7 @@ export default function ClientAddToCart({
       minQuantity={minQuantity}
       maxQuantity={maxQuantity}
       paymentMethodRestriction={paymentMethodRestriction}
+      itemNote={itemNote}
       disabled={disabled}
     />
   );

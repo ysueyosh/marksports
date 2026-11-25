@@ -43,6 +43,10 @@ export interface ProductDetail extends Product {
   minQuantity?: number | null;
   maxQuantity?: number | null;
   paymentMethodRestriction?: string | null;
+  /** 商品備考欄の設定: null=なし / optional=任意 / required=必須 */
+  itemNoteSetting?: 'optional' | 'required' | null;
+  itemNoteLabel?: string | null;
+  itemNoteMaxLength?: number | null;
 }
 
 export interface FeaturedProductsResponse {

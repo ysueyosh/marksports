@@ -38,6 +38,8 @@ export interface OrderItemData {
   size?: string;
   color?: string;
   selectedOptionChoiceName?: string;
+  /** 商品備考 */
+  itemNote?: string;
 }
 
 export interface Address {
@@ -208,6 +210,8 @@ export interface SaveOrderRequest {
     totalAmount: number;
     size?: string;
     color?: string;
+    selectedOptionChoiceName?: string;
+    itemNote?: string;
   }>;
 }
 

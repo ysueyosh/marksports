@@ -11,6 +11,12 @@ import ClientAddToCart from '@/components/AddToCartButton/ClientAddToCart';
 import { formatPriceIncludedTax, getPriceWithTax } from '@/utils/price';
 import { recordPageViewIfNeeded } from '@/utils/page-view';
 import {
+  getItemNoteError,
+  getItemNoteLabel,
+  getItemNoteMaxLength,
+  isItemNoteEnabled,
+} from '@/utils/item-note';
+import {
   getProductDetail,
   ProductDetail,
   ProductOption,
@@ -33,6 +39,7 @@ import {
   Chip,
   Divider,
   Alert,
+  TextField,
 } from '@mui/material';
 
 export default function ProductDetailPage() {
@@ -50,6 +57,7 @@ export default function ProductDetailPage() {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [selectedOptionChoices, setSelectedOptionChoices] = useState<Record<string, string>>({});
+  const [itemNote, setItemNote] = useState<string>('');
   const { conditions } = useSearch();
   const { show: showSnackbar } = useSnackbar();
 
@@ -103,6 +111,7 @@ export default function ProductDetailPage() {
           setSelectedSize('');
           setSelectedColor('');
           setSelectedOptionChoices({});
+          setItemNote('');
         } else {
           setError('商品情報を取得できませんでした');
           showSnackbar('商品情報を取得できませんでした', 'error');
@@ -425,6 +434,36 @@ export default function ProductDetailPage() {
                   </>
                 )}
 
+                {/* 商品備考（商品ごとに なし／任意／必須 を管理画面で設定） */}
+                {isItemNoteEnabled(product.itemNoteSetting) && (
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                      {getItemNoteLabel(product.itemNoteLabel)}{' '}
+                      <Typography
+                        component="span"
+                        color={product.itemNoteSetting === 'required' ? 'error' : 'text.secondary'}
+                        variant="caption"
+                      >
+                        {product.itemNoteSetting === 'required' ? '*必須' : '任意'}
+                      </Typography>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      multiline
+                      minRows={2}
+                      size="small"
+                      value={itemNote}
+                      onChange={(e) => setItemNote(e.target.value)}
+                      inputProps={{
+                        maxLength: getItemNoteMaxLength(product.itemNoteMaxLength),
+                        'aria-label': getItemNoteLabel(product.itemNoteLabel),
+                      }}
+                      helperText={`${itemNote.length}/${getItemNoteMaxLength(product.itemNoteMaxLength)}文字`}
+                      FormHelperTextProps={{ sx: { textAlign: 'right', mx: 0 } }}
+                    />
+                  </Box>
+                )}
+
                 {(() => {
                   const missingItems: string[] = [];
                   if (product.sizes && product.sizes.length > 0 && !selectedSize) missingItems.push('サイズ');
@@ -434,11 +473,17 @@ export default function ProductDetailPage() {
                       if (!selectedOptionChoices[opt.optionId]) missingItems.push(opt.name);
                     });
                   }
-                  return missingItems.length > 0 ? (
+                  const itemNoteError =
+                    product.itemNoteSetting === 'required' && !itemNote.trim()
+                      ? `${getItemNoteLabel(product.itemNoteLabel)}を入力してください`
+                      : null;
+                  if (missingItems.length === 0 && !itemNoteError) return null;
+                  return (
                     <Alert severity="warning" sx={{ py: 0.5 }}>
-                      {missingItems.join('・')}を選択してください
+                      {missingItems.length > 0 && <div>{missingItems.join('・')}を選択してください</div>}
+                      {itemNoteError && <div>{itemNoteError}</div>}
                     </Alert>
-                  ) : null;
+                  );
                 })()}
 
                 {(() => {
@@ -464,6 +509,9 @@ export default function ProductDetailPage() {
 
                   const isOptionRequired = product.customOptions && product.customOptions.length > 0;
                   const allOptionsSelected = !isOptionRequired || product.customOptions!.every((opt) => selectedOptionChoices[opt.optionId]);
+                  const itemNoteInvalid = Boolean(
+                    getItemNoteError(itemNote, product.itemNoteSetting, product.itemNoteLabel, product.itemNoteMaxLength),
+                  );
 
                   return (
                     <ClientAddToCart
@@ -479,10 +527,12 @@ export default function ProductDetailPage() {
                       minQuantity={product.minQuantity}
                       maxQuantity={product.maxQuantity}
                       paymentMethodRestriction={product.paymentMethodRestriction}
+                      itemNote={isItemNoteEnabled(product.itemNoteSetting) ? itemNote.trim() || undefined : undefined}
                       disabled={
                         (product.sizes != null && product.sizes.length > 0 && !selectedSize) ||
                         (product.colors != null && product.colors.length > 0 && !selectedColor) ||
-                        !allOptionsSelected
+                        !allOptionsSelected ||
+                        itemNoteInvalid
                       }
                     />
                   );

@@ -27,6 +27,8 @@ interface Props {
   minQuantity?: number | null;
   maxQuantity?: number | null;
   paymentMethodRestriction?: string | null;
+  /** 商品備考（お客様の入力内容） */
+  itemNote?: string;
   disabled?: boolean;
 }
 
@@ -43,6 +45,7 @@ export default function AddToCartButton({
   minQuantity,
   maxQuantity,
   paymentMethodRestriction,
+  itemNote,
   disabled: externalDisabled,
 }: Props) {
   const min = minQuantity ?? 1;
@@ -69,7 +72,7 @@ export default function AddToCartButton({
         return;
       }
 
-      await addItem(String(id), qty, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice, paymentMethodRestriction);
+      await addItem(String(id), qty, size, color, selectedOptionChoiceId, selectedOptionChoiceName, additionalPrice, paymentMethodRestriction, itemNote);
       setQty(min);
     } catch (err) {
       console.error('Failed to add to cart:', err);

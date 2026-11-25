@@ -3,6 +3,7 @@ Shopping cart handler for DB-based cart management
 """
 
 import json
+import hashlib
 import logging
 from datetime import datetime
 from decimal import Decimal
@@ -14,6 +15,61 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # DynamoDB (utilsで一元管理)
+
+# 商品備考（itemNote）
+ITEM_NOTE_DEFAULT_MAX_LENGTH = 200
+ITEM_NOTE_SETTINGS = ('optional', 'required')
+
+
+def build_cart_item_key(product_id, size='', color='', option_choice_id='', item_note=''):
+    """
+    カート行のキーを作る。
+    商品備考がある場合は、本文ではなくハッシュをキーに含める
+    （注文保存時に '|' 区切りでキーを解析しているため、本文の '|' でキーが壊れないようにする）
+    """
+    if item_note:
+        note_hash = hashlib.sha256(item_note.encode('utf-8')).hexdigest()[:12]
+        return f'{product_id}|{size or ""}|{color or ""}|{option_choice_id or ""}|n:{note_hash}'
+    if option_choice_id:
+        return f'{product_id}|{size or ""}|{color or ""}|{option_choice_id}'
+    if size or color:
+        return f'{product_id}|{size}|{color}'
+    return product_id
+
+
+def validate_item_note(product, item_note):
+    """
+    商品の備考欄設定に従って商品備考を検証する。
+    Returns: (正規化した備考, エラーメッセージ or None)
+    """
+    setting = product.get('itemNoteSetting')
+    if setting not in ITEM_NOTE_SETTINGS:
+        # 備考欄のない商品は備考を受け付けない
+        return '', None
+    note = (item_note or '').strip()
+    max_length = int(product.get('itemNoteMaxLength') or ITEM_NOTE_DEFAULT_MAX_LENGTH)
+    label = product.get('itemNoteLabel') or '商品備考'
+    if setting == 'required' and not note:
+        return note, f'{label}を入力してください'
+    if len(note) > max_length:
+        return note, f'{label}は{max_length}文字以内で入力してください'
+    return note, None
+
+
+def _error_response(status_code, message):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+        "body": json.dumps({
+            "success": False,
+            "message": message,
+            "data": None
+        }, ensure_ascii=False),
+    }
+
 
 class DecimalEncoder(json.JSONEncoder):
     """Helper class to convert DynamoDB Decimal type to JSON"""
@@ -140,6 +196,10 @@ def get_cart(event, context):
                     'minQuantity': product.get('minQuantity'),
                     'maxQuantity': product.get('maxQuantity'),
                     'paymentMethodRestriction': product.get('paymentMethodRestriction'),
+                    'itemNote': item.get('itemNote', ''),
+                    'itemNoteSetting': product.get('itemNoteSetting'),
+                    'itemNoteLabel': product.get('itemNoteLabel'),
+                    'itemNoteMaxLength': product.get('itemNoteMaxLength'),
                 }
                 cart_items.append(cart_item)
             except Exception as e:
@@ -222,6 +282,7 @@ def add_to_cart(event, context):
         selected_option_choice_id = body.get('selectedOptionChoiceId', '')
         selected_option_choice_name = body.get('selectedOptionChoiceName', '')
         additional_price = body.get('additionalPrice', 0)
+        item_note = body.get('itemNote', '')
         
         if not product_id or quantity < 1:
             return {
@@ -237,13 +298,20 @@ def add_to_cart(event, context):
                 }, ensure_ascii=False),
             }
         
-        # Build item_key: includes size, color, and optionChoiceId for uniqueness
-        if selected_option_choice_id:
-            item_key = f'{product_id}|{size or ""}|{color or ""}|{selected_option_choice_id}'
-        elif size or color:
-            item_key = f'{product_id}|{size}|{color}'
-        else:
-            item_key = product_id
+        # 商品備考を商品の設定に従って検証
+        from src.utils.dynamodb import get_commerce_table
+        product = get_commerce_table().get_item(
+            Key={'PK': 'PRODUCT', 'SK': f'PRODUCT#{product_id}'}
+        ).get('Item', {})
+        item_note, note_error = validate_item_note(product, item_note)
+        if note_error:
+            return _error_response(400, note_error)
+
+        # Build item_key: includes size, color, optionChoiceId and item note for uniqueness
+        # 同じ商品でも商品備考が異なる場合は別の行として扱う
+        item_key = build_cart_item_key(
+            product_id, size, color, selected_option_choice_id, item_note
+        )
         
         # Check if product (with same variant) already in cart
         table = get_cart_table()
@@ -292,6 +360,8 @@ def add_to_cart(event, context):
             if additional_price:
                 from decimal import Decimal as _Decimal
                 new_item['additionalPrice'] = _Decimal(str(additional_price))
+            if item_note:
+                new_item['itemNote'] = item_note
             table.put_item(Item=new_item)
         
         return {
@@ -392,19 +462,77 @@ def update_cart_item(event, context):
         
         table = get_cart_table()
         now = datetime.utcnow().isoformat() + 'Z'
-        
-        table.update_item(
-            Key={
-                'PK': f'CART#{cart_identifier}',
-                'SK': f'CART#{item_key}'
-            },
-            UpdateExpression='SET quantity = :qty, updatedAt = :updatedAt',
-            ExpressionAttributeValues={
-                ':qty': quantity,
-                ':updatedAt': now
-            }
-        )
-        
+        new_item_key = item_key
+
+        if 'itemNote' in body:
+            # 商品備考の変更: 行のキーが変わるため、行を作り直す
+            existing = table.get_item(
+                Key={'PK': f'CART#{cart_identifier}', 'SK': f'CART#{item_key}'}
+            ).get('Item')
+            if not existing:
+                return _error_response(404, 'カートに商品が見つかりません')
+
+            from src.utils.dynamodb import get_commerce_table
+            product_id = existing.get('productId')
+            product = get_commerce_table().get_item(
+                Key={'PK': 'PRODUCT', 'SK': f'PRODUCT#{product_id}'}
+            ).get('Item', {})
+            item_note, note_error = validate_item_note(product, body.get('itemNote'))
+            if note_error:
+                return _error_response(400, note_error)
+
+            new_item_key = build_cart_item_key(
+                product_id,
+                existing.get('size', ''),
+                existing.get('color', ''),
+                existing.get('selectedOptionChoiceId', ''),
+                item_note,
+            )
+
+            if new_item_key != item_key:
+                target = table.get_item(
+                    Key={'PK': f'CART#{cart_identifier}', 'SK': f'CART#{new_item_key}'}
+                ).get('Item')
+                if target:
+                    # 同じ内容の行が既にあれば数量をまとめる
+                    table.update_item(
+                        Key={'PK': f'CART#{cart_identifier}', 'SK': f'CART#{new_item_key}'},
+                        UpdateExpression='SET quantity = :qty, updatedAt = :updatedAt',
+                        ExpressionAttributeValues={
+                            ':qty': int(target.get('quantity', 0)) + quantity,
+                            ':updatedAt': now,
+                        },
+                    )
+                else:
+                    new_row = {k: v for k, v in existing.items() if k != 'itemNote'}
+                    new_row['SK'] = f'CART#{new_item_key}'
+                    new_row['quantity'] = quantity
+                    new_row['updatedAt'] = now
+                    if item_note:
+                        new_row['itemNote'] = item_note
+                    table.put_item(Item=new_row)
+                table.delete_item(
+                    Key={'PK': f'CART#{cart_identifier}', 'SK': f'CART#{item_key}'}
+                )
+            else:
+                table.update_item(
+                    Key={'PK': f'CART#{cart_identifier}', 'SK': f'CART#{item_key}'},
+                    UpdateExpression='SET quantity = :qty, updatedAt = :updatedAt',
+                    ExpressionAttributeValues={':qty': quantity, ':updatedAt': now},
+                )
+        else:
+            table.update_item(
+                Key={
+                    'PK': f'CART#{cart_identifier}',
+                    'SK': f'CART#{item_key}'
+                },
+                UpdateExpression='SET quantity = :qty, updatedAt = :updatedAt',
+                ExpressionAttributeValues={
+                    ':qty': quantity,
+                    ':updatedAt': now
+                }
+            )
+
         return {
             "statusCode": 200,
             "headers": {
@@ -415,7 +543,7 @@ def update_cart_item(event, context):
                 "success": True,
                 "message": "カートを更新しました",
                 "data": {
-                    "itemKey": item_key,
+                    "itemKey": new_item_key,
                     "quantity": quantity,
                 }
             }, ensure_ascii=False),

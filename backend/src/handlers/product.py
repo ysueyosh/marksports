@@ -223,6 +223,9 @@ def get_product_detail(event, context):
             'minQuantity': product.get('minQuantity'),
             'maxQuantity': product.get('maxQuantity'),
             'paymentMethodRestriction': product.get('paymentMethodRestriction'),
+            'itemNoteSetting': product.get('itemNoteSetting'),
+            'itemNoteLabel': product.get('itemNoteLabel'),
+            'itemNoteMaxLength': product.get('itemNoteMaxLength'),
         }
         
         return {
