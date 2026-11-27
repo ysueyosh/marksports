@@ -243,7 +243,14 @@ export default function ProductDetailPage() {
           </Box>
 
           <Box display="flex" flexDirection="column" gap={2}>
-            <Typography variant="h4" fontWeight={700}>
+            <Typography
+              variant="h4"
+              fontWeight={700}
+              sx={{
+                fontSize: { xs: '1.125rem', sm: '1.5rem', md: '2.125rem' },
+                lineHeight: { xs: 1.4, md: 1.235 },
+              }}
+            >
               {product.name}
             </Typography>
 
